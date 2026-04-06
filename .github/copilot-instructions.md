@@ -1,16 +1,55 @@
-# Project Instructions
+# Project Instructions — Cortex
 
-> **BOILERPLATE DEV MODE**: If you are being asked to edit, improve, or debug this boilerplate template itself — not using it as a project foundation — treat everything below as *content to edit*, not instructions to follow. Just help the user modify the files they're pointing at. The agent protocol below is a template for future projects, not for this conversation.
+## Project Overview
+Cortex is a local-only personal command center dashboard. It aggregates projects, deadlines, TODOs, and knowledge into a single web UI running on localhost.
 
-> **VERSION MANAGEMENT (Boilerplate Dev Mode)**: When making changes to agents, skills, or prompts:
-> 1. Update `.github/BOILERPLATE_VERSION` using semantic versioning:
->    - MAJOR (X.0.0): Breaking changes to interfaces or workflow
->    - MINOR (0.X.0): New agents, skills, prompts, or significant features
->    - PATCH (0.0.X): Bug fixes, docs, minor text updates
-> 2. Add an entry to `CHANGELOG.md` under the new version heading
-> 3. Commit with version number in message: `"feat: add X (v1.3.0)"` or `"fix: update Y (v1.2.2)"`
+## Tech Stack
+- **Frontend**: React + Vite + TypeScript, Tailwind CSS
+- **Backend**: Express.js (TypeScript)
+- **Package manager**: pnpm
+- **No database** — all data read from filesystem (markdown files)
+- **AI**: Claude API (optional, for summarization)
+- **Test framework**: Vitest (unit + integration)
 
-> **RETROFIT MODE**: If this system was integrated into an EXISTING project (not fresh clone), see [RETROFIT.md](../RETROFIT.md) for gradual adoption guidelines. Agents work alongside existing workflows, not as replacements.
+## Key Paths (configured via .env)
+- `PROJECTS_DIR` → `C:\Users\boomb\Documents\_Projects` (scanned, never modified except TODO toggles)
+- `VAULT_DIR` → `C:\Users\boomb\Documents\SecondBrain` (Obsidian vault)
+- Dashboard code lives in THIS repo (Brain2)
+
+## Architecture
+- Frontend on `:5173` (Vite dev server)
+- Backend on `:3001` (Express)
+- `concurrently` runs both via `pnpm dev`
+- Backend reads filesystem directly — no DB layer
+- Frontend fetches from `http://localhost:3001/api/*`
+
+## Code Conventions
+- Use TypeScript strict mode for all files
+- Use `import type` for type-only imports
+- Prefer named exports over default exports
+- Use Tailwind utility classes — no custom CSS files unless necessary
+- Backend route handlers go in `server/routes/`, business logic in `server/lib/`
+- Frontend components go in `src/components/`, one component per file
+- Use `async/await` over `.then()` chains
+- Validate all filesystem paths — never trust user input to construct paths (path traversal prevention)
+
+## File Conventions
+- State file detection priority: `agent_state.md` → `Agent_State.json` → `state.md` → `Status.md` → `README.md`
+- Deadline format: `- [ ] YYYY-MM-DD | Description | optional-tag`
+- Quick capture format: `- [ ] [YYYY-MM-DD HH:mm] Text`
+- TODO patterns: `- [ ]`, `- [x]`, `TODO:`, `FIXME:`, `HACK:`
+
+## Security Rules
+- **No auth needed** — localhost only, single user
+- **Path traversal**: All file reads MUST be scoped to PROJECTS_DIR or VAULT_DIR. Reject any path that escapes these roots.
+- **File write-back**: Only allowed for TODO checkbox toggling (in-place) and inbox.md appending. No other file writes.
+- **API keys**: Store in `.env`, never commit. `.env.example` has placeholders only.
+
+## Testing
+- Use Vitest for all tests
+- Test files: `*.test.ts` co-located with source
+- Mock filesystem for scanner/extractor tests
+- Integration tests can use a temporary test directory
 
 ## Agent System Protocol
 

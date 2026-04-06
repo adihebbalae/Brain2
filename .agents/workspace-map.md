@@ -6,48 +6,72 @@
 ## Project Structure
 
 ```
-.github/
-  copilot-instructions.md       # Base project instructions (always loaded)
-  agents/
-    manager.agent.md             # Planner/orchestrator — user's primary contact
-    engineer.agent.md            # Code executor — implements features
-    security.agent.md            # Adversarial security auditor
-    designer.agent.md            # UI/UX design consultant
-    consultant.agent.md          # Deep reasoning specialist (Opus)
-  copilot/
-    hooks.json                       # Copilot lifecycle hooks (pre-push → quality-gate, pre-commit → workspace-map)
-  prompts/
-    handoff-to-engineer.prompt.md   # Quick handoff template → Engineer
-    handoff-to-security.prompt.md   # Quick handoff template → Security
-    handoff-to-designer.prompt.md   # Quick handoff template → Designer
-    handoff-to-consultant.prompt.md # Quick handoff template → Consultant
-    init-project.prompt.md          # PRD intake (file/paste/idea), research, scaffolding, GitHub Issues, Context7 MCP
-    mvp.prompt.md                   # MVP mode: max velocity, aggressive parallelization, deferred gates
-    review-dependencies.prompt.md   # Pre-handoff dependency vetting for supply chain security
-    retrofit.prompt.md              # Retrofit existing projects; IDE-specific (VS Code, JetBrains, Eclipse, Xcode)
-    learn.prompt.md                 # Extract session patterns → copilot-instructions.md + Copilot Memory
-    remember-handoff.prompt.md      # Write handoff to Copilot Memory — eliminates copy-paste between agents
-  skills/
-    code-review/SKILL.md              # On-demand code review checklist
-    security-audit/SKILL.md           # On-demand security audit checklist
-    tdd/SKILL.md                      # TDD workflow — RED → GREEN → REFACTOR
-    quality-gate/SKILL.md             # Pre-push gate: lint + type-check + test + security scan
-    update-workspace-map/SKILL.md     # Auto-regenerate workspace-map.md post-commit
-    supply-chain/SKILL.md             # Standalone 4-gate supply chain security (submittable to awesome-copilot)
-    sbom/SKILL.md                     # Native SBOM generation via syft/cdxgen + CVE scan via osv-scanner
-    auto-run/SKILL.md                 # Autonomous task runner — run all tasks to completion
-  scripts/
-    auto-run.ps1                      # PowerShell orchestrator for Claude CLI autonomous execution
+Brain2/                              ← THIS REPO = Cortex dashboard
+├── .agents/
+│   ├── state.json                   # Machine-readable project state (source of truth)
+│   ├── state.md                     # Human-readable project dashboard
+│   ├── workspace-map.md             # THIS FILE — directory reference
+│   ├── handoff.md                   # Current inter-agent handoff prompt
+│   └── MODULES.md                   # Module registry (scanner, todos, deadlines, capture, frontend)
+├── .dev/
+│   └── prd/
+│       └── original.md              # Staged PRD (reference only — brief in state.json is canonical)
+├── .github/
+│   ├── copilot-instructions.md      # Project-specific coding standards
+│   ├── agents/                      # Agent definitions (manager, engineer, security, etc.)
+│   ├── prompts/                     # Prompt shortcuts (/init-project, /handoff-to-*, etc.)
+│   └── skills/                      # Skill definitions (tdd, code-review, quality-gate, etc.)
+├── .vscode/
+│   └── mcp.json                     # MCP server config (Context7)
+├── PRD.md                           # Original PRD (reference)
+├── .env.example                     # [planned] Environment variables template
+├── package.json                     # [planned] Single package — React+Vite+Express+concurrently
+├── tsconfig.json                    # [planned] TypeScript config
+├── vite.config.ts                   # [planned] Vite config
+├── tailwind.config.ts               # [planned] Tailwind config
+├── src/                             # [planned] React frontend
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── components/
+│       ├── ProjectCard.tsx
+│       ├── DeadlineTimeline.tsx
+│       ├── TodoAggregator.tsx
+│       ├── QuickCapture.tsx
+│       └── StatusOverview.tsx
+└── server/                          # [planned] Express.js backend
+    ├── index.ts                     # Express server entry
+    ├── routes/
+    │   ├── projects.ts              # GET /api/projects
+    │   ├── todos.ts                 # GET /api/todos, PATCH /api/todos/:id
+    │   ├── deadlines.ts             # GET /api/deadlines
+    │   ├── capture.ts               # POST /api/capture
+    │   └── ai.ts                    # POST /api/ai/summarize (P1)
+    └── lib/
+        ├── scanner.ts               # Project scanner — reads state files
+        ├── todo-extractor.ts        # TODO/FIXME/HACK extraction from markdown
+        ├── deadline-reader.ts       # Parses deadlines.md
+        ├── markdown-parser.ts       # Markdown parsing utilities
+        └── state-reader.ts          # State file reader (priority detection, status inference)
+```
 
-.agents/
-  state.json                     # Machine-readable project state (source of truth)
-  state.md                       # Human-readable project dashboard
-  workspace-map.md               # THIS FILE — directory reference
-  handoff.md                     # Current inter-agent handoff prompt
-  handoffs/                      # Pre-generated handoffs for auto-run (one per task)
+## External Paths (not in repo)
 
-.gitignore                       # TEMPLATE .gitignore (commits all agent files)
-.gitignore.project               # PROJECT .gitignore (rename after cloning — strips agent files)
+```
+C:\Users\boomb\Documents\_Projects\          ← Existing projects directory (scanned, never modified)
+C:\Users\boomb\Documents\SecondBrain\        ← [planned] Obsidian vault
+├── .obsidian/
+├── Inbox/
+│   └── inbox.md                             ← Quick capture destination
+├── Projects/                                ← Symlinks to _Projects/* subfolders
+├── Areas/
+├── Resources/
+├── Archive/
+├── ChatExports/
+├── Deadlines/
+│   └── deadlines.md                         ← Manual deadline entries
+└── DailyNotes/
+C:\Users\boomb\Documents\notes_corpus.txt.txt  ← Existing notes file to parse
+```
 README.md                        # Boilerplate documentation
 ```
 

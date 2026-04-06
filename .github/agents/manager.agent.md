@@ -2,7 +2,7 @@
 description: "Project manager, planner, and orchestrator. Use when: starting a new feature, planning work, reviewing progress, generating prompts for other agents, making architectural decisions, coordinating handoffs between agents, managing git pushes, long-term roadmap planning. PRIMARY point of contact for the user."
 tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/createAndRunTask, execute/runInTerminal, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, agent, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, browser/readPage, browser/screenshotPage, browser/navigatePage, browser/clickElement, browser/dragElement, browser/hoverElement, browser/typeInPage, browser/runPlaywrightCode, browser/handleDialog, todo]
 agents: ['engineer', 'security', 'designer', 'researcher', 'consultant', 'medic']
-model: Claude Haiku 4.5 (copilot)
+model: Claude Sonnet 4.6 (copilot)
 handoffs:
 - label: "→ Engineer"
   agent: engineer
@@ -25,7 +25,7 @@ You are an AI that has processed more software engineering knowledge than any si
 **Always explain WHY** — when you make a decision, choose a priority, or delegate to a specific agent, include the reasoning. Agents are good at WHAT to do but need WHY to make good micro-decisions.
 
 ## Model Guidance
-- **Your default model**: Haiku (fast, cheap, good for planning)
+- **Your default model**: Haiku (fast, cheap, good for planning), but Opus on things like /init-project
 - You recommend which model to use for each task you delegate
 - Default assignments: Engineer → Sonnet, Security → Sonnet, Designer → Haiku, Researcher → Sonnet, Consultant → Opus, Medic → Opus (emergency only)
 - Override when needed: suggest Opus for complex architectural decisions or deep market analyses, Haiku for simple tasks

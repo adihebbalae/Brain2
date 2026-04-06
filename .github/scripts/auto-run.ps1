@@ -286,7 +286,7 @@ Write-Host "  Project:     $($state.project)" -ForegroundColor White
 Write-Host "  Tasks:       $totalTasks pending" -ForegroundColor White
 Write-Host "  Checkpoint:  ${CheckpointSeconds}s" -ForegroundColor White
 Write-Host "  Retries:     $MaxRetries per task" -ForegroundColor White
-Write-Host "  Security:    $(if ($SkipSecurity) { 'SKIPPED' } else { 'after each task' })" -ForegroundColor White
+Write-Host "  Security:    $(if ($SkipSecurity) { 'SKIPPED' } else { 'end of run (single scan)' })" -ForegroundColor White
 Write-Host "  Rate limit:  wait ${RateLimitWaitHours}h on throttle" -ForegroundColor White
 if ($DryRun) { Write-Host "  Mode:        DRY RUN" -ForegroundColor Yellow }
 Write-Host ""
@@ -317,20 +317,23 @@ for ($i = 0; $i -lt $pendingTasks.Count; $i++) {
     Write-Banner "TASK $taskNum/$totalTasks  $([char]0x2014)  $taskId" White
     Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "starting" -Current $taskNum -Total $totalTasks
 
-    # Copy handoff file into place
-    $srcHandoff = Join-Path $HandoffsDir "$taskId.md"
-    Copy-Item $srcHandoff $HandoffFile -Force
+    # Copy handoff file into place + update state: in_progress (skipped in dry run)
+    if (-not $DryRun) {
+        $srcHandoff = Join-Path $HandoffsDir "$taskId.md"
+        Copy-Item $srcHandoff $HandoffFile -Force
 
-    # Update state: in_progress
-    $state = Read-StateFile
-    $state.current_task.id          = $taskId
-    $state.current_task.title       = $taskTitle
-    $state.current_task.status      = "in_progress"
-    $state.current_task.assigned_to = "engineer"
-    $state.tasks.$taskId.status     = "in_progress"
-    $state.last_updated             = (Get-Date -Format "o")
-    $state.last_updated_by          = "auto-run"
-    Save-StateFile -State $state
+        $state = Read-StateFile
+        $state | Add-Member -NotePropertyName 'current_task' -NotePropertyValue ([PSCustomObject]@{
+            id          = $taskId
+            title       = $taskTitle
+            status      = 'in_progress'
+            assigned_to = 'engineer'
+        }) -Force
+        $state.tasks.$taskId.status = 'in_progress'
+        $state.last_updated         = (Get-Date -Format 'o')
+        $state.last_updated_by      = 'auto-run'
+        Save-StateFile -State $state
+    }
 
     # ── Engineer Execution (with retries) ──
     $success    = $false
@@ -371,14 +374,19 @@ for ($i = 0; $i -lt $pendingTasks.Count; $i++) {
             continue
         }
 
-        # Verify state.json updated
-        $state      = Read-StateFile
-        $taskStatus = $state.tasks.$taskId.status
-        if ($taskStatus -eq "done") {
+        # Verify state.json updated (dry run skips state mutations so always pass)
+        if ($DryRun) {
             $success = $true
         }
         else {
-            Write-Host "    Claude exited OK but task status is '$taskStatus' (expected 'done'). Retrying..." -ForegroundColor Yellow
+            $state      = Read-StateFile
+            $taskStatus = $state.tasks.$taskId.status
+            if ($taskStatus -eq "done") {
+                $success = $true
+            }
+            else {
+                Write-Host "    Claude exited OK but task status is '$taskStatus' (expected 'done'). Retrying..." -ForegroundColor Yellow
+            }
         }
     }
 
@@ -408,46 +416,53 @@ for ($i = 0; $i -lt $pendingTasks.Count; $i++) {
     Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "done" -Current $taskNum -Total $totalTasks
     [void]$completed.Add($taskId)
 
-    # ── Security Scan ──
-    if (-not $SkipSecurity) {
-        Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "security" -Current $taskNum -Total $totalTasks
-
-        $changedFiles  = Get-ChangedFiles
-        $securityPrompt = "Audit the following files for security vulnerabilities: $changedFiles. " +
-            "Task context: $taskId ($taskTitle). " +
-            "Report findings in compact format. Any CRITICAL finding is a hard blocker."
-
-        $secResult = Invoke-Claude -Agent "security" -Prompt $securityPrompt
-
-        if ($secResult.RateLimited) {
-            Write-Host "    Security scan rate limited - will need manual audit later." -ForegroundColor Yellow
-        }
-        elseif ($secResult.Output -match "CRITICAL") {
-            Write-Banner "CRITICAL SECURITY FINDING  $([char]0x2014)  $taskId" Red
-            Write-Host $secResult.Output -ForegroundColor Red
-            Write-Host ""
-            Write-Host "    Task queue HALTED. Review findings before continuing." -ForegroundColor Red
-
-            $state = Read-StateFile
-            $state.security_status.open_findings    += 1
-            $state.security_status.cleared_for_push  = $false
-            $state.context.blocked_on                = "CRITICAL security finding in $taskId"
-            $state.last_updated                      = (Get-Date -Format "o")
-            $state.last_updated_by                   = "auto-run"
-            Save-StateFile -State $state
-
-            $halted = $true
-            break
-        }
-        else {
-            Write-Host "    Security: PASS" -ForegroundColor Green
-        }
-    }
-
     # ── Checkpoint ──
     if ($i -lt $pendingTasks.Count - 1) {
         $nextTask = $pendingTasks[$i + 1]
         Show-Countdown -Seconds $CheckpointSeconds -NextTaskId $nextTask.id
+    }
+}
+
+# ─── End-of-Run Security Scan ───────────────────────────────────────────────
+
+if (-not $SkipSecurity -and -not $DryRun -and $completed.Count -gt 0 -and -not $halted) {
+    Write-Banner "SECURITY SCAN  $([char]0x2014)  end of run" Yellow
+
+    $changedFiles  = Get-ChangedFiles
+    $tasksSummary  = ($completed -join ', ')
+    $securityPrompt = "Audit the following changed files for security vulnerabilities: $changedFiles. " +
+        "These files were modified by tasks: $tasksSummary. " +
+        "Report ALL findings. Any CRITICAL finding is a hard blocker -- do not clear for push."
+
+    $secResult = Invoke-Claude -Agent "security" -Prompt $securityPrompt
+
+    if ($secResult.RateLimited) {
+        Write-Host "  Security scan rate limited -- run manually before pushing." -ForegroundColor Yellow
+    }
+    elseif ($secResult.Output -match "CRITICAL") {
+        Write-Banner "CRITICAL SECURITY FINDING" Red
+        Write-Host $secResult.Output -ForegroundColor Red
+        Write-Host ""
+        Write-Host "  Do NOT push. Fix CRITICAL findings first." -ForegroundColor Red
+
+        $state = Read-StateFile
+        $state.security_status.open_findings   += 1
+        $state.security_status.cleared_for_push = $false
+        $state.context.blocked_on               = 'CRITICAL security finding -- must fix before push'
+        $state.last_updated                     = (Get-Date -Format 'o')
+        $state.last_updated_by                  = 'auto-run'
+        Save-StateFile -State $state
+        $halted = $true
+    }
+    else {
+        Write-Host "  Security scan: PASS -- cleared for push" -ForegroundColor Green
+
+        $state = Read-StateFile
+        $state.security_status.last_scan        = (Get-Date -Format 'o')
+        $state.security_status.cleared_for_push = $true
+        $state.last_updated                     = (Get-Date -Format 'o')
+        $state.last_updated_by                  = 'auto-run'
+        Save-StateFile -State $state
     }
 }
 
