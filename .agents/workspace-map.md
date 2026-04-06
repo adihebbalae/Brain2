@@ -24,34 +24,42 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 ├── .vscode/
 │   └── mcp.json                     # MCP server config (Context7)
 ├── PRD.md                           # Original PRD (reference)
-├── .env.example                     # [planned] Environment variables template
-├── package.json                     # [planned] Single package — React+Vite+Express+concurrently
-├── tsconfig.json                    # [planned] TypeScript config
-├── vite.config.ts                   # [planned] Vite config
-├── tailwind.config.ts               # [planned] Tailwind config
-├── src/                             # [planned] React frontend
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── components/
+├── .env                             # Environment variables (not in git)
+├── .env.example                     # Environment variables template
+├── package.json                     # Single package — React+Vite+Express+concurrently
+├── package-lock.json                # npm lock file
+├── tsconfig.json                    # TypeScript config
+├── tsconfig.node.json               # TypeScript config for Vite
+├── vite.config.ts                   # Vite config with proxy to backend
+├── vitest.config.ts                 # Vitest testing config
+├── tailwind.config.js               # Tailwind CSS config
+├── postcss.config.js                # PostCSS config for Tailwind
+├── index.html                       # HTML entry point
+├── src/                             # React frontend
+│   ├── App.tsx                      # Main app component
+│   ├── main.tsx                     # React entry point
+│   ├── index.css                    # Tailwind imports
+│   └── components/                  # [planned] UI components
 │       ├── ProjectCard.tsx
 │       ├── DeadlineTimeline.tsx
 │       ├── TodoAggregator.tsx
 │       ├── QuickCapture.tsx
 │       └── StatusOverview.tsx
-└── server/                          # [planned] Express.js backend
-    ├── index.ts                     # Express server entry
+└── server/                          # Express.js backend
+    ├── index.ts                     # Express server entry with /api/projects mounted
     ├── routes/
-    │   ├── projects.ts              # GET /api/projects
-    │   ├── todos.ts                 # GET /api/todos, PATCH /api/todos/:id
-    │   ├── deadlines.ts             # GET /api/deadlines
-    │   ├── capture.ts               # POST /api/capture
-    │   └── ai.ts                    # POST /api/ai/summarize (P1)
+    │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
+    │   ├── todos.ts                 # [planned] GET /api/todos, PATCH /api/todos/:id
+    │   ├── deadlines.ts             # [planned] GET /api/deadlines
+    │   ├── capture.ts               # [planned] POST /api/capture
+    │   └── ai.ts                    # [planned] POST /api/ai/summarize (P1)
     └── lib/
-        ├── scanner.ts               # Project scanner — reads state files
-        ├── todo-extractor.ts        # TODO/FIXME/HACK extraction from markdown
-        ├── deadline-reader.ts       # Parses deadlines.md
-        ├── markdown-parser.ts       # Markdown parsing utilities
-        └── state-reader.ts          # State file reader (priority detection, status inference)
+        ├── scanner.ts               # ✓ Project scanner (TASK-003)
+        ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
+        ├── state-reader.ts          # ✓ State file reader with priority detection (TASK-003)
+        ├── todo-extractor.ts        # [planned] TODO/FIXME/HACK extraction
+        ├── deadline-reader.ts       # [planned] Parses deadlines.md
+        └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
 ## External Paths (not in repo)
@@ -76,7 +84,28 @@ README.md                        # Boilerplate documentation
 ```
 
 ## Key Directories
-_To be populated when the project is scaffolded by the Manager._
+
+- **server/** — Express.js TypeScript backend
+  - **lib/** — Business logic (scanner, state-reader, extractors)
+  - **routes/** — API endpoints
+- **src/** — React TypeScript frontend
+  - **components/** — Reusable UI components (to be built)
 
 ## Key Files
-_To be populated as the project grows._
+
+**Backend (Completed)**:
+- `server/index.ts` — Express app with /api/projects route
+- `server/lib/scanner.ts` — Scans PROJECTS_DIR for state files, returns sorted array
+- `server/lib/state-reader.ts` — Priority detection, status inference, summary/next-steps extraction
+- `server/routes/projects.ts` — GET /api/projects endpoint
+- `server/lib/scanner.test.ts` — 17 unit tests with temp filesystem
+
+**Config**:
+- `package.json` — npm scripts (dev, build, test, type-check)
+- `tsconfig.json` — TypeScript compiler settings
+- `vite.config.ts` — Vite dev server with /api proxy
+- `tailwind.config.js` — Tailwind CSS setup
+
+**Frontend (Minimal)**:
+- `src/App.tsx` — Placeholder app component
+- `src/main.tsx` — React entry point

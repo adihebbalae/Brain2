@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { config } from 'dotenv'
 import { projectsRouter } from './routes/projects.js'
+import { todosRouter } from './routes/todos.js'
 
 config()
 
@@ -19,6 +20,7 @@ app.get('/health', (_req, res) => {
 
 // API Routes
 app.use('/api/projects', projectsRouter)
+app.use('/api/todos', todosRouter)
 
 // Start server
 app.listen(PORT, () => {

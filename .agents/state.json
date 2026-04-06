@@ -48,14 +48,14 @@
                                              "Google Calendar deferred to P1 with guided OAuth setup",
                                              "Create Obsidian vault from scratch with PARA structure"
                                          ],
-                    "blocked_on":  "TASK-001 failed after 3 attempts"
+                    "blocked_on":  null
                 },
     "project_brief":  "Cortex — local-only personal command center for Adi. Aggregates all projects from C:\\Users\\boomb\\Documents\\_Projects (scans state files), extracts TODOs from all markdown, shows deadlines from deadlines.md with urgency timeline, and provides quick capture to inbox.md. React+Vite+Tailwind frontend on :5173, Express.js TS backend on :3001. No database — all filesystem. P1: Google Calendar sync, Claude API summaries, chat export viewer.",
     "tasks":  {
                   "TASK-001":  {
                                    "title":  "Scaffold project (Vite + Express + Tailwind + TS)",
                                    "assigned_to":  "engineer",
-                                   "status":  "blocked",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
 
@@ -68,7 +68,8 @@
                                                                "Tailwind CSS is configured and working",
                                                                ".env.example exists with all required variables",
                                                                "Frontend can make API calls to backend (CORS configured)"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-002":  {
                                    "title":  "Create Obsidian vault PARA structure + templates",
@@ -91,7 +92,7 @@
                   "TASK-003":  {
                                    "title":  "Backend: Project scanner \u0026 state file parser",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-001"
@@ -105,7 +106,8 @@
                                                                "Status inference from content keywords works when no frontmatter",
                                                                "Stale thresholds calculated correctly",
                                                                "Tests pass for scanner with mock filesystem"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-004":  {
                                    "title":  "Backend: TODO extractor with checkbox write-back",
@@ -313,8 +315,8 @@
                                                            ]
                                }
               },
-    "active_task":  "TASK-001",
-    "status":  "planning_complete",
+    "active_task":  "TASK-004",
+    "status":  "in_progress",
     "handoff":  {
                     "from":  "manager",
                     "to":  "engineer",
@@ -353,7 +355,9 @@
                   ],
     "changelog":  [
                       "2026-04-05: init-project — PRD ingested, plan approved, project scaffolded by manager",
-                      "2026-04-05: TASK-002 completed — Created SecondBrain Obsidian vault with full PARA structure (8 directories, template files, 12 project junctions)"
+                      "2026-04-05: TASK-002 completed — Created SecondBrain Obsidian vault with full PARA structure (8 directories, template files, 12 project junctions)",
+                      "2026-04-05: TASK-001 completed — Scaffolded Cortex project with React+Vite+Express+TypeScript+Tailwind, all config files, concurrently dev scripts",
+                      "2026-04-05: TASK-003 completed — Implemented project scanner with state file parser, priority detection, status inference, summary/next-steps extraction, path validation, 17 unit tests (all passing)"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -374,12 +378,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T20:26:56.1861152-05:00",
-    "last_updated_by":  "auto-run",
+    "last_updated":  "2026-04-05T20:35:00-05:00",
+    "last_updated_by":  "engineer",
     "current_task":  {
-                         "id":  "TASK-003",
-                         "title":  "Backend: Project scanner \u0026 state file parser",
-                         "status":  "in_progress",
+                         "id":  "TASK-004",
+                         "title":  "Backend: TODO extractor with checkbox write-back",
+                         "status":  "pending",
                          "assigned_to":  "engineer"
                      }
 }

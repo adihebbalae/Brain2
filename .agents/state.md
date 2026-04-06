@@ -4,10 +4,12 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: Planning Complete — TASK-002 done, TASK-001 blocked
-- **Current Task**: TASK-001 — Scaffold project (blocked after 3 attempts)
-- **Blocked On**: TASK-001 failed after 3 attempts
-- **Recent Completion**: TASK-002 — Obsidian vault PARA structure created successfully
+- **Phase**: In Progress — Backend implementation underway
+- **Current Task**: TASK-004 — Backend TODO extractor (pending)
+- **Blocked On**: None
+- **Recent Completions**: 
+  - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
+  - TASK-003 — Project scanner with state file parser (17 tests passing)
 
 ## Project Brief
 
@@ -34,9 +36,9 @@
 
 | ID | Title | Status | Priority |
 |----|-------|--------|----------|
-| TASK-001 | Scaffold project | blocked | P0 |
+| TASK-001 | Scaffold project | done | P0 |
 | TASK-002 | Obsidian vault PARA structure | done | P0 |
-| TASK-003 | Backend: Project scanner | pending | P0 |
+| TASK-003 | Backend: Project scanner | done | P0 |
 | TASK-004 | Backend: TODO extractor | pending | P0 |
 | TASK-005 | Backend: Deadline reader | pending | P0 |
 | TASK-006 | Backend: Quick capture + notes parser | pending | P0 |
@@ -56,3 +58,20 @@
   - Template files: deadlines.md (with sample deadlines), inbox.md, areas.md
   - 12 project junctions from Projects/ to C:\Users\boomb\Documents\_Projects\*
   - All validation gates passed successfully
+- 2026-04-05: TASK-001 completed — Scaffolded Cortex application:
+  - React+Vite+TypeScript frontend with Tailwind CSS
+  - Express.js TypeScript backend with CORS
+  - Vitest testing framework configured
+  - Concurrently dev scripts (frontend :5173, backend :3001)
+  - All config files created (tsconfig, vite, tailwind, postcss)
+  - TypeScript type-checking passes with zero errors
+- 2026-04-05: TASK-003 completed — Implemented project scanner and state file parser:
+  - State file priority detection (agent_state.md > Agent_State.json > state.md > Status.md > README.md)
+  - Status inference from content keywords and frontmatter
+  - Stale threshold calculation (>14 days = stale)
+  - Summary extraction from ## Summary/Overview/Status sections
+  - Next steps extraction from ## Next Steps/TODO sections and unchecked items
+  - Path traversal protection (validates all paths are inside PROJECTS_DIR)
+  - GET /api/projects endpoint returning sorted array of projects
+  - 17 unit tests with temporary filesystem mocking (all passing)
+  - Type-checking passes, all acceptance criteria met
