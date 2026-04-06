@@ -4,8 +4,8 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: In Progress — Frontend implementation started, dashboard shell complete
-- **Current Task**: TASK-007 — Frontend dashboard layout and project cards (done)
+- **Phase**: In Progress — Frontend implementation ongoing
+- **Current Task**: TASK-008 — Frontend TODO aggregator (done)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
@@ -14,6 +14,7 @@
   - TASK-005 — Deadline reader with urgency calculation (22 tests passing)
   - TASK-006 — Quick capture endpoint + notes corpus parser (24 tests passing)
   - TASK-007 — Dashboard layout with project cards (14 frontend tests, 99 total passing)
+  - TASK-008 — TODO aggregator with optimistic updates (21 frontend tests, 120 total passing)
 
 ## Project Brief
 
@@ -47,7 +48,7 @@
 | TASK-005 | Backend: Deadline reader | done | P0 |
 | TASK-006 | Backend: Quick capture + notes parser | done | P0 |
 | TASK-007 | Frontend: Dashboard + project cards | done | P0 |
-| TASK-008 | Frontend: TODO aggregator | pending | P0 |
+| TASK-008 | Frontend: TODO aggregator | done | P0 |
 | TASK-009 | Frontend: Deadline timeline | pending | P0 |
 | TASK-010 | Frontend: Quick capture bar | pending | P0 |
 | TASK-011 | Integration + E2E testing | pending | P0 |
@@ -128,4 +129,22 @@
   - Installed @testing-library/react and happy-dom for component testing
   - 14 frontend tests: 5 App tests (loading/error/empty states, StatusOverview rendering) + 9 ProjectCard tests (status badges, stale borders, next steps truncation, Open in VS Code link)
   - 99 total tests passing (85 backend + 14 frontend)
+  - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-008 completed — Built TodoAggregator component with optimistic updates:
+  - TodoAggregator component displays TODOs grouped by project (default) or file with collapsible group headers
+  - Each group header shows project/file name + count of open TODOs in that group
+  - Each todo item: checkbox + text + file chip (truncated path:line) + type badge (FIXME/HACK only)
+  - Completed todos shown with strikethrough under "Show completed" disclosure (collapsed by default)
+  - Grouping toggle: "By project" (default) or "By file" buttons
+  - Optimistic checkbox toggle: immediate UI update → PATCH /api/todos/:id in background → rollback on error with toast
+  - useTodos custom hook: manages todo state, loading/error states, optimistic toggle with rollback, refetch function
+  - Error handling: rollback state + CSS-only toast notification (fixed bottom-left, fade-in animation, auto-dismiss after 3s)
+  - Loading state: 5 skeleton rows with animate-pulse
+  - Error state: red banner with error message and retry button
+  - Empty state: "No open TODOs — you're all caught up! 🎉"
+  - Todo type interface added to src/types.ts (id, text, done, file, line, project, type)
+  - File path truncation: shows ".../<last-two-parts>" for long paths
+  - CSS fade-in animation in src/index.css for toast
+  - 21 frontend tests: 8 useTodos hook tests (fetch, toggle, optimistic update, rollback, refetch) + 13 TodoAggregator component tests (grouping, collapsing, completed disclosure, badges, toggle)
+  - 120 total tests passing (85 backend + 35 frontend)
   - Type-checking passes with zero errors, all acceptance criteria met

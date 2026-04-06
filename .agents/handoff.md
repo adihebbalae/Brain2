@@ -1,106 +1,108 @@
-# Handoff: Frontend — TODO aggregator with mark-done
-**Task ID**: TASK-008
+# Handoff: Frontend — Deadline timeline
+**Task ID**: TASK-009
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center. React+Vite+TypeScript frontend on :5173, Express backend on :3001.
 
-**Depends on TASK-004 (backend TODO extractor)**. The backend has `GET /api/todos` returning todos grouped by project, and `PATCH /api/todos/:id` for toggling completion state.
+**Depends on TASK-005 (backend deadline reader)**. The backend has `GET /api/deadlines` returning deadlines parsed from `VAULT_DIR/deadlines.md`.
 
-**API shapes**:
+**API shape**:
 ```ts
-// GET /api/todos response
-interface Todo {
-  id: string             // SHA-256 based ID
-  text: string
+// GET /api/deadlines response
+interface Deadline {
+  id: string       // generated ID
+  date: string     // ISO date string e.g. "2026-04-10"
+  description: string
+  tag: string | null
   done: boolean
-  file: string           // relative path within project
-  line: number           // 1-based line number
-  project: string        // project folder name
-  type: 'checkbox' | 'TODO' | 'FIXME' | 'HACK'
+  urgency: 'red' | 'amber' | 'green' | 'gray'
+  // urgency rules:
+  //   red   = due within 2 days (and not done)
+  //   amber = due within 7 days (and not done)
+  //   green = due > 7 days (and not done)
+  //   gray  = done
 }
-
-// PATCH /api/todos/:id body
-{ done: boolean }
-
-// PATCH /api/todos/:id response
-{ success: true } | { error: string }
 ```
 
 ## Task
 
-Build `src/components/TodoAggregator.tsx`.
+Build `src/components/DeadlineTimeline.tsx`.
 
 ### Component interface
 ```tsx
-interface TodoAggregatorProps {
-  onCountChange?: (openCount: number) => void // optional — for stats bar update
+interface DeadlineTimelineProps {
+  compact?: boolean   // true = show max 5 upcoming, false = show all
 }
 ```
 
-### Features
+### Visual design
 
-**Display**:
-- List of all open todos grouped by project name (collapsible group headers)
-- Each todo: checkbox (unchecked) + text + file chip (truncated file path) + type badge (if FIXME/HACK)
-- Completed todos: show as checked + strikethrough, collapsed under "Show completed" disclosure
-- Group header shows: project name + count of open todos in that group
+**Timeline layout**:
+- Vertical list, chronological order (nearest date first)
+- Left column: date display (month + day, relative label for "Today", "Tomorrow", "2 days")
+- Connector line between items (thin vertical line with dot at each item)
+- Right column: description + optional tag chip
 
-**Grouping options** (toggle control):
-- "By project" (default): group by project name alphabetically
-- "By file": group by file path
+**Color coding** by urgency:
+- `red` → red dot + red border-left on the item row, description in bold
+- `amber` → amber/yellow dot + amber border-left
+- `green` → green dot, normal text
+- `gray` (done) → gray dot, strikethrough description, reduced opacity
 
-**Mark done flow** (OPTIMISTIC UPDATE):
-1. User clicks checkbox
-2. Immediately update local state — flip todo.done = true, move to completed group
-3. Call `PATCH /api/todos/:id` with `{ done: true }` in background
-4. On error: roll back the state change + show brief error toast ("Failed to save — reverted")
-5. On success: nothing extra needed (state already updated)
+**Tags**:
+- Render as small chip/badge if present: `bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded`
 
-**Why optimistic**: Reduces perceived latency for the most common action (marking done).
+**Compact mode** (`compact=true`):
+- Show only next 5 pending deadlines
+- Show "See all N deadlines" link at bottom if there are more
 
-### `src/hooks/useTodos.ts`
+**Completed deadlines**:
+- Appear at the bottom, after a "Completed" divider
+- Strikethrough + reduced opacity
+
+**Empty state**: "No upcoming deadlines" with a small calendar icon (use text: 📅)
+
+### `src/hooks/useDeadlines.ts`
 ```ts
-export function useTodos() {
-  // returns { todos: Todo[], loading: boolean, error: string | null, toggle: (id: string) => void, refetch: () => void }
-  // toggle() is the optimistic update function
+export function useDeadlines() {
+  // returns { deadlines: Deadline[], loading: boolean, error: string | null, refetch: () => void }
 }
 ```
 
-### Error + loading states
-- Loading: skeleton rows with `animate-pulse`
-- Error: error message with retry button
-- Empty: "No open TODOs — you're all caught up! 🎉"
-- Toast: simple fixed bottom-left message, fades out after 3s (CSS transition, no animation lib)
+### Loading / error states
+- Loading: 3 skeleton rows with `animate-pulse`
+- Error: inline "Failed to load deadlines" with retry link
 
 ## Acceptance Criteria
-- [ ] Todos display grouped by project by default
-- [ ] Clicking checkbox updates UI immediately (optimistic)
-- [ ] PATCH request fires after click
-- [ ] On PATCH failure, state reverts + toast shown
-- [ ] Toggle between "by project" and "by file" grouping works
-- [ ] Completed todos collapsible under "Show completed"
-- [ ] FIXME/HACK todos show type badge
-- [ ] Loading skeleton renders while fetching
+- [ ] Deadlines render in chronological order (pending, then completed)  
+- [ ] Red deadlines show red left border and bold text
+- [ ] Amber deadlines show amber/yellow left border
+- [ ] Completed deadlines show with strikethrough + gray at bottom
+- [ ] Tags render as chips when present
+- [ ] Compact mode shows max 5 + "See all" link when >5
+- [ ] "Today" / "Tomorrow" / "2 days" relative labels for near dates
+- [ ] Empty state renders when no deadlines
+- [ ] Loading skeleton renders
 - [ ] `pnpm type-check` passes
-- [ ] `pnpm test` passes (toggle optimism, grouping logic unit tested)
+- [ ] `pnpm test` passes (sorting logic, urgency display, compact mode unit tested)
 
 ## Validation Gates
 - [ ] `pnpm type-check` → zero errors
 - [ ] `pnpm test` → all tests green
 
 ## Constraints
-- Do NOT implement server-sent events or websockets — polling only (polling wired in TASK-011)
-- Do NOT use any external UI component library — Tailwind only
-- Do NOT re-fetch todos after every toggle (wasteful) — local state update is enough
-- Type `Todo` should live in `src/types.ts` (shared with other components)
-- The toast must be CSS-only (no React state animation library)
+- Do NOT import any date manipulation libraries — use vanilla JS Date
+- Do NOT make the deadline clickable yet (no edit UI in scope)
+- Urgency coloring must be driven by the `urgency` field from the API, not recalculated client-side
+- Type `Deadline` should live in `src/types.ts`
+- No external icon library — use emoji or SVG inline if needed
 
 ## On Completion
 ```
 git add -A
-git commit -m "feat(TASK-008): todo aggregator component with optimistic toggle"
+git commit -m "feat(TASK-009): deadline timeline component"
 ```
 
-Update `.agents/state.json` tasks.TASK-008.status to "done".
+Update `.agents/state.json` tasks.TASK-009.status to "done".

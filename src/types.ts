@@ -20,3 +20,12 @@ export interface Todo {
   project: string
   type: 'checkbox' | 'TODO' | 'FIXME' | 'HACK'
 }
+
+export interface Deadline {
+  id: string
+  date: string
+  description: string
+  tag: string | null
+  done: boolean
+  urgency: 'red' | 'amber' | 'green' | 'gray'
+}

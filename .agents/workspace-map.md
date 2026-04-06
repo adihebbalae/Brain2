@@ -39,16 +39,19 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   ├── App.tsx                      # ✓ Main dashboard layout (TASK-007)
 │   ├── App.test.tsx                 # ✓ App component tests (TASK-007)
 │   ├── main.tsx                     # React entry point
-│   ├── index.css                    # Tailwind imports
-│   ├── types.ts                     # ✓ Shared TypeScript interfaces (TASK-007)
+│   ├── index.css                    # ✓ Tailwind imports + CSS animations (TASK-008)
+│   ├── types.ts                     # ✓ Shared TypeScript interfaces: Project, Todo (TASK-007, TASK-008)
 │   ├── hooks/
-│   │   └── useProjects.ts           # ✓ Data fetching hook for projects (TASK-007)
+│   │   ├── useProjects.ts           # ✓ Data fetching hook for projects (TASK-007)
+│   │   ├── useTodos.ts              # ✓ Data fetching hook for todos with optimistic updates (TASK-008)
+│   │   └── useTodos.test.ts         # ✓ useTodos hook tests (TASK-008)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
 │       ├── StatusOverview.tsx       # ✓ Stats overview panel (TASK-007)
+│       ├── TodoAggregator.tsx       # ✓ TODO aggregator with grouping and optimistic updates (TASK-008)
+│       ├── TodoAggregator.test.tsx  # ✓ TodoAggregator tests (TASK-008)
 │       ├── DeadlineTimeline.tsx     # [planned] TASK-009
-│       ├── TodoAggregator.tsx       # [planned] TASK-008
 │       └── QuickCapture.tsx         # [planned] TASK-010
 └── server/                          # Express.js backend
     ├── index.ts                     # Express server entry with all API routes mounted
@@ -128,12 +131,17 @@ README.md                        # Boilerplate documentation
 - `vite.config.ts` — Vite dev server with /api proxy
 - `tailwind.config.js` — Tailwind CSS setup
 
-**Frontend (TASK-007 Completed)**:
+**Frontend (TASK-007, TASK-008 Completed)**:
 - `src/App.tsx` — ✓ Main dashboard layout with header, stats, project grid, sidebar placeholders (TASK-007)
 - `src/App.test.tsx` — ✓ 5 tests: loading state, error state, empty state, renders StatusOverview (TASK-007)
 - `src/main.tsx` — React entry point
-- `src/types.ts` — ✓ Shared TypeScript interfaces (Project) (TASK-007)
+- `src/index.css` — ✓ Tailwind imports + CSS fade-in animation for toast (TASK-008)
+- `src/types.ts` — ✓ Shared TypeScript interfaces (Project, Todo) (TASK-007, TASK-008)
 - `src/hooks/useProjects.ts` — ✓ Custom hook for fetching projects from API (TASK-007)
+- `src/hooks/useTodos.ts` — ✓ Custom hook for fetching todos with optimistic toggle and rollback (TASK-008)
+- `src/hooks/useTodos.test.ts` — ✓ 8 tests: fetch, error handling, optimistic update, rollback, refetch (TASK-008)
 - `src/components/ProjectCard.tsx` — ✓ Project card with status badge, summary, next steps, Open in VS Code button (TASK-007)
 - `src/components/ProjectCard.test.tsx` — ✓ 9 tests: status badges, stale borders, next steps truncation (TASK-007)
 - `src/components/StatusOverview.tsx` — ✓ Stats bar showing active/stale/archived counts, total TODOs (TASK-007)
+- `src/components/TodoAggregator.tsx` — ✓ TODO aggregator with grouping (project/file), optimistic toggle, completed disclosure, badges (TASK-008)
+- `src/components/TodoAggregator.test.tsx` — ✓ 13 tests: grouping, collapsing, completed disclosure, toggle, badges (TASK-008)
