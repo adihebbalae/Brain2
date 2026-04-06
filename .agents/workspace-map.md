@@ -46,12 +46,12 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── QuickCapture.tsx
 │       └── StatusOverview.tsx
 └── server/                          # Express.js backend
-    ├── index.ts                     # Express server entry with /api/projects and /api/todos mounted
+    ├── index.ts                     # Express server entry with all API routes mounted
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
-    │   ├── capture.ts               # [planned] POST /api/capture
+    │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
     │   └── ai.ts                    # [planned] POST /api/ai/summarize (P1)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
@@ -61,6 +61,10 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── todo-extractor.test.ts   # ✓ 22 unit tests for TODO extractor (TASK-004)
         ├── deadline-reader.ts       # ✓ Parses deadlines.md with urgency calculation (TASK-005)
         ├── deadline-reader.test.ts  # ✓ 22 unit tests for deadline reader (TASK-005)
+        ├── capture-writer.ts        # ✓ Appends timestamped entries to inbox.md (TASK-006)
+        ├── capture-writer.test.ts   # ✓ 9 unit tests for capture writer (TASK-006)
+        ├── notes-corpus-parser.ts   # ✓ Parses notes corpus file for TODOs/ideas/notes (TASK-006)
+        ├── notes-corpus-parser.test.ts  # ✓ 15 unit tests for corpus parser (TASK-006)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -96,7 +100,7 @@ README.md                        # Boilerplate documentation
 ## Key Files
 
 **Backend (Completed)**:
-- `server/index.ts` — Express app with /api/projects, /api/todos, and /api/deadlines routes
+- `server/index.ts` — Express app with /api/projects, /api/todos, /api/deadlines, and /api/capture routes
 - `server/lib/scanner.ts` — Scans PROJECTS_DIR for state files, returns sorted array
 - `server/lib/state-reader.ts` — Priority detection, status inference, summary/next-steps extraction
 - `server/routes/projects.ts` — GET /api/projects endpoint
@@ -107,6 +111,11 @@ README.md                        # Boilerplate documentation
 - `server/lib/deadline-reader.ts` — Deadline parser with urgency calculation (red/amber/green/gray)
 - `server/routes/deadlines.ts` — GET /api/deadlines endpoint
 - `server/lib/deadline-reader.test.ts` — 22 unit tests with temp filesystem
+- `server/lib/capture-writer.ts` — Appends timestamped entries to inbox.md with sanitization
+- `server/routes/capture.ts` — POST /api/capture and GET /api/capture/corpus endpoints
+- `server/lib/capture-writer.test.ts` — 9 unit tests with temp filesystem
+- `server/lib/notes-corpus-parser.ts` — Parses notes_corpus.txt.txt for TODOs/ideas/notes
+- `server/lib/notes-corpus-parser.test.ts` — 15 unit tests with temp filesystem
 
 **Config**:
 - `package.json` — npm scripts (dev, build, test, type-check)

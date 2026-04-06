@@ -4,6 +4,7 @@ import { config } from 'dotenv'
 import { projectsRouter } from './routes/projects.js'
 import { todosRouter } from './routes/todos.js'
 import { deadlinesRouter } from './routes/deadlines.js'
+import { captureRouter } from './routes/capture.js'
 
 config()
 
@@ -23,6 +24,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/projects', projectsRouter)
 app.use('/api/todos', todosRouter)
 app.use('/api/deadlines', deadlinesRouter)
+app.use('/api/capture', captureRouter)
 
 // Start server
 app.listen(PORT, () => {

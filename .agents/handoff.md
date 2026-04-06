@@ -1,124 +1,157 @@
-# Handoff: Backend — Deadline reader & urgency calculation
-**Task ID**: TASK-005
+# Handoff: Backend — Quick capture endpoint + notes corpus parser
+**Task ID**: TASK-006
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center. React+Vite frontend on :5173, Express.js TypeScript backend on :3001.
 
-**This task builds on TASK-001**. Project is scaffolded. You're creating `server/lib/deadline-reader.ts` and `server/routes/deadlines.ts`.
+**This task builds on TASK-001 and TASK-002**. Project is scaffolded (TASK-001) and Obsidian vault exists at `C:\Users\boomb\Documents\SecondBrain` (TASK-002). You're adding `server/routes/capture.ts` and notes corpus parsing to server/lib.
 
-**Why this task matters**: Deadline visibility is a core P0 feature. The color-coded urgency timeline is the first thing Adi sees when opening the dashboard. Frontend TASK-009 (deadline timeline component) depends on this endpoint returning correct urgency levels.
+**Why this task matters**: Quick capture is the "dump" workflow — the top input bar on the dashboard. It's used constantly. Also, parsing the existing notes corpus (`notes_corpus.txt.txt`) makes years of Adi's existing notes available in the TODO list immediately, which provides instant value.
 
-**Source file**: `C:\Users\boomb\Documents\SecondBrain\Deadlines\deadlines.md` (VAULT_DIR/Deadlines/deadlines.md)
+**Target files**:
+- Quick capture → `C:\Users\boomb\Documents\SecondBrain\Inbox\inbox.md`
+- Notes corpus (parse only) → `C:\Users\boomb\Documents\notes_corpus.txt.txt`
 
 ## Task
 
-Implement `GET /api/deadlines` — parses deadlines.md and returns deadline objects with urgency levels.
-
-### File format to parse:
-
-```markdown
-- [ ] 2026-04-10 | ECE319H Lab 8 due | school
-- [ ] 2026-04-15 | M325K Homework 9 | school
-- [x] 2026-04-01 | M325K Midterm 3 | school
-```
-
-Rules:
-- Line must start with `- [ ] ` or `- [x] `
-- Date is in `YYYY-MM-DD` format
-- `|` is the delimiter
-- Third field (tag) is optional
-- Lines not matching this format are silently skipped
-- Lines starting with `#` or `>` are comments/headers — skip them
+Implement `POST /api/capture` and `GET /api/corpus`.
 
 ### Files to create:
 
-#### `server/lib/deadline-reader.ts`
-
-```ts
-export interface DeadlineItem {
-  id: string           // sha256(date + "|" + description) first 12 hex chars
-  date: string         // ISO date string (YYYY-MM-DD)
-  description: string
-  tag: string | null   // school, project, personal, tutoring, poker — or null
-  done: boolean
-  urgency: 'red' | 'amber' | 'green' | 'gray'
-  daysUntil: number    // negative = overdue, 0 = today
-}
-
-export async function readDeadlines(vaultDir: string): Promise<DeadlineItem[]>
-```
-
-**Urgency calculation** (based on days until due date, evaluated at request time):
-- `'gray'` — done=true (completed, regardless of date)
-- `'red'` — daysUntil <= 2 (within 48 hours OR overdue)
-- `'amber'` — daysUntil <= 7 (within a week)
-- `'green'` — daysUntil > 7
-
-**Sort order**:
-1. Non-done items sorted by date ascending (soonest first)
-2. Done items at the end, sorted by date descending (most recently completed first)
-
-**File not found handling**: If deadlines.md doesn't exist, return empty array (not an error — this is normal on first run before TASK-002 runs).
-
-**Security**: Validate vaultDir path before reading. The deadlines.md path must be inside vaultDir.
-
-#### `server/routes/deadlines.ts`
+#### `server/routes/capture.ts`
 
 ```ts
 import { Router } from 'express'
-import { readDeadlines } from '../lib/deadline-reader'
+import { appendCapture } from '../lib/capture-writer'
 import { config } from 'dotenv'
 
 config()
 
 const router = Router()
 
-router.get('/', async (_req, res) => {
+router.post('/', async (req, res) => {
   const { VAULT_DIR } = process.env
   if (!VAULT_DIR) {
     return res.status(500).json({ error: 'VAULT_DIR not configured' })
   }
+
+  const { text } = req.body as { text?: unknown }
+
+  // Input validation
+  if (typeof text !== 'string' || text.trim().length === 0) {
+    return res.status(400).json({ error: 'text is required and must be a non-empty string' })
+  }
+  if (text.length > 2000) {
+    return res.status(400).json({ error: 'text must be 2000 characters or fewer' })
+  }
+
   try {
-    const deadlines = await readDeadlines(VAULT_DIR)
-    return res.json(deadlines)
+    const entry = await appendCapture(text.trim(), VAULT_DIR)
+    return res.json({ success: true, entry })
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to read deadlines' })
+    return res.status(500).json({ error: 'Failed to write capture' })
   }
 })
 
-export { router as deadlinesRouter }
+export { router as captureRouter }
 ```
+
+#### `server/lib/capture-writer.ts`
+
+```ts
+import { appendFile, mkdir } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+
+export async function appendCapture(text: string, vaultDir: string): Promise<string> {
+  // Validate vaultDir path
+  const resolvedVault = resolve(vaultDir)
+  const inboxPath = join(resolvedVault, 'Inbox', 'inbox.md')
+
+  // Ensure Inbox directory exists
+  await mkdir(join(resolvedVault, 'Inbox'), { recursive: true })
+
+  // Format timestamp: YYYY-MM-DD HH:mm
+  const now = new Date()
+  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  const entry = `- [ ] [${timestamp}] ${text}`
+  await appendFile(inboxPath, entry + '\n', 'utf-8')
+
+  return entry
+}
+```
+
+#### `server/lib/notes-corpus-parser.ts`
+
+Parses the existing unstructured notes file (`notes_corpus.txt.txt`) for actionable items.
+
+```ts
+export interface CorpusItem {
+  id: string
+  text: string
+  type: 'todo' | 'idea' | 'note'
+  source: 'corpus'
+}
+
+export async function parseNotesCorpus(corpusPath: string): Promise<CorpusItem[]>
+```
+
+Parse heuristics for `notes_corpus.txt.txt`:
+- Lines starting with `- [ ]`, `[ ]`, `*`, `-`, `•` followed by text → type='todo'
+- Lines containing "idea:", "idea -", or all-caps prefix like "IDEA:" → type='idea'
+- Lines starting with "TODO", "todo", "FIXME" → type='todo'
+- Non-empty lines that are at least 10 chars → type='note' (fallback)
+- Skip blank lines, lines with only punctuation, header lines (all-caps short strings)
+
+**File not found**: Return empty array silently (corpus file may not exist).
+
+**Security**: Validate corpusPath is a valid absolute path (no traversal). Since this is a hardcoded path from env, just resolve and check it's readable.
+
+#### Add corpus route to `server/routes/capture.ts` (OR create separate file):
+
+```ts
+router.get('/corpus', async (_req, res) => {
+  const corpusPath = process.env.NOTES_CORPUS
+  if (!corpusPath) {
+    return res.json([])
+  }
+  try {
+    const { parseNotesCorpus } = await import('../lib/notes-corpus-parser')
+    const items = await parseNotesCorpus(corpusPath)
+    return res.json(items)
+  } catch {
+    return res.json([])
+  }
+})
+```
+
+Add `NOTES_CORPUS=C:\Users\boomb\Documents\notes_corpus.txt.txt` to `.env.example`.
 
 Mount in `server/index.ts`:
 ```ts
-import { deadlinesRouter } from './routes/deadlines'
-app.use('/api/deadlines', deadlinesRouter)
+import { captureRouter } from './routes/capture'
+app.use('/api/capture', captureRouter)
 ```
 
-#### Tests: `server/lib/deadline-reader.test.ts`
+#### Tests: `server/lib/capture-writer.test.ts`
 
-Create a temp deadlines.md with test content. Test:
-- Basic parsing: date, description, tag, done all extracted correctly
-- Tag is null when not provided
-- Urgency: done items → gray
-- Urgency: item due tomorrow → red
-- Urgency: item due in 5 days → amber
-- Urgency: item due in 10 days → green
-- Urgency: overdue item (past date) → red
-- Sort order: pending items sorted ascending, done items at end
-- Lines not matching format are skipped
-- Empty file returns empty array
-- File not found returns empty array (not an error)
+Use a temp directory:
+- `appendCapture` creates inbox.md if it doesn't exist
+- Entry format is exactly `- [ ] [YYYY-MM-DD HH:mm] text\n`
+- Multiple appends stack correctly in the file
+- Empty string returns 400 (test via route if possible, or directly test validation)
+- Text > 2000 chars is rejected
 
 ## Acceptance Criteria
-- [ ] `GET /api/deadlines` returns sorted array with urgency levels
-- [ ] Parsed fields: id, date, description, tag (or null), done, urgency, daysUntil
-- [ ] Urgency: gray=done, red=≤2d, amber=≤7d, green=>7d
-- [ ] Overdue items show urgency='red' with negative daysUntil
-- [ ] Sort: pending ascending, done at end
-- [ ] Missing deadlines.md returns empty array (not 404)
+- [ ] `POST /api/capture` with `{ text: "hello" }` appends to inbox.md
+- [ ] Entry format: `- [ ] [YYYY-MM-DD HH:mm] hello`
+- [ ] Returns `{ success: true, entry: "- [ ] [2026-04-05 14:32] hello" }`
+- [ ] Empty text returns 400
+- [ ] Text >2000 chars returns 400
+- [ ] Creates inbox.md and parent directory if they don't exist
+- [ ] `GET /api/capture/corpus` returns parsed items from notes_corpus.txt.txt (or empty array if missing)
 - [ ] Tests pass
 
 ## Validation Gates
@@ -126,14 +159,15 @@ Create a temp deadlines.md with test content. Test:
 - [ ] `pnpm test` → all tests green
 
 ## Constraints
-- Do NOT write to deadlines.md — this is read-only
-- Do NOT require deadlines.md to exist (graceful empty array fallback)
-- Urgency is calculated at request time (not stored)
+- Do NOT allow capture text to contain newlines (strip them or reject)
+- Do NOT overwrite inbox.md — ALWAYS append
+- User input must be sanitized before writing to file (strip null bytes, control characters)
+- Max capture length: 2000 characters
 
 ## On Completion
 ```
 git add -A
-git commit -m "feat(TASK-005): deadline reader with urgency calculation and unit tests"
+git commit -m "feat(TASK-006): quick capture endpoint and notes corpus parser"
 ```
 
-Update `.agents/state.json` tasks.TASK-005.status to "done".
+Update `.agents/state.json` tasks.TASK-006.status to "done".

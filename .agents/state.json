@@ -150,7 +150,7 @@
                   "TASK-006":  {
                                    "title":  "Backend: Quick capture endpoint + notes corpus parser",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-001",
@@ -382,12 +382,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T20:46:00-05:00",
-    "last_updated_by":  "engineer",
+    "last_updated":  "2026-04-05T20:47:56.2122860-05:00",
+    "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-005",
-                         "title":  "Backend: Deadline reader \u0026 urgency calculation",
-                         "status":  "done",
+                         "id":  "TASK-006",
+                         "title":  "Backend: Quick capture endpoint + notes corpus parser",
+                         "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
 }
