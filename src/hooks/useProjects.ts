@@ -37,6 +37,9 @@ export function useProjects(): UseProjectsResult {
 
   useEffect(() => {
     fetchProjects()
+    // Poll every 60 seconds
+    const intervalId = setInterval(fetchProjects, 60_000)
+    return () => clearInterval(intervalId)
   }, [fetchProjects])
 
   return {

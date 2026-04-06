@@ -1,10 +1,15 @@
 import { useProjects } from './hooks/useProjects'
+import { useTodos } from './hooks/useTodos'
 import { ProjectCard } from './components/ProjectCard'
 import { StatusOverview } from './components/StatusOverview'
 import { QuickCapture } from './components/QuickCapture'
+import { TodoAggregator } from './components/TodoAggregator'
+import { DeadlineTimeline } from './components/DeadlineTimeline'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
+  const { refetch: refetchTodos } = useTodos()
 
   // Get current date formatted
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -27,7 +32,10 @@ function App() {
       {/* QuickCapture */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
         <div className="max-w-7xl mx-auto">
-          <QuickCapture onCapture={refetch} />
+          <QuickCapture onCapture={() => {
+            refetch()
+            refetchTodos()
+          }} />
         </div>
       </div>
 
@@ -101,17 +109,15 @@ function App() {
             )}
           </div>
 
-          {/* Right column: Sidebar (TODO aggregator + deadline timeline) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">TODO Aggregator</h2>
-              <p className="text-sm text-gray-500 italic">Coming soon</p>
-            </div>
+          {/* Right column: Sidebar (deadline timeline + TODO aggregator) */}
+          <div className="lg:col-span-1 space-y-6">
+            <ErrorBoundary fallbackMessage="Error loading deadlines">
+              <DeadlineTimeline compact={false} />
+            </ErrorBoundary>
 
-            <div className="bg-white rounded-lg border border-gray-200 p-5 mt-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Deadline Timeline</h2>
-              <p className="text-sm text-gray-500 italic">Coming soon</p>
-            </div>
+            <ErrorBoundary fallbackMessage="Error loading TODOs">
+              <TodoAggregator />
+            </ErrorBoundary>
           </div>
         </div>
       </main>

@@ -1,108 +1,165 @@
-# Handoff: Frontend — Deadline timeline
-**Task ID**: TASK-009
+# Handoff: Integration — Wire all components, polling, error states, E2E tests
+**Task ID**: TASK-011
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center. React+Vite+TypeScript frontend on :5173, Express backend on :3001.
 
-**Depends on TASK-005 (backend deadline reader)**. The backend has `GET /api/deadlines` returning deadlines parsed from `VAULT_DIR/deadlines.md`.
+**This is the final integration task**. All four feature components exist:
+- `ProjectCard.tsx` + `StatusOverview.tsx` (TASK-007)
+- `TodoAggregator.tsx` (TASK-008)
+- `DeadlineTimeline.tsx` (TASK-009)
+- `QuickCapture.tsx` (TASK-010)
 
-**API shape**:
-```ts
-// GET /api/deadlines response
-interface Deadline {
-  id: string       // generated ID
-  date: string     // ISO date string e.g. "2026-04-10"
-  description: string
-  tag: string | null
-  done: boolean
-  urgency: 'red' | 'amber' | 'green' | 'gray'
-  // urgency rules:
-  //   red   = due within 2 days (and not done)
-  //   amber = due within 7 days (and not done)
-  //   green = due > 7 days (and not done)
-  //   gray  = done
-}
-```
+And all backend routes exist:
+- `GET /api/projects` (TASK-003)
+- `GET /api/todos` + `PATCH /api/todos/:id` (TASK-004)
+- `GET /api/deadlines` (TASK-005)
+- `POST /api/capture` (TASK-006)
+
+**Why this task matters**: Without integration, each component is an island. This task:
+1. Wires everything into the `App.tsx` shell
+2. Adds 60-second polling so the dashboard refreshes automatically
+3. Adds proper loading states and error boundaries
+4. Validates the complete PRD success criteria with an integration test
 
 ## Task
 
-Build `src/components/DeadlineTimeline.tsx`.
+### 1. Wire `src/App.tsx`
 
-### Component interface
-```tsx
-interface DeadlineTimelineProps {
-  compact?: boolean   // true = show max 5 upcoming, false = show all
-}
+Full dashboard layout:
+```
++------------------------------------------+
+|  CORTEX                        2026-04-05 |
+|  [Ctrl+K — Capture a thought...] [Capture]|
++----------------+-------------------------+
+| StatusOverview |                          |
+|                |   DeadlineTimeline       |
+| ProjectCard    |                          |
+| ProjectCard    |   TodoAggregator         |
+| ProjectCard    |                          |
++----------------+-------------------------+
 ```
 
-### Visual design
+- Render `<QuickCapture onCapture={() => { refetchTodos(); refetchProjects(); }} />`
+- Render `<StatusOverview />` spanning full width above the two-column grid
+- Left column: project card grid (2 cards wide on md+, 1 on sm)
+- Right column: `<DeadlineTimeline compact={false} />` on top, `<TodoAggregator />` below
+- Pass down `refetch` callbacks so QuickCapture triggers a todos refresh
 
-**Timeline layout**:
-- Vertical list, chronological order (nearest date first)
-- Left column: date display (month + day, relative label for "Today", "Tomorrow", "2 days")
-- Connector line between items (thin vertical line with dot at each item)
-- Right column: description + optional tag chip
+### 2. Add 60-second polling to all data hooks
 
-**Color coding** by urgency:
-- `red` → red dot + red border-left on the item row, description in bold
-- `amber` → amber/yellow dot + amber border-left
-- `green` → green dot, normal text
-- `gray` (done) → gray dot, strikethrough description, reduced opacity
+In `src/hooks/useProjects.ts`, `src/hooks/useTodos.ts`, `src/hooks/useDeadlines.ts`:
 
-**Tags**:
-- Render as small chip/badge if present: `bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded`
-
-**Compact mode** (`compact=true`):
-- Show only next 5 pending deadlines
-- Show "See all N deadlines" link at bottom if there are more
-
-**Completed deadlines**:
-- Appear at the bottom, after a "Completed" divider
-- Strikethrough + reduced opacity
-
-**Empty state**: "No upcoming deadlines" with a small calendar icon (use text: 📅)
-
-### `src/hooks/useDeadlines.ts`
 ```ts
-export function useDeadlines() {
-  // returns { deadlines: Deadline[], loading: boolean, error: string | null, refetch: () => void }
-}
+useEffect(() => {
+  fetchData()
+  const id = setInterval(fetchData, 60_000)
+  return () => clearInterval(id)
+}, [])
 ```
 
-### Loading / error states
-- Loading: 3 skeleton rows with `animate-pulse`
-- Error: inline "Failed to load deadlines" with retry link
+**Critical**: return the cleanup function to avoid memory leaks on unmount.
+
+### 3. Loading skeletons
+
+Each component (ProjectCard grid, TodoAggregator, DeadlineTimeline) should already have loading skeletons from their individual tasks. Verify they render during initial load.
+
+If any are missing:
+- Project grid loading: 3 cards with `animate-pulse` gray blocks
+- Todo list loading: 5 rows with light gray bars
+- Deadline loading: 3 slim rows with gray bars
+
+### 4. Error boundary: `src/components/ErrorBoundary.tsx`
+
+Simple React class-based error boundary component:
+- Catches JS errors in child tree
+- Shows fallback: "Something went wrong in this section. [Retry]"
+- Retry resets the error state (force re-render of children)
+
+Wrap each major section (projects, todos, deadlines) in an ErrorBoundary.
+
+### 5. Empty states
+
+Verify each component has an empty state message:
+- Projects: "No projects found in [PROJECTS_DIR path]"
+- Todos: "No open TODOs — you're all caught up! 🎉"
+- Deadlines: "No upcoming deadlines"
+
+These should already be in the components. Verify they render when API returns empty arrays.
+
+### 6. Integration test: `server/integration.test.ts`
+
+Uses a temporary test directory — does NOT use real `PROJECTS_DIR`/`VAULT_DIR`:
+
+```ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+
+const TEST_DIR = join(import.meta.dirname, '__test_projects__')
+const TEST_VAULT = join(import.meta.dirname, '__test_vault__')
+
+// Scaffold test fixture
+beforeAll(() => {
+  // Create test project with state file + todo file + deadline file
+})
+
+afterAll(() => {
+  rmSync(TEST_DIR, { recursive: true, force: true })
+  rmSync(TEST_VAULT, { recursive: true, force: true })
+})
+```
+
+**Test the full pipeline**:
+1. Scanner finds project in TEST_DIR
+2. TODO extractor finds `- [ ]` items from the project's files
+3. Deadline reader parses deadlines.md from TEST_VAULT
+4. Capture writer appends to TEST_VAULT/Inbox/inbox.md
+5. State detection priority: `agent_state.md` → `Agent_State.json` → `state.md` → `Status.md` → `README.md`
+
+### 7. Validate PRD success criteria
+
+In a test or as a commented checklist comment at top of `integration.test.ts`, document each acceptance criterion from the PRD and which test covers it:
+
+From PRD (must all pass):
+- [ ] "Today's most pressing deadlines visible within 3 seconds of opening": covered by integration test timing deadline API
+- [ ] "Mark any TODO done permanently updates the source file": covered by PATCH test
+- [ ] "Quick capture → visible in vault within 5 seconds": covered by capture test
+- [ ] "All project statuses visible in one view": covered by scanner test
+- [ ] "Works fully offline": no network calls in any code path (verify no fetch to external URLs)
 
 ## Acceptance Criteria
-- [ ] Deadlines render in chronological order (pending, then completed)  
-- [ ] Red deadlines show red left border and bold text
-- [ ] Amber deadlines show amber/yellow left border
-- [ ] Completed deadlines show with strikethrough + gray at bottom
-- [ ] Tags render as chips when present
-- [ ] Compact mode shows max 5 + "See all" link when >5
-- [ ] "Today" / "Tomorrow" / "2 days" relative labels for near dates
-- [ ] Empty state renders when no deadlines
-- [ ] Loading skeleton renders
-- [ ] `pnpm type-check` passes
-- [ ] `pnpm test` passes (sorting logic, urgency display, compact mode unit tested)
+- [ ] App renders all 4 components in correct layout
+- [ ] 60-second polling active in all data hooks (verified by unit test)
+- [ ] Quick capture triggers todo + project refetch
+- [ ] Error boundary catches component crashes gracefully
+- [ ] Loading skeletons visible during initial fetch
+- [ ] Empty states render correctly for each section
+- [ ] Integration test creates fixture, tests full backend pipeline, cleans up
+- [ ] All PRD success criteria documented and passing
+- [ ] `pnpm dev` starts without errors — app loads fully in browser
 
 ## Validation Gates
 - [ ] `pnpm type-check` → zero errors
-- [ ] `pnpm test` → all tests green
+- [ ] `pnpm test` → all tests green (unit + integration)
+- [ ] `pnpm dev` → app loads at localhost:5173 with no console errors
+- [ ] All 5 backend routes return 200 with valid data when dev server running
 
 ## Constraints
-- Do NOT import any date manipulation libraries — use vanilla JS Date
-- Do NOT make the deadline clickable yet (no edit UI in scope)
-- Urgency coloring must be driven by the `urgency` field from the API, not recalculated client-side
-- Type `Deadline` should live in `src/types.ts`
-- No external icon library — use emoji or SVG inline if needed
+- Do NOT add a real-time websocket — polling only
+- Do NOT import any state management library (Redux, Zustand, etc.) — React useState/useEffect only
+- The integration test MUST use a temp directory and clean up after itself
+- Do NOT change the file write-back mechanism — only TODO toggle and inbox.md append are allowed file writes
+- Do NOT add any external dependencies — use only existing packages from package.json
 
 ## On Completion
 ```
 git add -A
-git commit -m "feat(TASK-009): deadline timeline component"
+git commit -m "feat(TASK-011): full integration, polling, error boundaries, E2E tests"
 ```
 
-Update `.agents/state.json` tasks.TASK-009.status to "done".
+Update `.agents/state.json` tasks.TASK-011.status to "done".
+Update `.agents/state.json` `status` field to "mvp_complete".
+Update `.agents/state.md` with completion summary.

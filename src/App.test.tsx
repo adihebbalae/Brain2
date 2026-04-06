@@ -10,12 +10,23 @@ describe('App', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the Cortex title', () => {
-    ;(global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
+  const mockAllApis = (projects: any[] = [], todos: any = { total: 0, completed: 0, byProject: {} }, deadlines: any[] = []) => {
+    ;(global.fetch as any).mockImplementation((url: string) => {
+      if (url.includes('/api/projects')) {
+        return Promise.resolve({ ok: true, json: async () => projects })
+      }
+      if (url.includes('/api/todos')) {
+        return Promise.resolve({ ok: true, json: async () => todos })
+      }
+      if (url.includes('/api/deadlines')) {
+        return Promise.resolve({ ok: true, json: async () => deadlines })
+      }
+      return Promise.reject(new Error('Unknown URL'))
     })
+  }
 
+  it('renders the Cortex title', () => {
+    mockAllApis()
     render(<App />)
     expect(screen.getByText('Cortex')).toBeTruthy()
   })
@@ -46,11 +57,7 @@ describe('App', () => {
       },
     ]
 
-    ;(global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockProjects,
-    })
-
+    mockAllApis(mockProjects)
     render(<App />)
 
     await waitFor(() => {
@@ -59,7 +66,19 @@ describe('App', () => {
   })
 
   it('shows error state on fetch failure', async () => {
-    ;(global.fetch as any).mockRejectedValueOnce(new Error('Network error'))
+    ;(global.fetch as any).mockImplementation((url: string) => {
+      if (url.includes('/api/projects')) {
+        return Promise.reject(new Error('Network error'))
+      }
+      // Mock other APIs as successful
+      if (url.includes('/api/todos')) {
+        return Promise.resolve({ ok: true, json: async () => ({ total: 0, completed: 0, byProject: {} }) })
+      }
+      if (url.includes('/api/deadlines')) {
+        return Promise.resolve({ ok: true, json: async () => [] })
+      }
+      return Promise.reject(new Error('Unknown URL'))
+    })
 
     render(<App />)
 
@@ -69,11 +88,7 @@ describe('App', () => {
   })
 
   it('shows empty state when no projects found', async () => {
-    ;(global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-    })
-
+    mockAllApis([], { total: 0, completed: 0, byProject: {} }, [])
     render(<App />)
 
     await waitFor(() => {

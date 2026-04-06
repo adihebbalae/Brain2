@@ -55,7 +55,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── TodoAggregator.test.tsx  # ✓ TodoAggregator tests (TASK-008)
 │       ├── DeadlineTimeline.tsx     # ✓ Deadline timeline with urgency indicators (TASK-009)
 │       ├── DeadlineTimeline.test.tsx # ✓ DeadlineTimeline tests (TASK-009)
-│       └── QuickCapture.tsx         # [planned] TASK-010
+│       ├── QuickCapture.tsx         # ✓ Quick capture input bar component (TASK-010)
+│       └── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
 └── server/                          # Express.js backend
     ├── index.ts                     # Express server entry with all API routes mounted
     ├── routes/
@@ -152,3 +153,5 @@ README.md                        # Boilerplate documentation
 - `src/components/TodoAggregator.test.tsx` — ✓ 13 tests: grouping, collapsing, completed disclosure, toggle, badges (TASK-008)
 - `src/components/DeadlineTimeline.tsx` — ✓ Deadline timeline with vertical layout, color-coded urgency, relative dates, tags, compact mode (TASK-009)
 - `src/components/DeadlineTimeline.test.tsx` — ✓ 12 tests: loading/error/empty states, urgency styling, relative labels, compact mode, completed section (TASK-009)
+- `src/components/QuickCapture.tsx` — ✓ Quick capture input bar with POST /api/capture, success/error toasts, Ctrl+K shortcut, input sanitization (TASK-010)
+- `src/components/QuickCapture.test.tsx` — ✓ 20 tests: input/button, submit, toasts, keyboard shortcut, whitespace handling, loading states (TASK-010)

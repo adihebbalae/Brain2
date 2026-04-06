@@ -34,6 +34,9 @@ export function useDeadlines(): UseDeadlinesReturn {
 
   useEffect(() => {
     fetchDeadlines()
+    // Poll every 60 seconds
+    const intervalId = setInterval(fetchDeadlines, 60_000)
+    return () => clearInterval(intervalId)
   }, [fetchDeadlines])
 
   return {

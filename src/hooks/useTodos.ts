@@ -35,6 +35,9 @@ export function useTodos(): UseTodosReturn {
 
   useEffect(() => {
     fetchTodos()
+    // Poll every 60 seconds
+    const intervalId = setInterval(fetchTodos, 60_000)
+    return () => clearInterval(intervalId)
   }, [fetchTodos])
 
   const toggle = useCallback(async (id: string) => {

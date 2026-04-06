@@ -4,8 +4,8 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: In Progress — Frontend implementation ongoing
-- **Current Task**: TASK-009 — Frontend deadline timeline (done)
+- **Phase**: In Progress — Frontend implementation complete, integration phase next
+- **Current Task**: TASK-011 — Integration, polling, error states, E2E testing (pending)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
@@ -16,6 +16,7 @@
   - TASK-007 — Dashboard layout with project cards (14 frontend tests, 99 total passing)
   - TASK-008 — TODO aggregator with optimistic updates (21 frontend tests, 120 total passing)
   - TASK-009 — Deadline timeline with urgency indicators (17 frontend tests, 137 total passing)
+  - TASK-010 — Quick capture input bar component (20 component tests, 157 total passing)
 
 ## Project Brief
 
@@ -51,7 +52,7 @@
 | TASK-007 | Frontend: Dashboard + project cards | done | P0 |
 | TASK-008 | Frontend: TODO aggregator | done | P0 |
 | TASK-009 | Frontend: Deadline timeline | done | P0 |
-| TASK-010 | Frontend: Quick capture bar | pending | P0 |
+| TASK-010 | Frontend: Quick capture bar | done | P0 |
 | TASK-011 | Integration + E2E testing | pending | P0 |
 | TASK-012 | Google Calendar OAuth + sync | pending | P1 |
 | TASK-013 | AI summarization (Claude API) | pending | P1 |
@@ -165,4 +166,22 @@
   - Urgency driven by API field (not recalculated client-side)
   - 17 frontend tests: 5 useDeadlines hook tests (fetch, error, refetch) + 12 DeadlineTimeline component tests (rendering, urgency styling, relative labels, compact mode, completed section)
   - 137 total tests passing (85 backend + 52 frontend)
+  - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-010 completed — Built QuickCapture component for quick thought capture:
+  - QuickCapture component: full-width input bar positioned at top of dashboard (above all content)
+  - White background with subtle bottom shadow, persistent across all views
+  - Input field with placeholder "Capture a thought... (Ctrl+K)", maxLength 2000 characters
+  - Submit button on right ("Capture"), disabled when input is empty/whitespace-only or during submission
+  - Form submission: POST to /api/capture endpoint with { text: string } payload
+  - Input sanitization: trims whitespace, rejects blank strings
+  - Success behavior: clears input field + shows green "Captured!" toast (auto-dismiss after 2 seconds with CSS fade-in animation)
+  - Error behavior: keeps input unchanged + shows red toast with API error message
+  - Loading state: disables input and button during submission, changes button text to "Capturing..."
+  - Ctrl+K keyboard shortcut: focuses capture input from anywhere on the page (with preventDefault)
+  - Event listener cleanup on component unmount (no memory leaks)
+  - onCapture callback: optional prop for parent component to trigger data refetch after successful capture
+  - Integrated into App.tsx: replaces placeholder, passes refetch callback to refresh project data
+  - State-based toast implementation: no external notification library, CSS-only with existing animate-fade-in class
+  - 20 component tests covering: input/button rendering, enable/disable states, submit on button click, submit on Enter key, input clearing, success/error toasts, whitespace trimming, blank input rejection, Ctrl+K shortcut, preventDefault behavior, onCapture callback, loading states, maxLength enforcement, auto-dismiss toast, event listener cleanup
+  - 157 total tests passing (85 backend + 72 frontend)
   - Type-checking passes with zero errors, all acceptance criteria met
