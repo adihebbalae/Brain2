@@ -4,8 +4,8 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: In Progress — Backend implementation complete, ready for frontend
-- **Current Task**: TASK-006 — Backend quick capture endpoint + notes corpus parser (done)
+- **Phase**: In Progress — Frontend implementation started, dashboard shell complete
+- **Current Task**: TASK-007 — Frontend dashboard layout and project cards (done)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
@@ -13,6 +13,7 @@
   - TASK-004 — TODO extractor with checkbox write-back (22 tests passing)
   - TASK-005 — Deadline reader with urgency calculation (22 tests passing)
   - TASK-006 — Quick capture endpoint + notes corpus parser (24 tests passing)
+  - TASK-007 — Dashboard layout with project cards (14 frontend tests, 99 total passing)
 
 ## Project Brief
 
@@ -45,7 +46,7 @@
 | TASK-004 | Backend: TODO extractor | done | P0 |
 | TASK-005 | Backend: Deadline reader | done | P0 |
 | TASK-006 | Backend: Quick capture + notes parser | done | P0 |
-| TASK-007 | Frontend: Dashboard + project cards | pending | P0 |
+| TASK-007 | Frontend: Dashboard + project cards | done | P0 |
 | TASK-008 | Frontend: TODO aggregator | pending | P0 |
 | TASK-009 | Frontend: Deadline timeline | pending | P0 |
 | TASK-010 | Frontend: Quick capture bar | pending | P0 |
@@ -114,4 +115,17 @@
   - Graceful handling of missing corpus file (returns empty array)
   - Path validation for security
   - 24 unit tests: 9 capture writer tests + 15 corpus parser tests (all passing)
+  - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-007 completed — Built frontend dashboard layout and project cards:
+  - Main dashboard layout with header (Cortex title + current date), QuickCapture placeholder, two-column responsive grid
+  - StatusOverview component: stats bar showing active/stale/archived project counts, total open TODOs
+  - ProjectCard component: displays name, color-coded status badge (green/amber/gray), summary (2-line truncate), next steps (max 3), last modified (relative time), TODO count, "Open in VS Code" button with vscode:// protocol links
+  - Stale indicators: amber border for >14 days, red border for >30 days
+  - useProjects custom hook: fetches GET /api/projects with loading/error/refetch states
+  - Error state: red banner with retry button
+  - Loading state: 3 skeleton cards with animate-pulse
+  - Empty state: "No projects found" message
+  - Installed @testing-library/react and happy-dom for component testing
+  - 14 frontend tests: 5 App tests (loading/error/empty states, StatusOverview rendering) + 9 ProjectCard tests (status badges, stale borders, next steps truncation, Open in VS Code link)
+  - 99 total tests passing (85 backend + 14 frontend)
   - Type-checking passes with zero errors, all acceptance criteria met

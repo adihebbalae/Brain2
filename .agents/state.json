@@ -170,7 +170,7 @@
                   "TASK-007":  {
                                    "title":  "Frontend: Dashboard layout, project cards, status overview",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-003"
@@ -184,7 +184,8 @@
                                                                "Stale indicators: amber \u003e14d, red \u003e30d",
                                                                "Stats panel shows counts",
                                                                "Responsive grid layout"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-008":  {
                                    "title":  "Frontend: TODO aggregator with mark-done",
@@ -363,7 +364,8 @@
                       "2026-04-05: TASK-003 completed — Implemented project scanner with state file parser, priority detection, status inference, summary/next-steps extraction, path validation, 17 unit tests (all passing)",
                       "2026-04-05: TASK-004 completed — Implemented TODO extractor with 5 pattern types (checkboxes, TODO/FIXME/HACK comments), stable hash IDs, atomic write-back for checkbox toggles, GET /api/todos and PATCH /api/todos/:id endpoints, 22 unit tests (all passing)",
                       "2026-04-05: TASK-005 completed — Implemented deadline reader with urgency calculation (red/amber/green/gray), GET /api/deadlines endpoint, parses VAULT_DIR/Deadlines/deadlines.md, stable ID generation, pending/done sort order, 22 unit tests (all passing)",
-                      "2026-04-05: TASK-006 completed — Implemented quick capture endpoint (POST /api/capture) with input validation and sanitization, notes corpus parser (GET /api/capture/corpus) with heuristic type detection (todo/idea/note), 24 unit tests (9 capture + 15 corpus, all passing)"
+                      "2026-04-05: TASK-006 completed — Implemented quick capture endpoint (POST /api/capture) with input validation and sanitization, notes corpus parser (GET /api/capture/corpus) with heuristic type detection (todo/idea/note), 24 unit tests (9 capture + 15 corpus, all passing)",
+                      "2026-04-05: TASK-007 completed — Built dashboard frontend with main layout (header, stats, project grid, sidebar), ProjectCard component (status badges, summary, next steps, Open in VS Code), StatusOverview panel, useProjects hook, loading/error states, 14 frontend tests (all passing), 99 total tests passing"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -384,12 +386,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T20:54:50.2977048-05:00",
-    "last_updated_by":  "auto-run",
+    "last_updated":  "2026-04-05T21:00:00.0000000-05:00",
+    "last_updated_by":  "engineer",
     "current_task":  {
                          "id":  "TASK-007",
                          "title":  "Frontend: Dashboard layout, project cards, status overview",
-                         "status":  "in_progress",
+                         "status":  "done",
                          "assigned_to":  "engineer"
                      }
 }
