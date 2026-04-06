@@ -1,6 +1,7 @@
 import { useProjects } from './hooks/useProjects'
 import { ProjectCard } from './components/ProjectCard'
 import { StatusOverview } from './components/StatusOverview'
+import { QuickCapture } from './components/QuickCapture'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -23,13 +24,10 @@ function App() {
         </div>
       </header>
 
-      {/* QuickCapture placeholder */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      {/* QuickCapture */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
         <div className="max-w-7xl mx-auto">
-          {/* Placeholder for QuickCapture component */}
-          <div className="text-sm text-gray-400 italic">
-            Quick capture (coming soon)
-          </div>
+          <QuickCapture onCapture={refetch} />
         </div>
       </div>
 
