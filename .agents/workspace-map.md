@@ -56,9 +56,11 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── DeadlineTimeline.tsx     # ✓ Deadline timeline with urgency indicators (TASK-009)
 │       ├── DeadlineTimeline.test.tsx # ✓ DeadlineTimeline tests (TASK-009)
 │       ├── QuickCapture.tsx         # ✓ Quick capture input bar component (TASK-010)
-│       └── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
+│       ├── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
+│       └── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
 └── server/                          # Express.js backend
     ├── index.ts                     # Express server entry with all API routes mounted
+    ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
@@ -155,3 +157,5 @@ README.md                        # Boilerplate documentation
 - `src/components/DeadlineTimeline.test.tsx` — ✓ 12 tests: loading/error/empty states, urgency styling, relative labels, compact mode, completed section (TASK-009)
 - `src/components/QuickCapture.tsx` — ✓ Quick capture input bar with POST /api/capture, success/error toasts, Ctrl+K shortcut, input sanitization (TASK-010)
 - `src/components/QuickCapture.test.tsx` — ✓ 20 tests: input/button, submit, toasts, keyboard shortcut, whitespace handling, loading states (TASK-010)
+- `src/components/ErrorBoundary.tsx` — ✓ React class-based error boundary for graceful component error handling (TASK-011)
+- `server/integration.test.ts` — ✓ 26 E2E integration tests validating all PRD success criteria (TASK-011)

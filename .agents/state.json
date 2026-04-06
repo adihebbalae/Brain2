@@ -246,7 +246,7 @@
                   "TASK-011":  {
                                    "title":  "Integration, polling, error states, E2E testing",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-007",
@@ -264,7 +264,8 @@
                                                                "Empty states for zero projects/todos/deadlines",
                                                                "Page load under 2 seconds",
                                                                "Full PRD success criteria met"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-012":  {
                                    "title":  "Google Calendar OAuth setup + sync endpoint",
@@ -322,8 +323,8 @@
                                                            ]
                                }
               },
-    "active_task":  "TASK-004",
-    "status":  "in_progress",
+    "active_task":  "TASK-011",
+    "status":  "mvp_complete",
     "handoff":  {
                     "from":  "manager",
                     "to":  "engineer",
@@ -371,7 +372,8 @@
                       "2026-04-05: TASK-007 completed — Built dashboard frontend with main layout (header, stats, project grid, sidebar), ProjectCard component (status badges, summary, next steps, Open in VS Code), StatusOverview panel, useProjects hook, loading/error states, 14 frontend tests (all passing), 99 total tests passing",
                       "2026-04-05: TASK-008 completed — Built TodoAggregator component with optimistic checkbox toggles, grouping by project/file, collapsible groups, completed todos disclosure, type badges (FIXME/HACK), file path chips, useTodos hook with error rollback, CSS-only toast, 21 frontend tests (8 hook + 13 component, all passing), 120 total tests passing",
                       "2026-04-05: TASK-009 completed — Built DeadlineTimeline component with vertical timeline layout, color-coded urgency (red/amber/green/gray dots and borders), relative date labels (Today, Tomorrow, N days), tag chips, compact mode (max 5 + See all link), completed deadlines section (strikethrough, gray), loading/error/empty states, useDeadlines hook, 17 frontend tests (5 hook + 12 component, all passing), 137 total tests passing",
-                      "2026-04-05: TASK-010 completed — Built QuickCapture component with full-width input bar, POST /api/capture integration, success/error toasts (green/red, auto-dismiss after 2s), Ctrl+K keyboard shortcut, input sanitization (trim whitespace), disabled button for empty/whitespace input, loading states, maxLength enforcement (2000 chars), onCapture callback for refetch, 20 component tests (all passing), 157 total tests passing"
+                      "2026-04-05: TASK-010 completed — Built QuickCapture component with full-width input bar, POST /api/capture integration, success/error toasts (green/red, auto-dismiss after 2s), Ctrl+K keyboard shortcut, input sanitization (trim whitespace), disabled button for empty/whitespace input, loading states, maxLength enforcement (2000 chars), onCapture callback for refetch, 20 component tests (all passing), 157 total tests passing",
+                      "2026-04-05: TASK-011 completed — Full integration: Added 60-second polling to all data hooks (useProjects, useTodos, useDeadlines), wired TodoAggregator and DeadlineTimeline into App.tsx with two-column layout, created ErrorBoundary component for graceful error handling, integrated QuickCapture with refetch callbacks for both projects and todos, created comprehensive integration test suite (26 tests) validating all PRD success criteria (project scanner with state file priority, TODO extraction with 5 pattern types, checkbox write-back, deadline parsing with urgency, quick capture, full offline operation, performance benchmarks), updated App tests to mock all three API endpoints, 183 total tests passing, type-check clean, MVP complete"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -392,12 +394,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T21:21:43.1470982-05:00",
-    "last_updated_by":  "auto-run",
+    "last_updated":  "2026-04-05T21:28:00.0000000-05:00",
+    "last_updated_by":  "engineer",
     "current_task":  {
                          "id":  "TASK-011",
                          "title":  "Integration, polling, error states, E2E testing",
-                         "status":  "in_progress",
+                         "status":  "done",
                          "assigned_to":  "engineer"
                      }
 }

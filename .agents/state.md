@@ -4,8 +4,8 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: In Progress — Frontend implementation complete, integration phase next
-- **Current Task**: TASK-011 — Integration, polling, error states, E2E testing (pending)
+- **Phase**: MVP Complete ✅
+- **Current Task**: TASK-011 — Integration, polling, error states, E2E testing (DONE)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
@@ -53,7 +53,7 @@
 | TASK-008 | Frontend: TODO aggregator | done | P0 |
 | TASK-009 | Frontend: Deadline timeline | done | P0 |
 | TASK-010 | Frontend: Quick capture bar | done | P0 |
-| TASK-011 | Integration + E2E testing | pending | P0 |
+| TASK-011 | Integration + E2E testing | done | P0 |
 | TASK-012 | Google Calendar OAuth + sync | pending | P1 |
 | TASK-013 | AI summarization (Claude API) | pending | P1 |
 | TASK-014 | Chat export viewer | pending | P1 |
@@ -185,3 +185,30 @@
   - 20 component tests covering: input/button rendering, enable/disable states, submit on button click, submit on Enter key, input clearing, success/error toasts, whitespace trimming, blank input rejection, Ctrl+K shortcut, preventDefault behavior, onCapture callback, loading states, maxLength enforcement, auto-dismiss toast, event listener cleanup
   - 157 total tests passing (85 backend + 72 frontend)
   - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-011 completed — **MVP COMPLETE** — Full integration with polling, error boundaries, and E2E testing:
+  - **Polling**: Added 60-second auto-refresh to all data hooks (useProjects, useTodos, useDeadlines) with proper cleanup on unmount
+  - **Full Layout**: Wired TodoAggregator and DeadlineTimeline into App.tsx with responsive two-column layout (projects left, deadlines + todos right)
+  - **Error Boundaries**: Created ErrorBoundary component (React class-based) to catch and display component crashes gracefully with retry button
+  - **QuickCapture Integration**: Triggers both project and todo refetch on successful capture
+  - **Integration Test Suite**: Created server/integration.test.ts with 26 comprehensive tests validating:
+    - Project scanner discovers all 3 test projects with correct state file priority (agent_state.md > state.md > README.md)
+    - Status extraction from frontmatter, summary from content, next steps from checkboxes
+    - TODO extraction finds all 5 pattern types (unchecked/checked checkboxes, TODO/FIXME/HACK comments)
+    - File path and line numbers included for all todos
+    - Checkbox write-back toggles in source file (verified by reading file content after toggle)
+    - Rejection of toggle for non-checkbox types (TODO/FIXME/HACK)
+    - Deadline parsing with urgency calculation (red ≤2d, amber ≤7d, green >7d, gray completed)
+    - Tag parsing, completed deadline handling
+    - Quick capture appends to inbox with timestamp format
+    - Performance benchmarks: deadlines < 3s, capture < 5s
+    - Full offline operation verified (no external network calls)
+  - **Test Updates**: Updated App.test.tsx to mock all three API endpoints (projects, todos, deadlines)
+  - **New Files**: src/components/ErrorBoundary.tsx, server/integration.test.ts
+  - **All PRD Success Criteria Met**:
+    ✅ Today's most pressing deadlines visible within 3 seconds
+    ✅ Mark any TODO done permanently updates source file
+    ✅ Quick capture → visible in vault within 5 seconds
+    ✅ All project statuses visible in one view
+    ✅ Works fully offline (no external network calls)
+  - **183 total tests passing** (85 backend unit + 26 integration + 72 frontend), type-check clean
+  - **Status**: mvp_complete
