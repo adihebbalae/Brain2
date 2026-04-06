@@ -112,7 +112,7 @@
                   "TASK-004":  {
                                    "title":  "Backend: TODO extractor with checkbox write-back",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-001"
@@ -125,12 +125,13 @@
                                                                "PATCH /api/todos/:id toggles checkbox in source markdown file",
                                                                "Write-back doesn\u0027t corrupt file content",
                                                                "Tests pass for extraction and write-back"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-005":  {
                                    "title":  "Backend: Deadline reader \u0026 urgency calculation",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-001"
@@ -357,7 +358,8 @@
                       "2026-04-05: init-project — PRD ingested, plan approved, project scaffolded by manager",
                       "2026-04-05: TASK-002 completed — Created SecondBrain Obsidian vault with full PARA structure (8 directories, template files, 12 project junctions)",
                       "2026-04-05: TASK-001 completed — Scaffolded Cortex project with React+Vite+Express+TypeScript+Tailwind, all config files, concurrently dev scripts",
-                      "2026-04-05: TASK-003 completed — Implemented project scanner with state file parser, priority detection, status inference, summary/next-steps extraction, path validation, 17 unit tests (all passing)"
+                      "2026-04-05: TASK-003 completed — Implemented project scanner with state file parser, priority detection, status inference, summary/next-steps extraction, path validation, 17 unit tests (all passing)",
+                      "2026-04-05: TASK-004 completed — Implemented TODO extractor with 5 pattern types (checkboxes, TODO/FIXME/HACK comments), stable hash IDs, atomic write-back for checkbox toggles, GET /api/todos and PATCH /api/todos/:id endpoints, 22 unit tests (all passing)"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -378,12 +380,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T20:35:00-05:00",
-    "last_updated_by":  "engineer",
+    "last_updated":  "2026-04-05T20:41:22.7163960-05:00",
+    "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-004",
-                         "title":  "Backend: TODO extractor with checkbox write-back",
-                         "status":  "pending",
+                         "id":  "TASK-005",
+                         "title":  "Backend: Deadline reader \u0026 urgency calculation",
+                         "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
 }

@@ -46,10 +46,10 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── QuickCapture.tsx
 │       └── StatusOverview.tsx
 └── server/                          # Express.js backend
-    ├── index.ts                     # Express server entry with /api/projects mounted
+    ├── index.ts                     # Express server entry with /api/projects and /api/todos mounted
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
-    │   ├── todos.ts                 # [planned] GET /api/todos, PATCH /api/todos/:id
+    │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
     │   ├── deadlines.ts             # [planned] GET /api/deadlines
     │   ├── capture.ts               # [planned] POST /api/capture
     │   └── ai.ts                    # [planned] POST /api/ai/summarize (P1)
@@ -57,7 +57,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
         ├── state-reader.ts          # ✓ State file reader with priority detection (TASK-003)
-        ├── todo-extractor.ts        # [planned] TODO/FIXME/HACK extraction
+        ├── todo-extractor.ts        # ✓ TODO/FIXME/HACK extraction with write-back (TASK-004)
+        ├── todo-extractor.test.ts   # ✓ 22 unit tests for TODO extractor (TASK-004)
         ├── deadline-reader.ts       # [planned] Parses deadlines.md
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
@@ -94,11 +95,14 @@ README.md                        # Boilerplate documentation
 ## Key Files
 
 **Backend (Completed)**:
-- `server/index.ts` — Express app with /api/projects route
+- `server/index.ts` — Express app with /api/projects and /api/todos routes
 - `server/lib/scanner.ts` — Scans PROJECTS_DIR for state files, returns sorted array
 - `server/lib/state-reader.ts` — Priority detection, status inference, summary/next-steps extraction
 - `server/routes/projects.ts` — GET /api/projects endpoint
 - `server/lib/scanner.test.ts` — 17 unit tests with temp filesystem
+- `server/lib/todo-extractor.ts` — TODO extraction (5 patterns) with checkbox write-back
+- `server/routes/todos.ts` — GET /api/todos and PATCH /api/todos/:id endpoints
+- `server/lib/todo-extractor.test.ts` — 22 unit tests with temp filesystem
 
 **Config**:
 - `package.json` — npm scripts (dev, build, test, type-check)

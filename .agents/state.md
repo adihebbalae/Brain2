@@ -5,11 +5,12 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: In Progress — Backend implementation underway
-- **Current Task**: TASK-004 — Backend TODO extractor (pending)
+- **Current Task**: TASK-004 — Backend TODO extractor (done)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
   - TASK-003 — Project scanner with state file parser (17 tests passing)
+  - TASK-004 — TODO extractor with checkbox write-back (22 tests passing)
 
 ## Project Brief
 
@@ -39,7 +40,7 @@
 | TASK-001 | Scaffold project | done | P0 |
 | TASK-002 | Obsidian vault PARA structure | done | P0 |
 | TASK-003 | Backend: Project scanner | done | P0 |
-| TASK-004 | Backend: TODO extractor | pending | P0 |
+| TASK-004 | Backend: TODO extractor | done | P0 |
 | TASK-005 | Backend: Deadline reader | pending | P0 |
 | TASK-006 | Backend: Quick capture + notes parser | pending | P0 |
 | TASK-007 | Frontend: Dashboard + project cards | pending | P0 |
@@ -75,3 +76,14 @@
   - GET /api/projects endpoint returning sorted array of projects
   - 17 unit tests with temporary filesystem mocking (all passing)
   - Type-checking passes, all acceptance criteria met
+- 2026-04-05: TASK-004 completed — Implemented TODO extractor with checkbox write-back:
+  - Extract 5 pattern types: - [ ] (unchecked), - [x] (checked), TODO:, FIXME:, HACK:
+  - Stable hash-based IDs using SHA-256 (first 16 hex chars)
+  - Recursive markdown scanning of both PROJECTS_DIR and VAULT_DIR
+  - Skips node_modules/, .git/, and files >1MB
+  - Atomic file write-back using temp file + rename pattern
+  - Path traversal protection (validates all paths within allowed directories)
+  - GET /api/todos endpoint (returns total, completed, byProject grouping)
+  - PATCH /api/todos/:id endpoint (toggle checkboxes only, rejects TODO/FIXME/HACK comments)
+  - 22 unit tests with temporary filesystem (all passing)
+  - Type-checking passes with zero errors, all acceptance criteria met
