@@ -1,35 +1,385 @@
 ﻿{
-  "project": "",
-  "description": "",
-  "phase": "0 — Not Started",
-  "last_updated": "",
-  "last_updated_by": "",
-  "current_task": {
-    "id": "",
-    "title": "",
-    "assigned_to": "",
-    "status": "not_started",
-    "priority": ""
-  },
-  "handoff": {
-    "from": "",
-    "to": "",
-    "model": "",
-    "prompt_file": ".agents/handoff.md",
-    "approved_by_user": false,
-    "created_at": ""
-  },
-  "context": {
-    "current_file_focus": "",
-    "recent_decisions": [],
-    "blocked_on": null
-  },
-  "security_status": {
-    "last_scan": "",
-    "open_findings": 0,
-    "cleared_for_push": false
-  },
-  "tasks": {},
-  "decisions": [],
-  "changelog": []
+    "project":  {
+                    "name":  "Cortex",
+                    "description":  "Local-only personal command center that aggregates projects, deadlines, TODOs, and knowledge into a single web dashboard on localhost.",
+                    "tech_stack":  [
+                                       "React",
+                                       "Vite",
+                                       "TypeScript",
+                                       "Tailwind CSS",
+                                       "Express.js",
+                                       "pnpm"
+                                   ],
+                    "architecture_decisions":  {
+                                                   "code_location":  "Brain2 repo IS the dashboard — reads SecondBrain paths via .env config (not embedded in vault)",
+                                                   "package_structure":  "Single package with concurrently for dev (frontend + backend)",
+                                                   "ai_provider":  "Claude API direct (no abstraction layer)",
+                                                   "state_file_detection":  "Priority: agent_state.md → Agent_State.json → state.md → Status.md → README.md",
+                                                   "status_inference":  "From frontmatter status: field, or content keywords (blocked, completed, in progress, stale threshold)",
+                                                   "google_calendar":  "P1 — new Google Cloud project, guided OAuth2 setup"
+                                               },
+                    "external_dependencies":  [
+                                                  "Claude API (optional — AI summarization and TODO extraction)",
+                                                  "Google Calendar API (P1 — OAuth2, read-only)",
+                                                  "Obsidian vault (plain markdown, read by dashboard)"
+                                              ]
+                },
+    "paths":  {
+                  "projects_dir":  "C:\\Users\\boomb\\Documents\\_Projects",
+                  "vault_dir":  "C:\\Users\\boomb\\Documents\\SecondBrain",
+                  "notes_corpus":  "C:\\Users\\boomb\\Documents\\notes_corpus.txt.txt"
+              },
+    "research_source":  null,
+    "research_findings_incorporated":  [
+
+                                       ],
+    "mode":  "production",
+    "context":  {
+                    "tools":  {
+                                  "copilot":  true,
+                                  "claude_code_cli":  true
+                              },
+                    "budget":  "free-preferred",
+                    "current_file_focus":  null,
+                    "recent_decisions":  [
+                                             "Brain2 repo is the dashboard (not embedded in Obsidian vault)",
+                                             "Single package structure with concurrently",
+                                             "Claude API only (no local LLM abstraction)",
+                                             "Google Calendar deferred to P1 with guided OAuth setup",
+                                             "Create Obsidian vault from scratch with PARA structure"
+                                         ],
+                    "blocked_on":  "TASK-001 failed after 3 attempts"
+                },
+    "project_brief":  "Cortex — local-only personal command center for Adi. Aggregates all projects from C:\\Users\\boomb\\Documents\\_Projects (scans state files), extracts TODOs from all markdown, shows deadlines from deadlines.md with urgency timeline, and provides quick capture to inbox.md. React+Vite+Tailwind frontend on :5173, Express.js TS backend on :3001. No database — all filesystem. P1: Google Calendar sync, Claude API summaries, chat export viewer.",
+    "tasks":  {
+                  "TASK-001":  {
+                                   "title":  "Scaffold project (Vite + Express + Tailwind + TS)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "blocked",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Initialize pnpm project with React+Vite+TypeScript frontend, Express.js TypeScript backend, Tailwind CSS, concurrently dev script. Create .env template with PROJECTS_DIR, VAULT_DIR, ANTHROPIC_API_KEY, PORT. Set up project directory structure: src/ for frontend, server/ for backend.",
+                                   "acceptance_criteria":  [
+                                                               "pnpm dev starts both Vite (:5173) and Express (:3001) concurrently",
+                                                               "TypeScript compiles cleanly for both frontend and backend",
+                                                               "Tailwind CSS is configured and working",
+                                                               ".env.example exists with all required variables",
+                                                               "Frontend can make API calls to backend (CORS configured)"
+                                                           ]
+                               },
+                  "TASK-002":  {
+                                   "title":  "Create Obsidian vault PARA structure + templates",
+                                   "assigned_to":  "engineer",
+                                   "status":  "done",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Create Obsidian vault at C:\\Users\\boomb\\Documents\\SecondBrain with full PARA structure (Inbox/, Projects/, Areas/, Resources/, Archive/, ChatExports/, Deadlines/, DailyNotes/). Seed deadlines.md with template format, create inbox.md, create symlinks from Projects/ to _Projects/* subfolders using mklink /D.",
+                                   "acceptance_criteria":  [
+                                                               "All PARA directories exist under SecondBrain/",
+                                                               "deadlines.md exists with correct format (- [ ] YYYY-MM-DD | Description | tag)",
+                                                               "inbox.md exists with header",
+                                                               "Symlinks from Projects/ to _Projects/* work on Windows"
+                                                           ],
+                                   "completed_at":  "2026-04-05"
+                               },
+                  "TASK-003":  {
+                                   "title":  "Backend: Project scanner \u0026 state file parser",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-001"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Implement project scanner that recursively scans PROJECTS_DIR for state files with priority detection (agent_state.md → Agent_State.json → state.md → Status.md → README.md). Parse markdown/JSON for status, summary, next-steps. Infer status from content keywords. Calculate stale thresholds (14d amber, 30d red). Expose via GET /api/projects.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/projects returns array of project objects",
+                                                               "Each project has: name, path, stateFile, status, lastModified, summary, nextSteps, staleDays",
+                                                               "State file priority detection works correctly",
+                                                               "Status inference from content keywords works when no frontmatter",
+                                                               "Stale thresholds calculated correctly",
+                                                               "Tests pass for scanner with mock filesystem"
+                                                           ]
+                               },
+                  "TASK-004":  {
+                                   "title":  "Backend: TODO extractor with checkbox write-back",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-001"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Implement TODO extractor that scans all markdown files in PROJECTS_DIR and VAULT_DIR for unchecked tasks (- [ ]), checked tasks (- [x]), and TODO:/FIXME:/HACK: comments. Group by source project. Expose via GET /api/todos. Implement PATCH /api/todos/:id to toggle checkbox in source file (write-back).",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/todos returns total, completed, byProject breakdown",
+                                                               "Extracts - [ ], - [x], TODO:, FIXME:, HACK: patterns",
+                                                               "PATCH /api/todos/:id toggles checkbox in source markdown file",
+                                                               "Write-back doesn\u0027t corrupt file content",
+                                                               "Tests pass for extraction and write-back"
+                                                           ]
+                               },
+                  "TASK-005":  {
+                                   "title":  "Backend: Deadline reader \u0026 urgency calculation",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-001"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Implement deadline reader that parses VAULT_DIR/Deadlines/deadlines.md. Parse format: - [ ] YYYY-MM-DD | Description | optional-tag. Calculate urgency: red (\u003c48h), amber (\u003c7d), green (later), gray (completed). Expose via GET /api/deadlines sorted by date.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/deadlines returns sorted array of deadline objects",
+                                                               "Each deadline has: date, description, tag, done, urgency level",
+                                                               "Urgency calculation correct for all thresholds",
+                                                               "Handles completed (- [x]) deadlines as gray",
+                                                               "Tests pass for parsing and urgency calculation"
+                                                           ]
+                               },
+                  "TASK-006":  {
+                                   "title":  "Backend: Quick capture endpoint + notes corpus parser",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-001",
+                                                      "TASK-002"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Implement POST /api/capture that appends timestamped entry to VAULT_DIR/Inbox/inbox.md in format: - [ ] [YYYY-MM-DD HH:mm] Text. Also implement a one-time parser for the existing notes file at C:\\Users\\boomb\\Documents\\notes_corpus.txt.txt — extract any actionable items and make them available via the TODO API.",
+                                   "acceptance_criteria":  [
+                                                               "POST /api/capture appends to inbox.md with correct format",
+                                                               "Timestamp is accurate",
+                                                               "File is created if it doesn\u0027t exist",
+                                                               "Notes corpus parser extracts items from existing file",
+                                                               "Tests pass for capture and file creation"
+                                                           ]
+                               },
+                  "TASK-007":  {
+                                   "title":  "Frontend: Dashboard layout, project cards, status overview",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-003"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Build the main dashboard layout with Tailwind. Implement ProjectCard component showing: name, status badge (color-coded), last touched date, 2-3 line summary, \u0027Open in VS Code\u0027 button. Implement StatusOverview stats panel (active projects, open TODOs, stale count). Grid layout sorted by last-modified.",
+                                   "acceptance_criteria":  [
+                                                               "Dashboard loads and displays project cards from API",
+                                                               "Cards show status badge, last modified, summary, next steps",
+                                                               "Open in VS Code button triggers correct protocol link",
+                                                               "Stale indicators: amber \u003e14d, red \u003e30d",
+                                                               "Stats panel shows counts",
+                                                               "Responsive grid layout"
+                                                           ]
+                               },
+                  "TASK-008":  {
+                                   "title":  "Frontend: TODO aggregator with mark-done",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-004"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Build TodoAggregator component. Display all TODOs grouped by project with total/per-project counts. Flat list sortable by project or file. Checkbox to mark done (calls PATCH /api/todos/:id, updates UI optimistically).",
+                                   "acceptance_criteria":  [
+                                                               "Displays all TODOs from API grouped by project",
+                                                               "Shows total and per-project counts",
+                                                               "Sortable by project or file",
+                                                               "Checking a TODO calls the backend and updates UI",
+                                                               "Optimistic update with error rollback"
+                                                           ]
+                               },
+                  "TASK-009":  {
+                                   "title":  "Frontend: Deadline timeline component",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-005"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Build DeadlineTimeline component. Vertical timeline layout, color-coded by urgency (red \u003c48h, amber \u003c7d, green later, gray done). Show date, description, and tag. Completed deadlines shown at bottom in gray.",
+                                   "acceptance_criteria":  [
+                                                               "Displays deadlines from API as vertical timeline",
+                                                               "Color coding matches urgency thresholds",
+                                                               "Completed deadlines in gray at bottom",
+                                                               "Tags displayed as chips/badges"
+                                                           ]
+                               },
+                  "TASK-010":  {
+                                   "title":  "Frontend: Quick capture input bar",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-006"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Build QuickCapture component. Persistent text input at top of dashboard. Type thought/TODO, hit Enter, calls POST /api/capture. Clear input on success, show brief confirmation. Keyboard shortcut (Ctrl+K) to focus.",
+                                   "acceptance_criteria":  [
+                                                               "Input bar at top of dashboard",
+                                                               "Enter submits and clears input",
+                                                               "Calls POST /api/capture with correct payload",
+                                                               "Shows brief success/error feedback",
+                                                               "Ctrl+K focuses the input"
+                                                           ]
+                               },
+                  "TASK-011":  {
+                                   "title":  "Integration, polling, error states, E2E testing",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-007",
+                                                      "TASK-008",
+                                                      "TASK-009",
+                                                      "TASK-010"
+                                                  ],
+                                   "priority":  "P0",
+                                   "description":  "Wire all components together. Add 60-second polling interval for auto-refresh. Add loading states, error boundaries, empty states. End-to-end testing with actual filesystem. Verify full success criteria from PRD.",
+                                   "acceptance_criteria":  [
+                                                               "All components render together in dashboard layout",
+                                                               "60-second polling refreshes data",
+                                                               "Loading skeletons during fetch",
+                                                               "Error states displayed gracefully",
+                                                               "Empty states for zero projects/todos/deadlines",
+                                                               "Page load under 2 seconds",
+                                                               "Full PRD success criteria met"
+                                                           ]
+                               },
+                  "TASK-012":  {
+                                   "title":  "Google Calendar OAuth setup + sync endpoint",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-011"
+                                                  ],
+                                   "priority":  "P1",
+                                   "description":  "Guide user through Google Cloud project creation and OAuth2 credentials. Implement OAuth2 flow (browser auth, store refresh token in .env). Implement GET /api/calendar for upcoming 14 days. Merge with manual deadlines in timeline. Read-only.",
+                                   "acceptance_criteria":  [
+                                                               "OAuth2 flow completes successfully",
+                                                               "Refresh token stored securely in .env",
+                                                               "GET /api/calendar returns upcoming events",
+                                                               "Calendar events merge with deadline timeline",
+                                                               "Read-only — no writes to Google Calendar"
+                                                           ]
+                               },
+                  "TASK-013":  {
+                                   "title":  "AI summarization \u0026 auto-TODO extraction (Claude API)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-011"
+                                                  ],
+                                   "priority":  "P1",
+                                   "description":  "Implement POST /api/ai/summarize — sends project state file to Claude API, returns 2-3 sentence summary. Add 1-hour cache. Implement auto-TODO extraction for prose-style state files. Add \u0027Where did I leave off?\u0027 button to project cards. Show \u0027suggested TODOs\u0027 section (non-destructive).",
+                                   "acceptance_criteria":  [
+                                                               "Summary button on project cards calls Claude API",
+                                                               "Returns 2-3 sentence where-you-left-off summary",
+                                                               "1-hour response cache",
+                                                               "Auto-TODO extraction for prose state files",
+                                                               "Suggested TODOs shown separately from real TODOs",
+                                                               "Graceful fallback when API key not set"
+                                                           ]
+                               },
+                  "TASK-014":  {
+                                   "title":  "Chat export viewer (import, search, tag)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-011"
+                                                  ],
+                                   "priority":  "P1",
+                                   "description":  "Import Claude conversation exports (JSON from Settings \u003e Export Data). Store in VAULT_DIR/ChatExports/. Parse and display conversation list with titles, dates, preview. Full-text search across all conversations. Tag conversations with project names.",
+                                   "acceptance_criteria":  [
+                                                               "Can import Claude JSON export files",
+                                                               "Displays conversation list with title, date, preview",
+                                                               "Full-text search works across conversations",
+                                                               "Can tag conversations with project names",
+                                                               "Tagged conversations cross-reference with project cards"
+                                                           ]
+                               }
+              },
+    "active_task":  "TASK-001",
+    "status":  "planning_complete",
+    "handoff":  {
+                    "from":  "manager",
+                    "to":  "engineer",
+                    "model":  "sonnet",
+                    "prompt_file":  ".agents/handoff.md",
+                    "approved_by_user":  false,
+                    "created_at":  "2026-04-05"
+                },
+    "security_status":  {
+                            "last_scan":  "",
+                            "open_findings":  0,
+                            "cleared_for_push":  false
+                        },
+    "decisions":  [
+                      {
+                          "id":  "ARCH-001",
+                          "title":  "Code location",
+                          "decision":  "Brain2 repo IS the dashboard — reads vault/projects paths via .env config",
+                          "reason":  "Cleaner than embedding inside Obsidian vault. Single repo, standard structure, configurable paths.",
+                          "date":  "2026-04-05"
+                      },
+                      {
+                          "id":  "ARCH-002",
+                          "title":  "Package structure",
+                          "decision":  "Single package with concurrently for dev",
+                          "reason":  "Simpler for personal tool. One package.json, concurrently runs Vite + Express.",
+                          "date":  "2026-04-05"
+                      },
+                      {
+                          "id":  "ARCH-003",
+                          "title":  "AI provider",
+                          "decision":  "Claude API direct (no abstraction layer)",
+                          "reason":  "User chose Claude API only. No need for provider abstraction on a personal tool.",
+                          "date":  "2026-04-05"
+                      }
+                  ],
+    "changelog":  [
+                      "2026-04-05: init-project — PRD ingested, plan approved, project scaffolded by manager",
+                      "2026-04-05: TASK-002 completed — Created SecondBrain Obsidian vault with full PARA structure (8 directories, template files, 12 project junctions)"
+                  ],
+    "auto_run":  {
+                     "task_order":  [
+                                        "TASK-001",
+                                        "TASK-002",
+                                        "TASK-003",
+                                        "TASK-004",
+                                        "TASK-005",
+                                        "TASK-006",
+                                        "TASK-007",
+                                        "TASK-008",
+                                        "TASK-009",
+                                        "TASK-010",
+                                        "TASK-011"
+                                    ],
+                     "checkpoint_seconds":  45,
+                     "max_retries":  3,
+                     "security_between_tasks":  true,
+                     "rate_limit_wait_hours":  5
+                 },
+    "last_updated":  "2026-04-05T20:23:00-05:00",
+    "last_updated_by":  "engineer",
+    "current_task":  {
+                         "id":  "TASK-001",
+                         "title":  "Scaffold project (Vite + Express + Tailwind + TS)",
+                         "status":  "blocked",
+                         "assigned_to":  "engineer"
+                     }
 }
