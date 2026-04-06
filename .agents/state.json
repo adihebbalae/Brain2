@@ -131,7 +131,7 @@
                   "TASK-005":  {
                                    "title":  "Backend: Deadline reader \u0026 urgency calculation",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-001"
@@ -144,7 +144,8 @@
                                                                "Urgency calculation correct for all thresholds",
                                                                "Handles completed (- [x]) deadlines as gray",
                                                                "Tests pass for parsing and urgency calculation"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-006":  {
                                    "title":  "Backend: Quick capture endpoint + notes corpus parser",
@@ -359,7 +360,8 @@
                       "2026-04-05: TASK-002 completed — Created SecondBrain Obsidian vault with full PARA structure (8 directories, template files, 12 project junctions)",
                       "2026-04-05: TASK-001 completed — Scaffolded Cortex project with React+Vite+Express+TypeScript+Tailwind, all config files, concurrently dev scripts",
                       "2026-04-05: TASK-003 completed — Implemented project scanner with state file parser, priority detection, status inference, summary/next-steps extraction, path validation, 17 unit tests (all passing)",
-                      "2026-04-05: TASK-004 completed — Implemented TODO extractor with 5 pattern types (checkboxes, TODO/FIXME/HACK comments), stable hash IDs, atomic write-back for checkbox toggles, GET /api/todos and PATCH /api/todos/:id endpoints, 22 unit tests (all passing)"
+                      "2026-04-05: TASK-004 completed — Implemented TODO extractor with 5 pattern types (checkboxes, TODO/FIXME/HACK comments), stable hash IDs, atomic write-back for checkbox toggles, GET /api/todos and PATCH /api/todos/:id endpoints, 22 unit tests (all passing)",
+                      "2026-04-05: TASK-005 completed — Implemented deadline reader with urgency calculation (red/amber/green/gray), GET /api/deadlines endpoint, parses VAULT_DIR/Deadlines/deadlines.md, stable ID generation, pending/done sort order, 22 unit tests (all passing)"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -380,12 +382,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T20:41:22.7163960-05:00",
-    "last_updated_by":  "auto-run",
+    "last_updated":  "2026-04-05T20:46:00-05:00",
+    "last_updated_by":  "engineer",
     "current_task":  {
                          "id":  "TASK-005",
                          "title":  "Backend: Deadline reader \u0026 urgency calculation",
-                         "status":  "in_progress",
+                         "status":  "done",
                          "assigned_to":  "engineer"
                      }
 }

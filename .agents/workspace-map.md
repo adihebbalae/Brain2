@@ -50,7 +50,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
-    │   ├── deadlines.ts             # [planned] GET /api/deadlines
+    │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
     │   ├── capture.ts               # [planned] POST /api/capture
     │   └── ai.ts                    # [planned] POST /api/ai/summarize (P1)
     └── lib/
@@ -59,7 +59,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── state-reader.ts          # ✓ State file reader with priority detection (TASK-003)
         ├── todo-extractor.ts        # ✓ TODO/FIXME/HACK extraction with write-back (TASK-004)
         ├── todo-extractor.test.ts   # ✓ 22 unit tests for TODO extractor (TASK-004)
-        ├── deadline-reader.ts       # [planned] Parses deadlines.md
+        ├── deadline-reader.ts       # ✓ Parses deadlines.md with urgency calculation (TASK-005)
+        ├── deadline-reader.test.ts  # ✓ 22 unit tests for deadline reader (TASK-005)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -95,7 +96,7 @@ README.md                        # Boilerplate documentation
 ## Key Files
 
 **Backend (Completed)**:
-- `server/index.ts` — Express app with /api/projects and /api/todos routes
+- `server/index.ts` — Express app with /api/projects, /api/todos, and /api/deadlines routes
 - `server/lib/scanner.ts` — Scans PROJECTS_DIR for state files, returns sorted array
 - `server/lib/state-reader.ts` — Priority detection, status inference, summary/next-steps extraction
 - `server/routes/projects.ts` — GET /api/projects endpoint
@@ -103,6 +104,9 @@ README.md                        # Boilerplate documentation
 - `server/lib/todo-extractor.ts` — TODO extraction (5 patterns) with checkbox write-back
 - `server/routes/todos.ts` — GET /api/todos and PATCH /api/todos/:id endpoints
 - `server/lib/todo-extractor.test.ts` — 22 unit tests with temp filesystem
+- `server/lib/deadline-reader.ts` — Deadline parser with urgency calculation (red/amber/green/gray)
+- `server/routes/deadlines.ts` — GET /api/deadlines endpoint
+- `server/lib/deadline-reader.test.ts` — 22 unit tests with temp filesystem
 
 **Config**:
 - `package.json` — npm scripts (dev, build, test, type-check)

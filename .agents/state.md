@@ -5,12 +5,13 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: In Progress — Backend implementation underway
-- **Current Task**: TASK-004 — Backend TODO extractor (done)
+- **Current Task**: TASK-005 — Backend deadline reader (done)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
   - TASK-003 — Project scanner with state file parser (17 tests passing)
   - TASK-004 — TODO extractor with checkbox write-back (22 tests passing)
+  - TASK-005 — Deadline reader with urgency calculation (22 tests passing)
 
 ## Project Brief
 
@@ -41,7 +42,7 @@
 | TASK-002 | Obsidian vault PARA structure | done | P0 |
 | TASK-003 | Backend: Project scanner | done | P0 |
 | TASK-004 | Backend: TODO extractor | done | P0 |
-| TASK-005 | Backend: Deadline reader | pending | P0 |
+| TASK-005 | Backend: Deadline reader | done | P0 |
 | TASK-006 | Backend: Quick capture + notes parser | pending | P0 |
 | TASK-007 | Frontend: Dashboard + project cards | pending | P0 |
 | TASK-008 | Frontend: TODO aggregator | pending | P0 |
@@ -86,4 +87,14 @@
   - GET /api/todos endpoint (returns total, completed, byProject grouping)
   - PATCH /api/todos/:id endpoint (toggle checkboxes only, rejects TODO/FIXME/HACK comments)
   - 22 unit tests with temporary filesystem (all passing)
+  - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-005 completed — Implemented deadline reader with urgency calculation:
+  - Parses VAULT_DIR/Deadlines/deadlines.md format: - [ ] YYYY-MM-DD | Description | optional-tag
+  - Urgency calculation based on days until due date: red (≤2 days), amber (≤7 days), green (>7 days), gray (completed)
+  - Stable ID generation using SHA-256 (first 12 hex chars)
+  - Sort order: pending items ascending by date, completed items at end descending by date
+  - Graceful handling of missing file (returns empty array, not error)
+  - Path validation for security (ensures path within vault directory)
+  - GET /api/deadlines endpoint mounted in server/index.ts
+  - 22 unit tests covering parsing, urgency thresholds, sorting, edge cases (all passing)
   - Type-checking passes with zero errors, all acceptance criteria met
