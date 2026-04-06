@@ -5,7 +5,7 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: In Progress — Frontend implementation ongoing
-- **Current Task**: TASK-008 — Frontend TODO aggregator (done)
+- **Current Task**: TASK-009 — Frontend deadline timeline (done)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
@@ -15,6 +15,7 @@
   - TASK-006 — Quick capture endpoint + notes corpus parser (24 tests passing)
   - TASK-007 — Dashboard layout with project cards (14 frontend tests, 99 total passing)
   - TASK-008 — TODO aggregator with optimistic updates (21 frontend tests, 120 total passing)
+  - TASK-009 — Deadline timeline with urgency indicators (17 frontend tests, 137 total passing)
 
 ## Project Brief
 
@@ -49,7 +50,7 @@
 | TASK-006 | Backend: Quick capture + notes parser | done | P0 |
 | TASK-007 | Frontend: Dashboard + project cards | done | P0 |
 | TASK-008 | Frontend: TODO aggregator | done | P0 |
-| TASK-009 | Frontend: Deadline timeline | pending | P0 |
+| TASK-009 | Frontend: Deadline timeline | done | P0 |
 | TASK-010 | Frontend: Quick capture bar | pending | P0 |
 | TASK-011 | Integration + E2E testing | pending | P0 |
 | TASK-012 | Google Calendar OAuth + sync | pending | P1 |
@@ -147,4 +148,21 @@
   - CSS fade-in animation in src/index.css for toast
   - 21 frontend tests: 8 useTodos hook tests (fetch, toggle, optimistic update, rollback, refetch) + 13 TodoAggregator component tests (grouping, collapsing, completed disclosure, badges, toggle)
   - 120 total tests passing (85 backend + 35 frontend)
+  - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-009 completed — Built DeadlineTimeline component with timeline visualization:
+  - DeadlineTimeline component displays deadlines in vertical timeline layout with date column (month + day + relative label), connector line with colored dots, description column
+  - Color-coded urgency indicators: red (≤2 days, bold text, red dot, red border), amber (≤7 days, amber dot, amber border), green (>7 days, green dot, green border), gray (completed, gray dot, strikethrough)
+  - Relative date labels: "Today", "Tomorrow", "N days", "Yesterday", "N days ago" for dates within 7 days
+  - Tag chips: small gray badges when tag is present (bg-gray-100, text-gray-600)
+  - Compact mode: shows max 5 pending deadlines + "See all N deadlines" link when more exist
+  - Completed deadlines section: appears at bottom after "Completed" divider with gray styling and strikethrough
+  - useDeadlines custom hook: fetches GET /api/deadlines with loading/error/refetch states
+  - Loading state: 3 skeleton rows with animate-pulse
+  - Error state: red banner with error message and retry button
+  - Empty state: "📅 No upcoming deadlines" with calendar emoji
+  - Deadline interface added to src/types.ts (id, date, description, tag, done, urgency)
+  - No external date libraries (vanilla JS Date only)
+  - Urgency driven by API field (not recalculated client-side)
+  - 17 frontend tests: 5 useDeadlines hook tests (fetch, error, refetch) + 12 DeadlineTimeline component tests (rendering, urgency styling, relative labels, compact mode, completed section)
+  - 137 total tests passing (85 backend + 52 frontend)
   - Type-checking passes with zero errors, all acceptance criteria met

@@ -209,7 +209,7 @@
                   "TASK-009":  {
                                    "title":  "Frontend: Deadline timeline component",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-005"
@@ -221,7 +221,8 @@
                                                                "Color coding matches urgency thresholds",
                                                                "Completed deadlines in gray at bottom",
                                                                "Tags displayed as chips/badges"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-05"
                                },
                   "TASK-010":  {
                                    "title":  "Frontend: Quick capture input bar",
@@ -367,7 +368,8 @@
                       "2026-04-05: TASK-005 completed — Implemented deadline reader with urgency calculation (red/amber/green/gray), GET /api/deadlines endpoint, parses VAULT_DIR/Deadlines/deadlines.md, stable ID generation, pending/done sort order, 22 unit tests (all passing)",
                       "2026-04-05: TASK-006 completed — Implemented quick capture endpoint (POST /api/capture) with input validation and sanitization, notes corpus parser (GET /api/capture/corpus) with heuristic type detection (todo/idea/note), 24 unit tests (9 capture + 15 corpus, all passing)",
                       "2026-04-05: TASK-007 completed — Built dashboard frontend with main layout (header, stats, project grid, sidebar), ProjectCard component (status badges, summary, next steps, Open in VS Code), StatusOverview panel, useProjects hook, loading/error states, 14 frontend tests (all passing), 99 total tests passing",
-                      "2026-04-05: TASK-008 completed — Built TodoAggregator component with optimistic checkbox toggles, grouping by project/file, collapsible groups, completed todos disclosure, type badges (FIXME/HACK), file path chips, useTodos hook with error rollback, CSS-only toast, 21 frontend tests (8 hook + 13 component, all passing), 120 total tests passing"
+                      "2026-04-05: TASK-008 completed — Built TodoAggregator component with optimistic checkbox toggles, grouping by project/file, collapsible groups, completed todos disclosure, type badges (FIXME/HACK), file path chips, useTodos hook with error rollback, CSS-only toast, 21 frontend tests (8 hook + 13 component, all passing), 120 total tests passing",
+                      "2026-04-05: TASK-009 completed — Built DeadlineTimeline component with vertical timeline layout, color-coded urgency (red/amber/green/gray dots and borders), relative date labels (Today, Tomorrow, N days), tag chips, compact mode (max 5 + See all link), completed deadlines section (strikethrough, gray), loading/error/empty states, useDeadlines hook, 17 frontend tests (5 hook + 12 component, all passing), 137 total tests passing"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -388,12 +390,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T21:08:58.6590697-05:00",
-    "last_updated_by":  "auto-run",
+    "last_updated":  "2026-04-05T21:13:50-05:00",
+    "last_updated_by":  "engineer",
     "current_task":  {
                          "id":  "TASK-009",
                          "title":  "Frontend: Deadline timeline component",
-                         "status":  "in_progress",
+                         "status":  "done",
                          "assigned_to":  "engineer"
                      }
 }
