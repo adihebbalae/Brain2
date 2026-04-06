@@ -36,15 +36,20 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 ├── postcss.config.js                # PostCSS config for Tailwind
 ├── index.html                       # HTML entry point
 ├── src/                             # React frontend
-│   ├── App.tsx                      # Main app component
+│   ├── App.tsx                      # ✓ Main dashboard layout (TASK-007)
+│   ├── App.test.tsx                 # ✓ App component tests (TASK-007)
 │   ├── main.tsx                     # React entry point
 │   ├── index.css                    # Tailwind imports
-│   └── components/                  # [planned] UI components
-│       ├── ProjectCard.tsx
-│       ├── DeadlineTimeline.tsx
-│       ├── TodoAggregator.tsx
-│       ├── QuickCapture.tsx
-│       └── StatusOverview.tsx
+│   ├── types.ts                     # ✓ Shared TypeScript interfaces (TASK-007)
+│   ├── hooks/
+│   │   └── useProjects.ts           # ✓ Data fetching hook for projects (TASK-007)
+│   └── components/
+│       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
+│       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
+│       ├── StatusOverview.tsx       # ✓ Stats overview panel (TASK-007)
+│       ├── DeadlineTimeline.tsx     # [planned] TASK-009
+│       ├── TodoAggregator.tsx       # [planned] TASK-008
+│       └── QuickCapture.tsx         # [planned] TASK-010
 └── server/                          # Express.js backend
     ├── index.ts                     # Express server entry with all API routes mounted
     ├── routes/
@@ -123,6 +128,12 @@ README.md                        # Boilerplate documentation
 - `vite.config.ts` — Vite dev server with /api proxy
 - `tailwind.config.js` — Tailwind CSS setup
 
-**Frontend (Minimal)**:
-- `src/App.tsx` — Placeholder app component
+**Frontend (TASK-007 Completed)**:
+- `src/App.tsx` — ✓ Main dashboard layout with header, stats, project grid, sidebar placeholders (TASK-007)
+- `src/App.test.tsx` — ✓ 5 tests: loading state, error state, empty state, renders StatusOverview (TASK-007)
 - `src/main.tsx` — React entry point
+- `src/types.ts` — ✓ Shared TypeScript interfaces (Project) (TASK-007)
+- `src/hooks/useProjects.ts` — ✓ Custom hook for fetching projects from API (TASK-007)
+- `src/components/ProjectCard.tsx` — ✓ Project card with status badge, summary, next steps, Open in VS Code button (TASK-007)
+- `src/components/ProjectCard.test.tsx` — ✓ 9 tests: status badges, stale borders, next steps truncation (TASK-007)
+- `src/components/StatusOverview.tsx` — ✓ Stats bar showing active/stale/archived counts, total TODOs (TASK-007)

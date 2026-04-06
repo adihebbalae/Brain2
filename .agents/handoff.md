@@ -1,173 +1,113 @@
-# Handoff: Backend — Quick capture endpoint + notes corpus parser
-**Task ID**: TASK-006
+# Handoff: Frontend — Dashboard layout and project cards
+**Task ID**: TASK-007
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
-**Project**: Cortex — local-only personal command center. React+Vite frontend on :5173, Express.js TypeScript backend on :3001.
+**Project**: Cortex — local-only personal command center. React+Vite+TypeScript frontend on :5173, Express.js backend on :3001.
 
-**This task builds on TASK-001 and TASK-002**. Project is scaffolded (TASK-001) and Obsidian vault exists at `C:\Users\boomb\Documents\SecondBrain` (TASK-002). You're adding `server/routes/capture.ts` and notes corpus parsing to server/lib.
+**This task builds on TASK-001 (scaffold) and TASK-003 (backend project scanner)**. The backend already has `GET /api/projects` returning an array of Project objects. You're building the React frontend shell and the project cards component.
 
-**Why this task matters**: Quick capture is the "dump" workflow — the top input bar on the dashboard. It's used constantly. Also, parsing the existing notes corpus (`notes_corpus.txt.txt`) makes years of Adi's existing notes available in the TODO list immediately, which provides instant value.
+**Tailwind CSS version matters**: This repo uses Tailwind CSS v4. Import it with `@import "tailwindcss"` in the CSS file — NOT `@tailwind base; @tailwind components; @tailwind utilities;`. Do not add tailwind.config.js — v4 uses zero-config.
 
-**Target files**:
-- Quick capture → `C:\Users\boomb\Documents\SecondBrain\Inbox\inbox.md`
-- Notes corpus (parse only) → `C:\Users\boomb\Documents\notes_corpus.txt.txt`
+**API response shape** from `GET /api/projects`:
+```ts
+interface Project {
+  name: string            // folder name
+  path: string            // absolute path
+  status: 'active' | 'stale' | 'archived' | 'unknown'
+  lastModified: string    // ISO date string
+  staleDays: number       // days since last modification
+  summary: string         // first meaningful line of state file
+  nextSteps: string[]     // extracted next action items
+  todos: number           // total open TODO count
+  openTodos: number       // same (alias)
+  hasDeadlines: boolean
+}
+```
 
 ## Task
 
-Implement `POST /api/capture` and `GET /api/corpus`.
+Build the main dashboard layout and the project card grid component.
 
-### Files to create:
+### `src/App.tsx` — outer shell
+- Top bar with "Cortex" title (left) + current date (right)
+- QuickCapture bar slot at top (renders `<QuickCapture />` — use null/placeholder for now if component doesn't exist yet)
+- Two-column grid: left = stats bar + project card grid; right = sidebar (TODO aggregator + deadline timeline) 
+- Mobile-first: cards stack at small breakpoints
+- Stats: active projects count, total open TODOs, stale count
+- `useEffect` fetches `GET /api/projects` on mount, stores in state
 
-#### `server/routes/capture.ts`
+### `src/components/ProjectCard.tsx`
 
-```ts
-import { Router } from 'express'
-import { appendCapture } from '../lib/capture-writer'
-import { config } from 'dotenv'
-
-config()
-
-const router = Router()
-
-router.post('/', async (req, res) => {
-  const { VAULT_DIR } = process.env
-  if (!VAULT_DIR) {
-    return res.status(500).json({ error: 'VAULT_DIR not configured' })
-  }
-
-  const { text } = req.body as { text?: unknown }
-
-  // Input validation
-  if (typeof text !== 'string' || text.trim().length === 0) {
-    return res.status(400).json({ error: 'text is required and must be a non-empty string' })
-  }
-  if (text.length > 2000) {
-    return res.status(400).json({ error: 'text must be 2000 characters or fewer' })
-  }
-
-  try {
-    const entry = await appendCapture(text.trim(), VAULT_DIR)
-    return res.json({ success: true, entry })
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to write capture' })
-  }
-})
-
-export { router as captureRouter }
-```
-
-#### `server/lib/capture-writer.ts`
-
-```ts
-import { appendFile, mkdir } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
-
-export async function appendCapture(text: string, vaultDir: string): Promise<string> {
-  // Validate vaultDir path
-  const resolvedVault = resolve(vaultDir)
-  const inboxPath = join(resolvedVault, 'Inbox', 'inbox.md')
-
-  // Ensure Inbox directory exists
-  await mkdir(join(resolvedVault, 'Inbox'), { recursive: true })
-
-  // Format timestamp: YYYY-MM-DD HH:mm
-  const now = new Date()
-  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-
-  const entry = `- [ ] [${timestamp}] ${text}`
-  await appendFile(inboxPath, entry + '\n', 'utf-8')
-
-  return entry
+```tsx
+interface ProjectCardProps {
+  project: Project
 }
 ```
 
-#### `server/lib/notes-corpus-parser.ts`
+- White card with subtle border, hover shadow (`hover:shadow-md`)
+- **Status badge** top-right corner: 
+  - `active` → green badge
+  - `stale` → amber badge  
+  - `archived` → gray badge
+  - `unknown` → gray badge
+- Project name (bold, large)
+- Summary text (text-gray-600, truncated to 2 lines with `line-clamp-2`)
+- Next steps list (max 3 items, bullet points, text-sm)
+- Footer row: last modified date (relative, e.g. "3 days ago"), TODO count chip
+- **"Open in VS Code" button**: `<a href={`vscode://file/${project.path}`}>Open</a>` — opens VS Code at folder  
+- Stale indicators: amber border if staleDays > 14, red border if staleDays > 30
 
-Parses the existing unstructured notes file (`notes_corpus.txt.txt`) for actionable items.
+### `src/components/StatusOverview.tsx`
+
+- Stats bar showing: # active, # stale, # archived, total open TODOs
+- Colorful pill badges, one-line summary row
+- Appears above the project card grid
+
+### Fetch hook: `src/hooks/useProjects.ts`
 
 ```ts
-export interface CorpusItem {
-  id: string
-  text: string
-  type: 'todo' | 'idea' | 'note'
-  source: 'corpus'
+export function useProjects() {
+  // returns { projects: Project[], loading: boolean, error: string | null, refetch: () => void }
+  // fetches from http://localhost:3001/api/projects
+  // handles loading + error states
 }
-
-export async function parseNotesCorpus(corpusPath: string): Promise<CorpusItem[]>
 ```
 
-Parse heuristics for `notes_corpus.txt.txt`:
-- Lines starting with `- [ ]`, `[ ]`, `*`, `-`, `•` followed by text → type='todo'
-- Lines containing "idea:", "idea -", or all-caps prefix like "IDEA:" → type='idea'
-- Lines starting with "TODO", "todo", "FIXME" → type='todo'
-- Non-empty lines that are at least 10 chars → type='note' (fallback)
-- Skip blank lines, lines with only punctuation, header lines (all-caps short strings)
-
-**File not found**: Return empty array silently (corpus file may not exist).
-
-**Security**: Validate corpusPath is a valid absolute path (no traversal). Since this is a hardcoded path from env, just resolve and check it's readable.
-
-#### Add corpus route to `server/routes/capture.ts` (OR create separate file):
-
-```ts
-router.get('/corpus', async (_req, res) => {
-  const corpusPath = process.env.NOTES_CORPUS
-  if (!corpusPath) {
-    return res.json([])
-  }
-  try {
-    const { parseNotesCorpus } = await import('../lib/notes-corpus-parser')
-    const items = await parseNotesCorpus(corpusPath)
-    return res.json(items)
-  } catch {
-    return res.json([])
-  }
-})
-```
-
-Add `NOTES_CORPUS=C:\Users\boomb\Documents\notes_corpus.txt.txt` to `.env.example`.
-
-Mount in `server/index.ts`:
-```ts
-import { captureRouter } from './routes/capture'
-app.use('/api/capture', captureRouter)
-```
-
-#### Tests: `server/lib/capture-writer.test.ts`
-
-Use a temp directory:
-- `appendCapture` creates inbox.md if it doesn't exist
-- Entry format is exactly `- [ ] [YYYY-MM-DD HH:mm] text\n`
-- Multiple appends stack correctly in the file
-- Empty string returns 400 (test via route if possible, or directly test validation)
-- Text > 2000 chars is rejected
+### Error and loading states
+- Loading: render project card skeleton (3 placeholder cards with `animate-pulse`)
+- Error: red banner with error message and retry button
+- Empty: "No projects found" message with path shown
 
 ## Acceptance Criteria
-- [ ] `POST /api/capture` with `{ text: "hello" }` appends to inbox.md
-- [ ] Entry format: `- [ ] [YYYY-MM-DD HH:mm] hello`
-- [ ] Returns `{ success: true, entry: "- [ ] [2026-04-05 14:32] hello" }`
-- [ ] Empty text returns 400
-- [ ] Text >2000 chars returns 400
-- [ ] Creates inbox.md and parent directory if they don't exist
-- [ ] `GET /api/capture/corpus` returns parsed items from notes_corpus.txt.txt (or empty array if missing)
-- [ ] Tests pass
+- [ ] Dashboard renders without errors
+- [ ] Project cards display: name, status badge, summary, next steps, open todos count
+- [ ] Status badge colors correct (green/amber/gray)
+- [ ] "Open in VS Code" link renders with correct `vscode://file/...` URL
+- [ ] Stale cards show amber border (>14d) or red border (>30d)
+- [ ] Loading skeleton renders while fetching
+- [ ] Error state shows retry button
+- [ ] StatusOverview shows count summaries
+- [ ] `pnpm type-check` passes
+- [ ] `pnpm test` passes (basic render tests)
 
 ## Validation Gates
 - [ ] `pnpm type-check` → zero errors
 - [ ] `pnpm test` → all tests green
+- [ ] `pnpm dev` → frontend loads at localhost:5173 without console errors
 
 ## Constraints
-- Do NOT allow capture text to contain newlines (strip them or reject)
-- Do NOT overwrite inbox.md — ALWAYS append
-- User input must be sanitized before writing to file (strip null bytes, control characters)
-- Max capture length: 2000 characters
+- Do NOT use any CSS files except for Tailwind's `@import "tailwindcss"` pattern
+- Do NOT use any date library — use vanilla JS Date math for relative time
+- Do NOT hardcode the backend URL — use `const API = 'http://localhost:3001'` defined once
+- Do NOT add router/navigation — single page app only
+- Keep types in a shared `src/types.ts` file that can be imported across components
 
 ## On Completion
 ```
 git add -A
-git commit -m "feat(TASK-006): quick capture endpoint and notes corpus parser"
+git commit -m "feat(TASK-007): dashboard layout and project cards frontend"
 ```
 
-Update `.agents/state.json` tasks.TASK-006.status to "done".
+Update `.agents/state.json` tasks.TASK-007.status to "done".
