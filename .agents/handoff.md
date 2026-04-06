@@ -1,113 +1,106 @@
-# Handoff: Frontend — Dashboard layout and project cards
-**Task ID**: TASK-007
+# Handoff: Frontend — TODO aggregator with mark-done
+**Task ID**: TASK-008
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
-**Project**: Cortex — local-only personal command center. React+Vite+TypeScript frontend on :5173, Express.js backend on :3001.
+**Project**: Cortex — local-only personal command center. React+Vite+TypeScript frontend on :5173, Express backend on :3001.
 
-**This task builds on TASK-001 (scaffold) and TASK-003 (backend project scanner)**. The backend already has `GET /api/projects` returning an array of Project objects. You're building the React frontend shell and the project cards component.
+**Depends on TASK-004 (backend TODO extractor)**. The backend has `GET /api/todos` returning todos grouped by project, and `PATCH /api/todos/:id` for toggling completion state.
 
-**Tailwind CSS version matters**: This repo uses Tailwind CSS v4. Import it with `@import "tailwindcss"` in the CSS file — NOT `@tailwind base; @tailwind components; @tailwind utilities;`. Do not add tailwind.config.js — v4 uses zero-config.
-
-**API response shape** from `GET /api/projects`:
+**API shapes**:
 ```ts
-interface Project {
-  name: string            // folder name
-  path: string            // absolute path
-  status: 'active' | 'stale' | 'archived' | 'unknown'
-  lastModified: string    // ISO date string
-  staleDays: number       // days since last modification
-  summary: string         // first meaningful line of state file
-  nextSteps: string[]     // extracted next action items
-  todos: number           // total open TODO count
-  openTodos: number       // same (alias)
-  hasDeadlines: boolean
+// GET /api/todos response
+interface Todo {
+  id: string             // SHA-256 based ID
+  text: string
+  done: boolean
+  file: string           // relative path within project
+  line: number           // 1-based line number
+  project: string        // project folder name
+  type: 'checkbox' | 'TODO' | 'FIXME' | 'HACK'
 }
+
+// PATCH /api/todos/:id body
+{ done: boolean }
+
+// PATCH /api/todos/:id response
+{ success: true } | { error: string }
 ```
 
 ## Task
 
-Build the main dashboard layout and the project card grid component.
+Build `src/components/TodoAggregator.tsx`.
 
-### `src/App.tsx` — outer shell
-- Top bar with "Cortex" title (left) + current date (right)
-- QuickCapture bar slot at top (renders `<QuickCapture />` — use null/placeholder for now if component doesn't exist yet)
-- Two-column grid: left = stats bar + project card grid; right = sidebar (TODO aggregator + deadline timeline) 
-- Mobile-first: cards stack at small breakpoints
-- Stats: active projects count, total open TODOs, stale count
-- `useEffect` fetches `GET /api/projects` on mount, stores in state
-
-### `src/components/ProjectCard.tsx`
-
+### Component interface
 ```tsx
-interface ProjectCardProps {
-  project: Project
+interface TodoAggregatorProps {
+  onCountChange?: (openCount: number) => void // optional — for stats bar update
 }
 ```
 
-- White card with subtle border, hover shadow (`hover:shadow-md`)
-- **Status badge** top-right corner: 
-  - `active` → green badge
-  - `stale` → amber badge  
-  - `archived` → gray badge
-  - `unknown` → gray badge
-- Project name (bold, large)
-- Summary text (text-gray-600, truncated to 2 lines with `line-clamp-2`)
-- Next steps list (max 3 items, bullet points, text-sm)
-- Footer row: last modified date (relative, e.g. "3 days ago"), TODO count chip
-- **"Open in VS Code" button**: `<a href={`vscode://file/${project.path}`}>Open</a>` — opens VS Code at folder  
-- Stale indicators: amber border if staleDays > 14, red border if staleDays > 30
+### Features
 
-### `src/components/StatusOverview.tsx`
+**Display**:
+- List of all open todos grouped by project name (collapsible group headers)
+- Each todo: checkbox (unchecked) + text + file chip (truncated file path) + type badge (if FIXME/HACK)
+- Completed todos: show as checked + strikethrough, collapsed under "Show completed" disclosure
+- Group header shows: project name + count of open todos in that group
 
-- Stats bar showing: # active, # stale, # archived, total open TODOs
-- Colorful pill badges, one-line summary row
-- Appears above the project card grid
+**Grouping options** (toggle control):
+- "By project" (default): group by project name alphabetically
+- "By file": group by file path
 
-### Fetch hook: `src/hooks/useProjects.ts`
+**Mark done flow** (OPTIMISTIC UPDATE):
+1. User clicks checkbox
+2. Immediately update local state — flip todo.done = true, move to completed group
+3. Call `PATCH /api/todos/:id` with `{ done: true }` in background
+4. On error: roll back the state change + show brief error toast ("Failed to save — reverted")
+5. On success: nothing extra needed (state already updated)
 
+**Why optimistic**: Reduces perceived latency for the most common action (marking done).
+
+### `src/hooks/useTodos.ts`
 ```ts
-export function useProjects() {
-  // returns { projects: Project[], loading: boolean, error: string | null, refetch: () => void }
-  // fetches from http://localhost:3001/api/projects
-  // handles loading + error states
+export function useTodos() {
+  // returns { todos: Todo[], loading: boolean, error: string | null, toggle: (id: string) => void, refetch: () => void }
+  // toggle() is the optimistic update function
 }
 ```
 
-### Error and loading states
-- Loading: render project card skeleton (3 placeholder cards with `animate-pulse`)
-- Error: red banner with error message and retry button
-- Empty: "No projects found" message with path shown
+### Error + loading states
+- Loading: skeleton rows with `animate-pulse`
+- Error: error message with retry button
+- Empty: "No open TODOs — you're all caught up! 🎉"
+- Toast: simple fixed bottom-left message, fades out after 3s (CSS transition, no animation lib)
 
 ## Acceptance Criteria
-- [ ] Dashboard renders without errors
-- [ ] Project cards display: name, status badge, summary, next steps, open todos count
-- [ ] Status badge colors correct (green/amber/gray)
-- [ ] "Open in VS Code" link renders with correct `vscode://file/...` URL
-- [ ] Stale cards show amber border (>14d) or red border (>30d)
+- [ ] Todos display grouped by project by default
+- [ ] Clicking checkbox updates UI immediately (optimistic)
+- [ ] PATCH request fires after click
+- [ ] On PATCH failure, state reverts + toast shown
+- [ ] Toggle between "by project" and "by file" grouping works
+- [ ] Completed todos collapsible under "Show completed"
+- [ ] FIXME/HACK todos show type badge
 - [ ] Loading skeleton renders while fetching
-- [ ] Error state shows retry button
-- [ ] StatusOverview shows count summaries
 - [ ] `pnpm type-check` passes
-- [ ] `pnpm test` passes (basic render tests)
+- [ ] `pnpm test` passes (toggle optimism, grouping logic unit tested)
 
 ## Validation Gates
 - [ ] `pnpm type-check` → zero errors
 - [ ] `pnpm test` → all tests green
-- [ ] `pnpm dev` → frontend loads at localhost:5173 without console errors
 
 ## Constraints
-- Do NOT use any CSS files except for Tailwind's `@import "tailwindcss"` pattern
-- Do NOT use any date library — use vanilla JS Date math for relative time
-- Do NOT hardcode the backend URL — use `const API = 'http://localhost:3001'` defined once
-- Do NOT add router/navigation — single page app only
-- Keep types in a shared `src/types.ts` file that can be imported across components
+- Do NOT implement server-sent events or websockets — polling only (polling wired in TASK-011)
+- Do NOT use any external UI component library — Tailwind only
+- Do NOT re-fetch todos after every toggle (wasteful) — local state update is enough
+- Type `Todo` should live in `src/types.ts` (shared with other components)
+- The toast must be CSS-only (no React state animation library)
 
 ## On Completion
 ```
 git add -A
-git commit -m "feat(TASK-007): dashboard layout and project cards frontend"
+git commit -m "feat(TASK-008): todo aggregator component with optimistic toggle"
 ```
 
-Update `.agents/state.json` tasks.TASK-007.status to "done".
+Update `.agents/state.json` tasks.TASK-008.status to "done".

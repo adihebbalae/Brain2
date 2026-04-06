@@ -10,3 +10,13 @@ export interface Project {
   openTodos: number
   hasDeadlines: boolean
 }
+
+export interface Todo {
+  id: string
+  text: string
+  done: boolean
+  file: string
+  line: number
+  project: string
+  type: 'checkbox' | 'TODO' | 'FIXME' | 'HACK'
+}

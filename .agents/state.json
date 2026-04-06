@@ -190,7 +190,7 @@
                   "TASK-008":  {
                                    "title":  "Frontend: TODO aggregator with mark-done",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-004"
@@ -386,12 +386,12 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T21:00:00.0000000-05:00",
-    "last_updated_by":  "engineer",
+    "last_updated":  "2026-04-05T21:01:54.8365568-05:00",
+    "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-007",
-                         "title":  "Frontend: Dashboard layout, project cards, status overview",
-                         "status":  "done",
+                         "id":  "TASK-008",
+                         "title":  "Frontend: TODO aggregator with mark-done",
+                         "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
 }
