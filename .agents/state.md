@@ -4,14 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: In Progress — Backend implementation underway
-- **Current Task**: TASK-005 — Backend deadline reader (done)
+- **Phase**: In Progress — Backend implementation complete, ready for frontend
+- **Current Task**: TASK-006 — Backend quick capture endpoint + notes corpus parser (done)
 - **Blocked On**: None
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
   - TASK-003 — Project scanner with state file parser (17 tests passing)
   - TASK-004 — TODO extractor with checkbox write-back (22 tests passing)
   - TASK-005 — Deadline reader with urgency calculation (22 tests passing)
+  - TASK-006 — Quick capture endpoint + notes corpus parser (24 tests passing)
 
 ## Project Brief
 
@@ -43,7 +44,7 @@
 | TASK-003 | Backend: Project scanner | done | P0 |
 | TASK-004 | Backend: TODO extractor | done | P0 |
 | TASK-005 | Backend: Deadline reader | done | P0 |
-| TASK-006 | Backend: Quick capture + notes parser | pending | P0 |
+| TASK-006 | Backend: Quick capture + notes parser | done | P0 |
 | TASK-007 | Frontend: Dashboard + project cards | pending | P0 |
 | TASK-008 | Frontend: TODO aggregator | pending | P0 |
 | TASK-009 | Frontend: Deadline timeline | pending | P0 |
@@ -97,4 +98,20 @@
   - Path validation for security (ensures path within vault directory)
   - GET /api/deadlines endpoint mounted in server/index.ts
   - 22 unit tests covering parsing, urgency thresholds, sorting, edge cases (all passing)
+  - Type-checking passes with zero errors, all acceptance criteria met
+- 2026-04-05: TASK-006 completed — Implemented quick capture endpoint and notes corpus parser:
+  - POST /api/capture appends timestamped entries to VAULT_DIR/Inbox/inbox.md in format: - [ ] [YYYY-MM-DD HH:mm] text
+  - Input validation: non-empty string, max 2000 characters
+  - Input sanitization: strips newlines, control characters (null bytes, etc.)
+  - Auto-creates Inbox directory and inbox.md file if they don't exist
+  - Trimming whitespace from captured text
+  - GET /api/capture/corpus parses notes_corpus.txt.txt for actionable items with heuristic type detection:
+    - type='todo': checkbox patterns (- [ ], [ ], * [ ], • [ ]), TODO/FIXME/HACK comments
+    - type='idea': idea: prefix, idea -, IDEA: patterns
+    - type='note': fallback for general content (min 10 chars)
+    - Filters: skips blank lines, punctuation-only lines, short lines (<10 chars), header lines (all-caps short strings)
+  - Stable ID generation using SHA-256 (first 16 hex chars)
+  - Graceful handling of missing corpus file (returns empty array)
+  - Path validation for security
+  - 24 unit tests: 9 capture writer tests + 15 corpus parser tests (all passing)
   - Type-checking passes with zero errors, all acceptance criteria met
