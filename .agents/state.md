@@ -56,7 +56,7 @@
 | TASK-009 | Frontend: Deadline timeline | done | P0 |
 | TASK-010 | Frontend: Quick capture bar | done | P0 |
 | TASK-011 | Integration + E2E testing | done | P0 |
-| TASK-012 | ntfy push notifications (deadlines + stale + digest) | pending | P1 |
+| TASK-012 | ntfy push notifications (deadlines + stale + digest) | done | P1 |
 | TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | pending | P1 |
 | TASK-014 | Chat export viewer | pending | P1 |
 
@@ -214,3 +214,11 @@
     ✅ Works fully offline (no external network calls)
   - **183 total tests passing** (85 backend unit + 26 integration + 72 frontend), type-check clean
   - **Status**: mvp_complete
+- 2026-04-07: TASK-012 completed — ntfy push notifications implemented:
+  - **notifier.ts**: `sendNotification(topic, message, options)` — POSTs to ntfy.sh (or NTFY_URL for self-hosted), sets Title/Priority/Tags headers, never throws (logs errors only), uses native Node 18+ fetch
+  - **notification-state.ts**: Persists dedup state in VAULT_DIR/.cortex-notify-state.json — tracks last-notified date per deadline ID and project name, `wasNotifiedToday` and `wasNotifiedWithinDays` helpers
+  - **notification-service.ts**: `startNotificationService()` called from server/index.ts — runs once after 5s delay then every 60min; checks: (1) red deadlines (daily dedup), (2) stale projects ≥30 days (7-day dedup), (3) daily digest at configurable NTFY_DIGEST_TIME (default 08:00, 5-min window)
+  - **Config**: NTFY_TOPIC (required to activate), NTFY_DIGEST_TIME (default 08:00), NTFY_URL (default https://ntfy.sh) added to .env.example
+  - **Constraints met**: native fetch only, no unhandled rejections, no-op in test environment, graceful when NTFY_TOPIC unset
+  - **15 new tests** in notifier.test.ts — fetch URL/headers, error swallowing, wasNotifiedToday/wasNotifiedWithinDays
+  - **198 total tests passing**, type-check clean

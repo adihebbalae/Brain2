@@ -270,7 +270,7 @@
                   "TASK-012":  {
                                    "title":  "ntfy push notifications (deadlines + stale + digest)",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-011"
