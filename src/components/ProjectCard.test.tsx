@@ -6,7 +6,8 @@ import { Project } from '../types'
 describe('ProjectCard', () => {
   const mockProject: Project = {
     name: 'Test Project',
-    path: '/test/path',
+    path: 'test-project',
+    vscodeUrl: 'vscode://file//test/path',
     status: 'active',
     lastModified: new Date().toISOString(),
     staleDays: 5,

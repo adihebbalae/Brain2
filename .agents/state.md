@@ -4,9 +4,10 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: MVP Complete ✅
-- **Current Task**: TASK-011 — Integration, polling, error states, E2E testing (DONE)
+- **Phase**: MVP Complete ✅ — smoke tested, security cleared, ready to push
+- **Current Task**: None — P0 complete, P1 handoffs generated
 - **Blocked On**: None
+- **Security**: Cleared for push ✅
 - **Recent Completions**: 
   - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
   - TASK-003 — Project scanner with state file parser (17 tests passing)
@@ -36,8 +37,9 @@
 **Architecture Decisions**:
 - Brain2 repo IS the dashboard (config-driven paths via .env)
 - Single package with concurrently for dev
-- Claude API direct (no abstraction)
-- Google Calendar deferred to P1
+- Ollama (llama3.1:8b) for AI summarization — local, no API key (P1)
+- ntfy.sh for push notifications — no OAuth, single HTTP POST (P1)
+- Google Calendar dropped in favour of ntfy simplicity
 
 ## Task Summary
 
@@ -54,8 +56,8 @@
 | TASK-009 | Frontend: Deadline timeline | done | P0 |
 | TASK-010 | Frontend: Quick capture bar | done | P0 |
 | TASK-011 | Integration + E2E testing | done | P0 |
-| TASK-012 | Google Calendar OAuth + sync | pending | P1 |
-| TASK-013 | AI summarization (Claude API) | pending | P1 |
+| TASK-012 | ntfy push notifications (deadlines + stale + digest) | pending | P1 |
+| TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | pending | P1 |
 | TASK-014 | Chat export viewer | pending | P1 |
 
 ## Changelog

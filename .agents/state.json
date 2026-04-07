@@ -268,7 +268,7 @@
                                    "completed_at":  "2026-04-05"
                                },
                   "TASK-012":  {
-                                   "title":  "Google Calendar OAuth setup + sync endpoint",
+                                   "title":  "ntfy push notifications (deadlines + stale + digest)",
                                    "assigned_to":  "engineer",
                                    "status":  "pending",
                                    "model":  "sonnet",
@@ -276,17 +276,19 @@
                                                       "TASK-011"
                                                   ],
                                    "priority":  "P1",
-                                   "description":  "Guide user through Google Cloud project creation and OAuth2 credentials. Implement OAuth2 flow (browser auth, store refresh token in .env). Implement GET /api/calendar for upcoming 14 days. Merge with manual deadlines in timeline. Read-only.",
+                                   "description":  "Implement POST /api/notify/test and background notification service. Use public ntfy.sh topic (configurable via NTFY_TOPIC in .env). Triggers: (1) red deadlines — check on server start + every 60min, notify if any due within 2 days and not yet notified today; (2) stale projects — notify when project crosses 30-day threshold; (3) daily digest — configurable time via NTFY_DIGEST_TIME (default 08:00), sends summary of open todos count + upcoming deadlines. Store last-notified state in VAULT_DIR/.cortex-notify-state.json to prevent duplicate alerts.",
                                    "acceptance_criteria":  [
-                                                               "OAuth2 flow completes successfully",
-                                                               "Refresh token stored securely in .env",
-                                                               "GET /api/calendar returns upcoming events",
-                                                               "Calendar events merge with deadline timeline",
-                                                               "Read-only — no writes to Google Calendar"
+                                                               "POST /api/notify/test sends a test notification to ntfy topic",
+                                                               "Red deadline notification fires when deadline.urgency = red",
+                                                               "Stale project notification fires when staleDays crosses 30",
+                                                               "Daily digest sent at configured time",
+                                                               "No duplicate notifications (per-day dedup)",
+                                                               "NTFY_TOPIC and NTFY_DIGEST_TIME in .env.example",
+                                                               "Graceful no-op when NTFY_TOPIC not set"
                                                            ]
                                },
                   "TASK-013":  {
-                                   "title":  "AI summarization \u0026 auto-TODO extraction (Claude API)",
+                                   "title":  "Ollama AI summarization (llama3.1:8b, auto on load)",
                                    "assigned_to":  "engineer",
                                    "status":  "pending",
                                    "model":  "sonnet",
@@ -294,14 +296,15 @@
                                                       "TASK-011"
                                                   ],
                                    "priority":  "P1",
-                                   "description":  "Implement POST /api/ai/summarize — sends project state file to Claude API, returns 2-3 sentence summary. Add 1-hour cache. Implement auto-TODO extraction for prose-style state files. Add \u0027Where did I leave off?\u0027 button to project cards. Show \u0027suggested TODOs\u0027 section (non-destructive).",
+                                   "description":  "Implement GET /api/ai/summarize/:project using local Ollama API (http://localhost:11434). Model: llama3.1:8b. On dashboard load, fetch summaries for all active projects automatically. Prompt: given the state file content, return a 2-3 sentence \u0027where did I leave off?\u0027 summary. 1-hour in-memory cache keyed by project name + file mtime. Graceful fallback: if Ollama not running, return null and show nothing (no error UI). GET /api/ai/status returns whether Ollama is reachable.",
                                    "acceptance_criteria":  [
-                                                               "Summary button on project cards calls Claude API",
-                                                               "Returns 2-3 sentence where-you-left-off summary",
-                                                               "1-hour response cache",
-                                                               "Auto-TODO extraction for prose state files",
-                                                               "Suggested TODOs shown separately from real TODOs",
-                                                               "Graceful fallback when API key not set"
+                                                               "GET /api/ai/summarize/:project returns 2-3 sentence summary",
+                                                               "Summaries auto-fetch on dashboard load for active projects",
+                                                               "1-hour cache prevents redundant Ollama calls",
+                                                               "GET /api/ai/status returns { available: boolean }",
+                                                               "Graceful no-op when Ollama not running (no UI error)",
+                                                               "Model configurable via OLLAMA_MODEL in .env (default llama3.1:8b)",
+                                                               "OLLAMA_URL in .env.example (default http://localhost:11434)"
                                                            ]
                                },
                   "TASK-014":  {
@@ -334,9 +337,9 @@
                     "created_at":  "2026-04-05"
                 },
     "security_status":  {
-                            "last_scan":  "",
+                            "last_scan":  "2026-04-06",
                             "open_findings":  0,
-                            "cleared_for_push":  false
+                            "cleared_for_push":  true
                         },
     "decisions":  [
                       {
@@ -373,7 +376,8 @@
                       "2026-04-05: TASK-008 completed — Built TodoAggregator component with optimistic checkbox toggles, grouping by project/file, collapsible groups, completed todos disclosure, type badges (FIXME/HACK), file path chips, useTodos hook with error rollback, CSS-only toast, 21 frontend tests (8 hook + 13 component, all passing), 120 total tests passing",
                       "2026-04-05: TASK-009 completed — Built DeadlineTimeline component with vertical timeline layout, color-coded urgency (red/amber/green/gray dots and borders), relative date labels (Today, Tomorrow, N days), tag chips, compact mode (max 5 + See all link), completed deadlines section (strikethrough, gray), loading/error/empty states, useDeadlines hook, 17 frontend tests (5 hook + 12 component, all passing), 137 total tests passing",
                       "2026-04-05: TASK-010 completed — Built QuickCapture component with full-width input bar, POST /api/capture integration, success/error toasts (green/red, auto-dismiss after 2s), Ctrl+K keyboard shortcut, input sanitization (trim whitespace), disabled button for empty/whitespace input, loading states, maxLength enforcement (2000 chars), onCapture callback for refetch, 20 component tests (all passing), 157 total tests passing",
-                      "2026-04-05: TASK-011 completed — Full integration: Added 60-second polling to all data hooks (useProjects, useTodos, useDeadlines), wired TodoAggregator and DeadlineTimeline into App.tsx with two-column layout, created ErrorBoundary component for graceful error handling, integrated QuickCapture with refetch callbacks for both projects and todos, created comprehensive integration test suite (26 tests) validating all PRD success criteria (project scanner with state file priority, TODO extraction with 5 pattern types, checkbox write-back, deadline parsing with urgency, quick capture, full offline operation, performance benchmarks), updated App tests to mock all three API endpoints, 183 total tests passing, type-check clean, MVP complete"
+                      "2026-04-05: TASK-011 completed — Full integration: Added 60-second polling to all data hooks (useProjects, useTodos, useDeadlines), wired TodoAggregator and DeadlineTimeline into App.tsx with two-column layout, created ErrorBoundary component for graceful error handling, integrated QuickCapture with refetch callbacks for both projects and todos, created comprehensive integration test suite (26 tests) validating all PRD success criteria (project scanner with state file priority, TODO extraction with 5 pattern types, checkbox write-back, deadline parsing with urgency, quick capture, full offline operation, performance benchmarks), updated App tests to mock all three API endpoints, 183 total tests passing, type-check clean, MVP complete",
+                      "2026-04-06: smoke test passed — 183 tests, all 4 API routes verified. P1 tasks revised: Google Calendar → ntfy, Claude API → Ollama"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -394,8 +398,8 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-05T21:28:00.0000000-05:00",
-    "last_updated_by":  "engineer",
+    "last_updated":  "2026-04-06",
+    "last_updated_by":  "manager",
     "current_task":  {
                          "id":  "TASK-011",
                          "title":  "Integration, polling, error states, E2E testing",

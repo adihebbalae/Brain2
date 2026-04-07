@@ -121,8 +121,9 @@ interface DeadlineItemProps {
 function DeadlineItem({ deadline, isLast }: DeadlineItemProps) {
   const { date, description, tag, urgency } = deadline
 
-  // Format date for display
-  const dateObj = new Date(date)
+  // Parse YYYY-MM-DD as local time (not UTC) to avoid off-by-one on date labels
+  const [year, month0, day0] = date.split('-').map(Number)
+  const dateObj = new Date(year, month0 - 1, day0)
   const month = dateObj.toLocaleDateString('en-US', { month: 'short' })
   const day = dateObj.getDate()
 
@@ -205,6 +206,7 @@ function getRelativeLabel(date: Date): string | null {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
+  // Clone and zero out time — already done by caller via parseLocalDate
   const targetDate = new Date(date)
   targetDate.setHours(0, 0, 0, 0)
 

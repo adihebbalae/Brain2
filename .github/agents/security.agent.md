@@ -1,8 +1,8 @@
 ---
 description: "Adversarial security auditor and white-hat penetration tester. Use when: reviewing code for vulnerabilities, pre-push security scan, auditing authentication/authorization, checking for injection attacks, validating input sanitization, reviewing dependency security. Works in isolation to prevent bias transfer."
-tools: [codebase, search, terminal, problems]
+tools: [read/problems, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages]
 model: Claude Sonnet 4.5 (copilot)
-user-invocable: false
+user-invocable: true
 ---
 
 # Security Agent

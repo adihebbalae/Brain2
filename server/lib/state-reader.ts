@@ -28,7 +28,7 @@ const STATE_FILE_PRIORITY = [
 function validatePath(resolvedPath: string, baseDir: string): boolean {
   const normalizedBase = path.normalize(baseDir)
   const normalizedPath = path.normalize(resolvedPath)
-  return normalizedPath.startsWith(normalizedBase)
+  return normalizedPath.startsWith(normalizedBase + path.sep) || normalizedPath === normalizedBase
 }
 
 /**

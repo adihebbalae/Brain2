@@ -40,7 +40,7 @@ function getBorderClass(staleDays: number): string {
 export function ProjectCard({ project }: ProjectCardProps) {
   const borderClass = getBorderClass(project.staleDays)
   const statusBadgeClass = getStatusBadgeClasses(project.status)
-  const vsCodeUrl = `vscode://file/${project.path}`
+  const vsCodeUrl = project.vscodeUrl
 
   // Show max 3 next steps
   const displayedNextSteps = project.nextSteps.slice(0, 3)

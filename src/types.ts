@@ -1,6 +1,7 @@
 export interface Project {
   name: string
   path: string
+  vscodeUrl: string
   status: 'active' | 'stale' | 'archived' | 'unknown'
   lastModified: string
   staleDays: number

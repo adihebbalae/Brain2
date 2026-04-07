@@ -5,6 +5,7 @@ import { projectsRouter } from './routes/projects.js'
 import { todosRouter } from './routes/todos.js'
 import { deadlinesRouter } from './routes/deadlines.js'
 import { captureRouter } from './routes/capture.js'
+import { startNotificationService } from './lib/notification-service.js'
 
 config()
 
@@ -12,7 +13,7 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // Middleware
-app.use(cors())
+app.use(cors({ origin: 'http://localhost:5173' }))
 app.use(express.json())
 
 // Health check
@@ -30,5 +31,7 @@ app.use('/api/capture', captureRouter)
 app.listen(PORT, () => {
   console.log(`🚀 Cortex backend running on http://localhost:${PORT}`)
 })
+
+startNotificationService()
 
 export default app

@@ -2,7 +2,7 @@
 description: "Code executor and implementation specialist. Use when: writing code, implementing features, fixing bugs, running tests, building components, refactoring, creating files. Takes structured prompts from Manager and executes them methodically. Never makes design decisions independently."
 tools: [codebase, editFiles, terminal, search, problems, runCommands]
 model: Claude Sonnet 4.5 (copilot)
-user-invocable: false
+user-invocable: true
 ---
 
 # Engineer Agent

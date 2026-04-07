@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import path from 'node:path'
 import { extractTodos, toggleTodo } from '../lib/todo-extractor.js'
 import { config } from 'dotenv'
 
@@ -13,7 +14,29 @@ router.get('/', async (_req, res) => {
   }
   try {
     const todos = await extractTodos(PROJECTS_DIR, VAULT_DIR)
-    return res.json(todos)
+    const resolvedProjects = path.resolve(PROJECTS_DIR)
+    const resolvedVault = path.resolve(VAULT_DIR)
+    const safeTodos = {
+      ...todos,
+      byProject: Object.fromEntries(
+        Object.entries(todos.byProject).map(([project, items]) => [
+          project,
+          items.map(t => {
+            const resolvedFile = path.resolve(t.file)
+            let relativeFile: string
+            if (resolvedFile.startsWith(resolvedProjects + path.sep)) {
+              relativeFile = path.relative(resolvedProjects, resolvedFile)
+            } else if (resolvedFile.startsWith(resolvedVault + path.sep)) {
+              relativeFile = path.relative(resolvedVault, resolvedFile)
+            } else {
+              relativeFile = path.basename(t.file)
+            }
+            return { ...t, file: relativeFile }
+          }),
+        ])
+      ),
+    }
+    return res.json(safeTodos)
   } catch (err) {
     console.error('Failed to extract todos:', err)
     return res.status(500).json({ error: 'Failed to extract todos' })
