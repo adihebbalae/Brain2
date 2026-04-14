@@ -272,6 +272,7 @@
                                    "assigned_to":  "engineer",
                                    "status":  "done",
                                    "model":  "sonnet",
+                                   "completed_at":  "2026-04-13",
                                    "depends_on":  [
                                                       "TASK-011"
                                                   ],
@@ -290,7 +291,7 @@
                   "TASK-013":  {
                                    "title":  "Ollama AI summarization (llama3.1:8b, auto on load)",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-011"
@@ -377,7 +378,8 @@
                       "2026-04-05: TASK-009 completed — Built DeadlineTimeline component with vertical timeline layout, color-coded urgency (red/amber/green/gray dots and borders), relative date labels (Today, Tomorrow, N days), tag chips, compact mode (max 5 + See all link), completed deadlines section (strikethrough, gray), loading/error/empty states, useDeadlines hook, 17 frontend tests (5 hook + 12 component, all passing), 137 total tests passing",
                       "2026-04-05: TASK-010 completed — Built QuickCapture component with full-width input bar, POST /api/capture integration, success/error toasts (green/red, auto-dismiss after 2s), Ctrl+K keyboard shortcut, input sanitization (trim whitespace), disabled button for empty/whitespace input, loading states, maxLength enforcement (2000 chars), onCapture callback for refetch, 20 component tests (all passing), 157 total tests passing",
                       "2026-04-05: TASK-011 completed — Full integration: Added 60-second polling to all data hooks (useProjects, useTodos, useDeadlines), wired TodoAggregator and DeadlineTimeline into App.tsx with two-column layout, created ErrorBoundary component for graceful error handling, integrated QuickCapture with refetch callbacks for both projects and todos, created comprehensive integration test suite (26 tests) validating all PRD success criteria (project scanner with state file priority, TODO extraction with 5 pattern types, checkbox write-back, deadline parsing with urgency, quick capture, full offline operation, performance benchmarks), updated App tests to mock all three API endpoints, 183 total tests passing, type-check clean, MVP complete",
-                      "2026-04-06: smoke test passed — 183 tests, all 4 API routes verified. P1 tasks revised: Google Calendar → ntfy, Claude API → Ollama"
+                      "2026-04-06: smoke test passed — 183 tests, all 4 API routes verified. P1 tasks revised: Google Calendar → ntfy, Claude API → Ollama",
+                      "2026-04-13: TASK-012 completed — Implemented ntfy push notification system: background service sends notifications for red deadlines (urgency check every 60min + startup), stale projects (30+ days, max once per 7 days), and daily digest (configurable time, default 08:00). Uses native fetch for HTTP POST to ntfy.sh, fire-and-forget pattern with error logging, state persistence in VAULT_DIR/.cortex-notify-state.json for deduplication. Silent no-op when NTFY_TOPIC not set. Files: server/lib/notifier.ts, notification-state.ts, notification-service.ts, integrated in server/index.ts. 15 unit tests passing, type-check clean"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -391,19 +393,22 @@
                                         "TASK-008",
                                         "TASK-009",
                                         "TASK-010",
-                                        "TASK-011"
+                                        "TASK-011",
+                                        "TASK-012",
+                                        "TASK-013",
+                                        "TASK-014"
                                     ],
                      "checkpoint_seconds":  45,
                      "max_retries":  3,
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-06",
-    "last_updated_by":  "manager",
+    "last_updated":  "2026-04-13T23:46:34.9925734-05:00",
+    "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-011",
-                         "title":  "Integration, polling, error states, E2E testing",
-                         "status":  "done",
+                         "id":  "TASK-013",
+                         "title":  "Ollama AI summarization (llama3.1:8b, auto on load)",
+                         "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
 }

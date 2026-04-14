@@ -59,7 +59,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
 │       └── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
 └── server/                          # Express.js backend
-    ├── index.ts                     # Express server entry with all API routes mounted
+    ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
@@ -79,6 +79,10 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── capture-writer.test.ts   # ✓ 9 unit tests for capture writer (TASK-006)
         ├── notes-corpus-parser.ts   # ✓ Parses notes corpus file for TODOs/ideas/notes (TASK-006)
         ├── notes-corpus-parser.test.ts  # ✓ 15 unit tests for corpus parser (TASK-006)
+        ├── notifier.ts              # ✓ Core notification sender using native fetch (TASK-012)
+        ├── notifier.test.ts         # ✓ 15 unit tests for notifier (TASK-012)
+        ├── notification-state.ts    # ✓ State persistence for notification deduplication (TASK-012)
+        ├── notification-service.ts  # ✓ Background service for red deadlines, stale projects, daily digest (TASK-012)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -88,6 +92,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 C:\Users\boomb\Documents\_Projects\          ← Existing projects directory (scanned, never modified)
 C:\Users\boomb\Documents\SecondBrain\        ← [planned] Obsidian vault
 ├── .obsidian/
+├── .cortex-notify-state.json                ← Notification state (last sent timestamps)
 ├── Inbox/
 │   └── inbox.md                             ← Quick capture destination
 ├── Projects/                                ← Symlinks to _Projects/* subfolders
@@ -114,7 +119,7 @@ README.md                        # Boilerplate documentation
 ## Key Files
 
 **Backend (Completed)**:
-- `server/index.ts` — Express app with /api/projects, /api/todos, /api/deadlines, and /api/capture routes
+- `server/index.ts` — Express app with /api/projects, /api/todos, /api/deadlines, /api/capture routes + notification service
 - `server/lib/scanner.ts` — Scans PROJECTS_DIR for state files, returns sorted array
 - `server/lib/state-reader.ts` — Priority detection, status inference, summary/next-steps extraction
 - `server/routes/projects.ts` — GET /api/projects endpoint
@@ -130,6 +135,10 @@ README.md                        # Boilerplate documentation
 - `server/lib/capture-writer.test.ts` — 9 unit tests with temp filesystem
 - `server/lib/notes-corpus-parser.ts` — Parses notes_corpus.txt.txt for TODOs/ideas/notes
 - `server/lib/notes-corpus-parser.test.ts` — 15 unit tests with temp filesystem
+- `server/lib/notifier.ts` — ntfy.sh notification sender using native fetch
+- `server/lib/notifier.test.ts` — 15 unit tests for notification sender
+- `server/lib/notification-state.ts` — State persistence for notification deduplication
+- `server/lib/notification-service.ts` — Background service (red deadlines, stale projects, daily digest)
 
 **Config**:
 - `package.json` — npm scripts (dev, build, test, type-check)

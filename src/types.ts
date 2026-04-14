@@ -10,6 +10,8 @@ export interface Project {
   todos: number
   openTodos: number
   hasDeadlines: boolean
+  aiSummary?: string | null
+  stateFile?: string
 }
 
 export interface Todo {

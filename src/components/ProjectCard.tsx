@@ -62,6 +62,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
         {project.summary || 'No summary available'}
       </p>
 
+      {/* AI Summary */}
+      {project.aiSummary && (
+        <div className="mt-2 text-sm text-indigo-700 bg-indigo-50 rounded px-2 py-1">
+          <span className="font-medium text-xs uppercase tracking-wide text-indigo-400">AI · </span>
+          {project.aiSummary}
+        </div>
+      )}
+
       {/* Next steps */}
       {displayedNextSteps.length > 0 && (
         <div className="mb-4">

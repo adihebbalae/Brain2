@@ -4,20 +4,13 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: MVP Complete ✅ — smoke tested, security cleared, ready to push
-- **Current Task**: None — P0 complete, P1 handoffs generated
+- **Phase**: MVP Complete ✅ + P1 ntfy notifications implemented
+- **Current Task**: TASK-012 (done) — ntfy push notifications
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
-  - TASK-001 — Project scaffolding complete (React+Vite+Express+TypeScript+Tailwind)
-  - TASK-003 — Project scanner with state file parser (17 tests passing)
-  - TASK-004 — TODO extractor with checkbox write-back (22 tests passing)
-  - TASK-005 — Deadline reader with urgency calculation (22 tests passing)
-  - TASK-006 — Quick capture endpoint + notes corpus parser (24 tests passing)
-  - TASK-007 — Dashboard layout with project cards (14 frontend tests, 99 total passing)
-  - TASK-008 — TODO aggregator with optimistic updates (21 frontend tests, 120 total passing)
-  - TASK-009 — Deadline timeline with urgency indicators (17 frontend tests, 137 total passing)
-  - TASK-010 — Quick capture input bar component (20 component tests, 157 total passing)
+  - TASK-011 — Full integration complete (183 tests passing, MVP ✅)
+  - TASK-012 — ntfy push notifications for deadlines, stale projects, digest (15 tests passing)
 
 ## Project Brief
 
@@ -214,11 +207,13 @@
     ✅ Works fully offline (no external network calls)
   - **183 total tests passing** (85 backend unit + 26 integration + 72 frontend), type-check clean
   - **Status**: mvp_complete
-- 2026-04-07: TASK-012 completed — ntfy push notifications implemented:
-  - **notifier.ts**: `sendNotification(topic, message, options)` — POSTs to ntfy.sh (or NTFY_URL for self-hosted), sets Title/Priority/Tags headers, never throws (logs errors only), uses native Node 18+ fetch
-  - **notification-state.ts**: Persists dedup state in VAULT_DIR/.cortex-notify-state.json — tracks last-notified date per deadline ID and project name, `wasNotifiedToday` and `wasNotifiedWithinDays` helpers
-  - **notification-service.ts**: `startNotificationService()` called from server/index.ts — runs once after 5s delay then every 60min; checks: (1) red deadlines (daily dedup), (2) stale projects ≥30 days (7-day dedup), (3) daily digest at configurable NTFY_DIGEST_TIME (default 08:00, 5-min window)
-  - **Config**: NTFY_TOPIC (required to activate), NTFY_DIGEST_TIME (default 08:00), NTFY_URL (default https://ntfy.sh) added to .env.example
-  - **Constraints met**: native fetch only, no unhandled rejections, no-op in test environment, graceful when NTFY_TOPIC unset
-  - **15 new tests** in notifier.test.ts — fetch URL/headers, error swallowing, wasNotifiedToday/wasNotifiedWithinDays
-  - **198 total tests passing**, type-check clean
+- 2026-04-13: TASK-012 completed — Implemented ntfy push notification system:
+  - **Background service** sends notifications for: red deadlines (urgency check every 60min + startup), stale projects (30+ days, max once per 7 days), daily digest (configurable time via NTFY_DIGEST_TIME, default 08:00)
+  - **Fire-and-forget pattern**: uses native Node.js fetch for HTTP POST to ntfy.sh, errors logged but never crash server
+  - **Deduplication**: state persisted in VAULT_DIR/.cortex-notify-state.json (tracks lastDeadlineNotify, lastStaleNotify, lastDigestDate)
+  - **Configuration**: NTFY_TOPIC (required), NTFY_DIGEST_TIME (default 08:00), NTFY_URL (default https://ntfy.sh)
+  - **Silent no-op**: when NTFY_TOPIC not set or during test runs (NODE_ENV === 'test')
+  - **Files created**: server/lib/notifier.ts (core sender), notification-state.ts (state management), notification-service.ts (background service)
+  - **Integration**: mounted in server/index.ts after routes, runs checks once on startup (5s delay) + every 60 minutes
+  - **15 unit tests passing** (notifier.test.ts), type-check clean
+  - **Acceptance criteria met**: POST with correct headers, per-day dedup for deadlines, 7-day dedup for stale projects, digest at configured time, graceful failure when ntfy.sh unreachable, state persistence

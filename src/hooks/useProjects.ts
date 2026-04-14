@@ -35,6 +35,58 @@ export function useProjects(): UseProjectsResult {
     }
   }, [])
 
+  // Fetch AI summaries for active projects after initial load
+  useEffect(() => {
+    if (projects.length === 0) return
+
+    const activeProjects = projects.filter((p) => p.status === 'active')
+    if (activeProjects.length === 0) return
+
+    const fetchAiSummaries = async () => {
+      try {
+        const projectsPayload = activeProjects.map((p) => ({
+          name: p.name,
+          stateFilePath: p.stateFile || p.path, // Use stateFile if available, otherwise use path
+        }))
+
+        const response = await fetch(`${API_BASE}/api/ai/summarize-all`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ projects: projectsPayload }),
+        })
+
+        if (!response.ok) {
+          console.warn('Failed to fetch AI summaries')
+          return
+        }
+
+        const data = await response.json()
+        const summariesMap: Record<string, string | null> = {}
+
+        data.results?.forEach((result: any) => {
+          if (result.name && result.summary) {
+            summariesMap[result.name] = result.summary
+          }
+        })
+
+        // Merge AI summaries into projects
+        setProjects((prevProjects) =>
+          prevProjects.map((p) => ({
+            ...p,
+            aiSummary: summariesMap[p.name] || null,
+          }))
+        )
+      } catch (err) {
+        // Silently fail - AI summaries are optional enhancement
+        console.debug('AI summaries not available:', err)
+      }
+    }
+
+    fetchAiSummaries()
+  }, [projects.length]) // Only trigger when projects count changes
+
   useEffect(() => {
     fetchProjects()
     // Poll every 60 seconds
