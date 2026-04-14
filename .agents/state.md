@@ -4,13 +4,14 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: MVP Complete ✅ + P1 ntfy notifications implemented
-- **Current Task**: TASK-012 (done) — ntfy push notifications
+- **Phase**: MVP Complete ✅ + P1 features (ntfy notifications, Ollama AI) implemented
+- **Current Task**: TASK-013 (done) — Ollama AI summarization
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
   - TASK-011 — Full integration complete (183 tests passing, MVP ✅)
   - TASK-012 — ntfy push notifications for deadlines, stale projects, digest (15 tests passing)
+  - TASK-013 — Ollama AI summarization with 1h cache (12 tests passing)
 
 ## Project Brief
 
@@ -50,7 +51,7 @@
 | TASK-010 | Frontend: Quick capture bar | done | P0 |
 | TASK-011 | Integration + E2E testing | done | P0 |
 | TASK-012 | ntfy push notifications (deadlines + stale + digest) | done | P1 |
-| TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | pending | P1 |
+| TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | done | P1 |
 | TASK-014 | Chat export viewer | pending | P1 |
 
 ## Changelog
@@ -217,3 +218,15 @@
   - **Integration**: mounted in server/index.ts after routes, runs checks once on startup (5s delay) + every 60 minutes
   - **15 unit tests passing** (notifier.test.ts), type-check clean
   - **Acceptance criteria met**: POST with correct headers, per-day dedup for deadlines, 7-day dedup for stale projects, digest at configured time, graceful failure when ntfy.sh unreachable, state persistence
+- 2026-04-13: TASK-013 completed — Implemented Ollama AI summarization system:
+  - **Local AI summaries** for active projects using llama3.1:8b model via Ollama API (http://localhost:11434)
+  - **1-hour in-memory cache** keyed by projectName:fileMtime, cache invalidates when state file changes
+  - **Backend**: Created server/lib/ollama-client.ts with getOllamaStatus and summarizeProject functions
+  - **API endpoints**: GET /api/ai/status (Ollama availability check), GET /api/ai/summarize/:project (single project summary), POST /api/ai/summarize-all (bulk summarize with sequential processing to avoid overwhelming Ollama)
+  - **Security**: Path traversal protection on all endpoints, state file content truncated to 2000 chars before sending to Ollama
+  - **Frontend**: Updated useProjects hook to auto-fetch AI summaries after initial load (non-blocking, only for active projects), updated ProjectCard to display AI summary in indigo box with "AI ·" label
+  - **Graceful degradation**: When Ollama unavailable, returns null with no error UI (silent failure)
+  - **Configuration**: OLLAMA_URL (default http://localhost:11434), OLLAMA_MODEL (default llama3.1:8b) in .env.example
+  - **Files created**: server/lib/ollama-client.ts, server/routes/ai.ts, server/lib/ollama-client.test.ts
+  - **12 unit tests passing** (cache expiration, status checks, timeout handling, content truncation, error scenarios), type-check clean
+  - **195 total tests passing** (183 existing + 12 new Ollama tests)

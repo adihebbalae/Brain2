@@ -6,10 +6,14 @@ import { QuickCapture } from './components/QuickCapture'
 import { TodoAggregator } from './components/TodoAggregator'
 import { DeadlineTimeline } from './components/DeadlineTimeline'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ChatExplorer } from './components/ChatExplorer'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
   const { refetch: refetchTodos } = useTodos()
+
+  // Extract project names for tag autocomplete
+  const projectNames = projects.map(p => p.name)
 
   // Get current date formatted
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -119,6 +123,13 @@ function App() {
               <TodoAggregator />
             </ErrorBoundary>
           </div>
+        </div>
+
+        {/* Chat Exports section (below main grid) */}
+        <div className="mt-8">
+          <ErrorBoundary fallbackMessage="Error loading chat exports">
+            <ChatExplorer projectNames={projectNames} />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

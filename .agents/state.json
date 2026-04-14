@@ -291,8 +291,9 @@
                   "TASK-013":  {
                                    "title":  "Ollama AI summarization (llama3.1:8b, auto on load)",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
+                                   "completed_at":  "2026-04-13",
                                    "depends_on":  [
                                                       "TASK-011"
                                                   ],
@@ -311,7 +312,7 @@
                   "TASK-014":  {
                                    "title":  "Chat export viewer (import, search, tag)",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-011"
@@ -379,7 +380,8 @@
                       "2026-04-05: TASK-010 completed — Built QuickCapture component with full-width input bar, POST /api/capture integration, success/error toasts (green/red, auto-dismiss after 2s), Ctrl+K keyboard shortcut, input sanitization (trim whitespace), disabled button for empty/whitespace input, loading states, maxLength enforcement (2000 chars), onCapture callback for refetch, 20 component tests (all passing), 157 total tests passing",
                       "2026-04-05: TASK-011 completed — Full integration: Added 60-second polling to all data hooks (useProjects, useTodos, useDeadlines), wired TodoAggregator and DeadlineTimeline into App.tsx with two-column layout, created ErrorBoundary component for graceful error handling, integrated QuickCapture with refetch callbacks for both projects and todos, created comprehensive integration test suite (26 tests) validating all PRD success criteria (project scanner with state file priority, TODO extraction with 5 pattern types, checkbox write-back, deadline parsing with urgency, quick capture, full offline operation, performance benchmarks), updated App tests to mock all three API endpoints, 183 total tests passing, type-check clean, MVP complete",
                       "2026-04-06: smoke test passed — 183 tests, all 4 API routes verified. P1 tasks revised: Google Calendar → ntfy, Claude API → Ollama",
-                      "2026-04-13: TASK-012 completed — Implemented ntfy push notification system: background service sends notifications for red deadlines (urgency check every 60min + startup), stale projects (30+ days, max once per 7 days), and daily digest (configurable time, default 08:00). Uses native fetch for HTTP POST to ntfy.sh, fire-and-forget pattern with error logging, state persistence in VAULT_DIR/.cortex-notify-state.json for deduplication. Silent no-op when NTFY_TOPIC not set. Files: server/lib/notifier.ts, notification-state.ts, notification-service.ts, integrated in server/index.ts. 15 unit tests passing, type-check clean"
+                      "2026-04-13: TASK-012 completed — Implemented ntfy push notification system: background service sends notifications for red deadlines (urgency check every 60min + startup), stale projects (30+ days, max once per 7 days), and daily digest (configurable time, default 08:00). Uses native fetch for HTTP POST to ntfy.sh, fire-and-forget pattern with error logging, state persistence in VAULT_DIR/.cortex-notify-state.json for deduplication. Silent no-op when NTFY_TOPIC not set. Files: server/lib/notifier.ts, notification-state.ts, notification-service.ts, integrated in server/index.ts. 15 unit tests passing, type-check clean",
+                      "2026-04-13: TASK-013 completed — Implemented Ollama AI summarization system: local AI summaries for active projects using llama3.1:8b model. Created server/lib/ollama-client.ts with getOllamaStatus and summarizeProject functions, 1-hour in-memory cache keyed by projectName:fileMtime. Created server/routes/ai.ts with 3 endpoints: GET /api/ai/status (Ollama availability check), GET /api/ai/summarize/:project (single project summary), POST /api/ai/summarize-all (bulk summarize with sequential processing). Path traversal protection on all endpoints, state file content truncated to 2000 chars. Frontend: updated useProjects hook to auto-fetch AI summaries after initial load (non-blocking), updated ProjectCard to display AI summary in indigo box with \u0027AI ·\u0027 label. Graceful degradation when Ollama unavailable (returns null, no error UI). Files: server/lib/ollama-client.ts, server/routes/ai.ts, server/lib/ollama-client.test.ts. 12 unit tests passing (cache, status checks, timeout handling, content truncation), type-check clean, 195 total tests passing"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -403,11 +405,11 @@
                      "security_between_tasks":  true,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-13T23:46:34.9925734-05:00",
+    "last_updated":  "2026-04-13T23:54:28.9444331-05:00",
     "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-013",
-                         "title":  "Ollama AI summarization (llama3.1:8b, auto on load)",
+                         "id":  "TASK-014",
+                         "title":  "Chat export viewer (import, search, tag)",
                          "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }

@@ -66,7 +66,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
-    │   └── ai.ts                    # [planned] POST /api/ai/summarize (P1)
+    │   └── ai.ts                    # ✓ GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all (TASK-013)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -83,6 +83,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── notifier.test.ts         # ✓ 15 unit tests for notifier (TASK-012)
         ├── notification-state.ts    # ✓ State persistence for notification deduplication (TASK-012)
         ├── notification-service.ts  # ✓ Background service for red deadlines, stale projects, daily digest (TASK-012)
+        ├── ollama-client.ts         # ✓ Ollama API client with 1h cache (TASK-013)
+        ├── ollama-client.test.ts    # ✓ 12 unit tests for Ollama client (TASK-013)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -119,7 +121,7 @@ README.md                        # Boilerplate documentation
 ## Key Files
 
 **Backend (Completed)**:
-- `server/index.ts` — Express app with /api/projects, /api/todos, /api/deadlines, /api/capture routes + notification service
+- `server/index.ts` — Express app with /api/projects, /api/todos, /api/deadlines, /api/capture, /api/ai routes + notification service
 - `server/lib/scanner.ts` — Scans PROJECTS_DIR for state files, returns sorted array
 - `server/lib/state-reader.ts` — Priority detection, status inference, summary/next-steps extraction
 - `server/routes/projects.ts` — GET /api/projects endpoint
@@ -139,6 +141,9 @@ README.md                        # Boilerplate documentation
 - `server/lib/notifier.test.ts` — 15 unit tests for notification sender
 - `server/lib/notification-state.ts` — State persistence for notification deduplication
 - `server/lib/notification-service.ts` — Background service (red deadlines, stale projects, daily digest)
+- `server/lib/ollama-client.ts` — Ollama API client with 1-hour cache for AI summaries
+- `server/routes/ai.ts` — GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all endpoints
+- `server/lib/ollama-client.test.ts` — 12 unit tests for Ollama client
 
 **Config**:
 - `package.json` — npm scripts (dev, build, test, type-check)
