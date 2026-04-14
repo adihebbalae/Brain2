@@ -32,6 +32,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Cortex backend running on http://localhost:${PORT}`)
 })
 
+// Start notification service (after routes)
 startNotificationService()
 
 export default app
