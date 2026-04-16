@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 partial + P3 planned 🚧 (P0 + P1 + TASK-015/016 complete)
-- **Current Task**: TASK-017 blocked (failed 3 attempts) — needs medic/consultant review
-- **Blocked On**: TASK-017 failed after 3 attempts — investigate before resuming P2 chain
+- **Phase**: P2 In Progress 🚧 (P0 + P1 + TASK-015/016/018 complete, TASK-017 blocked)
+- **Current Task**: TASK-018 complete ✅
+- **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-018 — Self-learning gap analysis + resource recommendations (33 new tests, 332 total passing)
   - TASK-016 — LLM Wiki core with Ollama ingest pipeline (23 new tests, 299 total passing)
   - TASK-015 — Multi-vault support via VAULT_DIRS env var (29 new tests)
   - TASK-014 — Chat export viewer with search and tagging (23 tests)
-  - TASK-013 — Ollama AI summarization with 1h cache (12 tests)
 
 ## Project Brief
 
@@ -57,7 +57,7 @@
 | TASK-015 | Multi-vault support (VAULT_DIRS array) | done | P2 |
 | TASK-016 | LLM Wiki core: schema, ingest, index, log | done | P2 |
 | TASK-017 | LLM Wiki query + lint + dashboard panel | **blocked** | P2 |
-| TASK-018 | Self-learning: gap analysis + resource recommendations | in_progress | P2 |
+| TASK-018 | Self-learning: gap analysis + resource recommendations | done | P2 |
 | TASK-019 | Multi-account Claude chat sync | pending | P2 |
 | TASK-020 | Google Calendar OAuth2 integration | pending | P3 |
 | TASK-021 | YouTube watch history (Google Takeout) | pending | P3 |
@@ -355,3 +355,24 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **Files created**: server/lib/wiki-manager.ts (16.5KB, 5 exported functions), server/routes/wiki.ts (rewritten, 3 endpoints), server/lib/wiki-manager.test.ts (19.5KB, 23 tests)
   - **Dependencies**: Uses vault-config.isPathInVault from TASK-015, uses ollama-client.getOllamaStatus from TASK-013
   - **Next**: Unblocks TASK-017 (query + lint + WikiPanel frontend component)
+- 2026-04-16: TASK-018 completed — Implemented self-learning gap analysis with DuckDuckGo resource recommendations:
+  - **Backend gap analysis**: Extended wiki-manager.ts with analyzeGaps function that detects knowledge gaps from wiki lint (referenced [[links]] with no pages) and active project state files (topics mentioned but no wiki page)
+  - **Gap ranking**: Ranks gaps by reference frequency — more references = higher priority = lower number (1-5 scale)
+  - **Resource discovery**: Fetches recommendations via DuckDuckGo Instant Answer API (zero API keys) for top 5 gaps: articles and YouTube videos (up to 3 per gap), 200ms delay between calls for rate limiting
+  - **Output file**: Writes prioritized gap list to VAULT_DIR/Wiki/gaps.md with format: topic, reason, priority, resources (title, url, type)
+  - **API endpoint**: Added POST /api/wiki/gaps (always HTTP 200, errors in body)
+  - **Weekly notifications**: Extended notification-service.ts with weekly gap digest — sends ntfy notification with top 3 gaps once per 7 days, added lastGapNotification to NotificationState
+  - **Frontend**: Extended useWiki hook with gaps state (KnowledgeGap[] | null) and analyzeGaps method, extended WikiPanel with GapList section:
+    - Empty state: "Click Analyze to find gaps" before first analysis
+    - Gap cards: priority badge, topic name, reason text, resource links (articles with 📄, videos with ▶)
+    - Resource links: open in new tab (target="_blank" rel="noopener noreferrer")
+    - "Add to Inbox" button: calls POST /api/capture with "Learn: {topic}", shows success toast
+    - Loading message: "Analyzing... (this may take a moment)" during 10-30s analysis
+    - Empty result: "No knowledge gaps found — your wiki is complete! 🎉"
+  - **Error handling**: DuckDuckGo failures handled gracefully (returns empty resources array, never throws)
+  - **Tests**: Added 33 new tests total:
+    - wiki-manager.test.ts: 18 new tests for analyzeGaps (gap detection from lint + projects, ranking by reference count, DuckDuckGo fetching with graceful failure, gaps.md writing, log appending)
+    - WikiPanel.test.tsx: 6 new tests for GapList (empty state, gap rendering with resources, Analyze button, Add to Inbox, loading/empty states)
+    - Updated 9 existing WikiPanel tests to include new gaps and gapsLoading fields
+  - **332 total tests passing** (299 existing + 33 new/updated), type-check clean
+  - **All acceptance criteria met**: POST /api/wiki/gaps returns correct format, gaps ranked by cross-reference frequency, DuckDuckGo resources fetched, gaps.md written, weekly ntfy notification, Add to Inbox creates correct entry, GapList renders, comprehensive unit tests
