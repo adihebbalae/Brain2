@@ -1,5 +1,6 @@
 import { Router } from 'express'
-import { readDeadlines } from '../lib/deadline-reader.js'
+import { readDeadlinesMultiVault } from '../lib/deadline-reader.js'
+import { getVaultDirs } from '../lib/vault-config.js'
 import { config } from 'dotenv'
 
 config()
@@ -12,7 +13,8 @@ router.get('/', async (_req, res) => {
     return res.status(500).json({ error: 'VAULT_DIR not configured' })
   }
   try {
-    const deadlines = await readDeadlines(VAULT_DIR)
+    const vaultDirs = await getVaultDirs()
+    const deadlines = await readDeadlinesMultiVault(vaultDirs)
     return res.json(deadlines)
   } catch (err) {
     console.error('Failed to read deadlines:', err)

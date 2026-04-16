@@ -156,3 +156,32 @@ export async function readDeadlines(vaultDir: string): Promise<DeadlineItem[]> {
 
   return [...pending, ...completed]
 }
+
+/**
+ * Read and merge deadlines from deadlines.md in multiple vault directories.
+ * Deduplicates by ID (same date + description = same ID).
+ */
+export async function readDeadlinesMultiVault(vaultDirs: string[]): Promise<DeadlineItem[]> {
+  const seenIds = new Set<string>()
+  const allDeadlines: DeadlineItem[] = []
+
+  for (const dir of vaultDirs) {
+    try {
+      const items = await readDeadlines(dir)
+      for (const item of items) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id)
+          allDeadlines.push(item)
+        }
+      }
+    } catch (error) {
+      console.warn(`[deadline-reader] Failed to read deadlines from ${dir}:`, error)
+    }
+  }
+
+  // Re-sort merged results
+  const pending = allDeadlines.filter(d => !d.done).sort((a, b) => a.date.localeCompare(b.date))
+  const completed = allDeadlines.filter(d => d.done).sort((a, b) => b.date.localeCompare(a.date))
+
+  return [...pending, ...completed]
+}

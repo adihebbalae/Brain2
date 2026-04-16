@@ -42,10 +42,9 @@ function validatePath(filePath: string, allowedDirs: string[]): boolean {
 /**
  * Extract project name from file path relative to base directory
  */
-function extractProjectName(filePath: string, projectsDir: string, vaultDir: string): string {
+function extractProjectName(filePath: string, projectsDir: string, vaultDirs: string[]): string {
   const resolvedFile = path.resolve(filePath)
   const resolvedProjects = path.resolve(projectsDir)
-  const resolvedVault = path.resolve(vaultDir)
 
   if (resolvedFile.startsWith(resolvedProjects + path.sep)) {
     const relativePath = path.relative(resolvedProjects, resolvedFile)
@@ -53,10 +52,13 @@ function extractProjectName(filePath: string, projectsDir: string, vaultDir: str
     return parts[0] || 'Unknown'
   }
 
-  if (resolvedFile.startsWith(resolvedVault + path.sep)) {
-    const relativePath = path.relative(resolvedVault, resolvedFile)
-    const parts = relativePath.split(path.sep)
-    return parts[0] || 'Vault'
+  for (const vaultDir of vaultDirs) {
+    const resolvedVault = path.resolve(vaultDir)
+    if (resolvedFile.startsWith(resolvedVault + path.sep)) {
+      const relativePath = path.relative(resolvedVault, resolvedFile)
+      const parts = relativePath.split(path.sep)
+      return parts[0] || 'Vault'
+    }
   }
 
   return 'Unknown'
@@ -68,12 +70,12 @@ function extractProjectName(filePath: string, projectsDir: string, vaultDir: str
 async function extractTodosFromFile(
   filePath: string,
   projectsDir: string,
-  vaultDir: string
+  vaultDirs: string[]
 ): Promise<TodoItem[]> {
   const content = await fs.readFile(filePath, 'utf-8')
   const lines = content.split('\n')
   const todos: TodoItem[] = []
-  const project = extractProjectName(filePath, projectsDir, vaultDir)
+  const project = extractProjectName(filePath, projectsDir, vaultDirs)
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -196,14 +198,24 @@ export async function extractTodos(
   projectsDir: string,
   vaultDir: string
 ): Promise<TodosResult> {
+  return extractTodosMultiVault(projectsDir, [vaultDir])
+}
+
+/**
+ * Extract all TODOs from projects directory and multiple vault directories
+ */
+export async function extractTodosMultiVault(
+  projectsDir: string,
+  vaultDirs: string[]
+): Promise<TodosResult> {
   // Find all markdown files
   const projectFiles = await findMarkdownFiles(projectsDir)
-  const vaultFiles = await findMarkdownFiles(vaultDir)
-  const allFiles = [...projectFiles, ...vaultFiles]
+  const vaultFileArrays = await Promise.all(vaultDirs.map(dir => findMarkdownFiles(dir)))
+  const allFiles = [...projectFiles, ...vaultFileArrays.flat()]
 
   // Extract TODOs from all files
   const todoPromises = allFiles.map(file =>
-    extractTodosFromFile(file, projectsDir, vaultDir)
+    extractTodosFromFile(file, projectsDir, vaultDirs)
   )
   const todoArrays = await Promise.all(todoPromises)
   const allTodos = todoArrays.flat()
@@ -228,25 +240,6 @@ export async function extractTodos(
   }
 }
 
-/**
- * Find a TODO item by ID
- */
-async function findTodoById(
-  itemId: string,
-  projectsDir: string,
-  vaultDir: string
-): Promise<TodoItem | null> {
-  const result = await extractTodos(projectsDir, vaultDir)
-
-  for (const todos of Object.values(result.byProject)) {
-    const todo = todos.find(t => t.id === itemId)
-    if (todo) {
-      return todo
-    }
-  }
-
-  return null
-}
 
 /**
  * Toggle a checkbox TODO in its source file
@@ -254,10 +247,17 @@ async function findTodoById(
 export async function toggleTodo(
   itemId: string,
   projectsDir: string,
-  vaultDir: string
+  vaultDir: string,
+  extraVaultDirs?: string[]
 ): Promise<void> {
   // Find the TODO item
-  const todo = await findTodoById(itemId, projectsDir, vaultDir)
+  const allVaultDirs = extraVaultDirs ? [vaultDir, ...extraVaultDirs] : [vaultDir]
+  const result = await extractTodosMultiVault(projectsDir, allVaultDirs)
+  let todo: TodoItem | null = null
+  for (const todos of Object.values(result.byProject)) {
+    const found = todos.find(t => t.id === itemId)
+    if (found) { todo = found; break }
+  }
 
   if (!todo) {
     throw new Error('TODO item not found')
@@ -269,7 +269,7 @@ export async function toggleTodo(
   }
 
   // Validate file path
-  const allowedDirs = [projectsDir, vaultDir]
+  const allowedDirs = [projectsDir, ...allVaultDirs]
   if (!validatePath(todo.file, allowedDirs)) {
     throw new Error('File path is not within allowed directories')
   }

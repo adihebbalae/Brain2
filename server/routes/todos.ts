@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import path from 'node:path'
-import { extractTodos, toggleTodo } from '../lib/todo-extractor.js'
+import { extractTodosMultiVault, toggleTodo } from '../lib/todo-extractor.js'
+import { getVaultDirs } from '../lib/vault-config.js'
 import { config } from 'dotenv'
 
 config()
@@ -13,9 +14,9 @@ router.get('/', async (_req, res) => {
     return res.status(500).json({ error: 'PROJECTS_DIR or VAULT_DIR not configured' })
   }
   try {
-    const todos = await extractTodos(PROJECTS_DIR, VAULT_DIR)
+    const vaultDirs = await getVaultDirs()
+    const todos = await extractTodosMultiVault(PROJECTS_DIR, vaultDirs)
     const resolvedProjects = path.resolve(PROJECTS_DIR)
-    const resolvedVault = path.resolve(VAULT_DIR)
     const safeTodos = {
       ...todos,
       byProject: Object.fromEntries(
@@ -26,10 +27,16 @@ router.get('/', async (_req, res) => {
             let relativeFile: string
             if (resolvedFile.startsWith(resolvedProjects + path.sep)) {
               relativeFile = path.relative(resolvedProjects, resolvedFile)
-            } else if (resolvedFile.startsWith(resolvedVault + path.sep)) {
-              relativeFile = path.relative(resolvedVault, resolvedFile)
             } else {
-              relativeFile = path.basename(t.file)
+              // Try to find which vault dir contains this file
+              const containingVault = vaultDirs.find(vaultDir =>
+                resolvedFile.startsWith(path.resolve(vaultDir) + path.sep)
+              )
+              if (containingVault) {
+                relativeFile = path.relative(path.resolve(containingVault), resolvedFile)
+              } else {
+                relativeFile = path.basename(t.file)
+              }
             }
             return { ...t, file: relativeFile }
           }),
@@ -57,7 +64,10 @@ router.patch('/:id', async (req, res) => {
   }
 
   try {
-    await toggleTodo(id, PROJECTS_DIR, VAULT_DIR)
+    const vaultDirs = await getVaultDirs()
+    // Pass extra vault dirs (all except the first one which is VAULT_DIR)
+    const extraVaultDirs = vaultDirs.slice(1)
+    await toggleTodo(id, PROJECTS_DIR, VAULT_DIR, extraVaultDirs)
     return res.json({ success: true })
   } catch (err) {
     const error = err as Error
