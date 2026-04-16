@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 In Progress 🚧 (P0 + P1 + TASK-015/016/018 complete, TASK-017 blocked)
-- **Current Task**: TASK-018 complete ✅
+- **Phase**: P2 In Progress 🚧 (P0 + P1 + TASK-015/016/018/019 complete, TASK-017 blocked)
+- **Current Task**: TASK-019 complete ✅
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-019 — Multi-account Claude chat sync (9 new tests, 341 total passing)
   - TASK-018 — Self-learning gap analysis + resource recommendations (33 new tests, 332 total passing)
   - TASK-016 — LLM Wiki core with Ollama ingest pipeline (23 new tests, 299 total passing)
   - TASK-015 — Multi-vault support via VAULT_DIRS env var (29 new tests)
-  - TASK-014 — Chat export viewer with search and tagging (23 tests)
 
 ## Project Brief
 
@@ -58,7 +58,7 @@
 | TASK-016 | LLM Wiki core: schema, ingest, index, log | done | P2 |
 | TASK-017 | LLM Wiki query + lint + dashboard panel | **blocked** | P2 |
 | TASK-018 | Self-learning: gap analysis + resource recommendations | done | P2 |
-| TASK-019 | Multi-account Claude chat sync | pending | P2 |
+| TASK-019 | Multi-account Claude chat sync | done | P2 |
 | TASK-020 | Google Calendar OAuth2 integration | pending | P3 |
 | TASK-021 | YouTube watch history (Google Takeout) | pending | P3 |
 | TASK-022 | Article/bookmark reading tracker | pending | P3 |
@@ -376,3 +376,33 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
     - Updated 9 existing WikiPanel tests to include new gaps and gapsLoading fields
   - **332 total tests passing** (299 existing + 33 new/updated), type-check clean
   - **All acceptance criteria met**: POST /api/wiki/gaps returns correct format, gaps ranked by cross-reference frequency, DuckDuckGo resources fetched, gaps.md written, weekly ntfy notification, Add to Inbox creates correct entry, GapList renders, comprehensive unit tests
+- 2026-04-16: TASK-019 completed — Implemented multi-account Claude chat sync:
+  - **Backend changes**: Extended TASK-014 chat export viewer to support multiple Claude accounts
+  - **Recursive scanning**: Made chat export scan recursive (ChatExports/**/*.json) with account derivation from folder structure
+  - **Account derivation**: Top-level files → account: "default", subfolder files → account: subfolder name (e.g., ChatExports/Personal/*.json → account: "Personal")
+  - **scanChatExports helper**: Scans one level deep only (no deeper recursion), path traversal protection on all file reads
+  - **Type updates**: Updated ConversationMeta interface to include account: string field
+  - **Backend functions updated**:
+    - listConversations: optional account filter parameter
+    - searchConversations: optional account filter parameter
+    - getConversation: includes account field in returned data
+  - **API endpoints updated**:
+    - GET /api/chats?account=X — filter conversations by account
+    - GET /api/chats/search?q=Y&account=X — search with optional account filter
+  - **Frontend hook**: Updated useChats with accounts (derived unique list), activeAccount (filter state), setActiveAccount (update filter)
+  - **Frontend component**: Updated ChatExplorer with:
+    - Account badge: shown on each conversation when 2+ accounts exist, hidden for "default" account
+    - Account filter dropdown: shown when 2+ accounts exist, allows filtering by account or "All accounts"
+  - **Backward compatibility**: Flat exports (ChatExports/*.json) still work with account = "default", existing single-account users see no UI changes
+  - **Tests**: Added 9 comprehensive new tests:
+    - Flat files get account: "default"
+    - Subfolder files get account from folder name
+    - Mixed flat + subfolder exports with correct derivation
+    - Account filtering in listConversations
+    - Account field in searchConversations
+    - Account filtering in searchConversations
+    - Account field in getConversation
+    - No recursion beyond one level deep
+    - Path traversal protection for subdirectories
+  - **341 total tests passing** (332 existing + 9 new), type-check clean
+  - **All acceptance criteria met**: flat exports work with "default", subfolders scanned, ConversationMeta includes account, ChatExplorer shows badges and filter, all 23 existing tests pass, new tests cover recursive scan and account derivation
