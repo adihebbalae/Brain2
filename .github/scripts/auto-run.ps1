@@ -250,6 +250,7 @@ if ($totalTasks -eq 0) {
 }
 
 # Override defaults from state.json auto_run config if present
+$SecurityBetweenTasks = $false
 if ($state.auto_run) {
     if ($state.auto_run.checkpoint_seconds -and -not $PSBoundParameters.ContainsKey('CheckpointSeconds')) {
         $CheckpointSeconds = $state.auto_run.checkpoint_seconds
@@ -261,11 +262,13 @@ if ($state.auto_run) {
         $RateLimitWaitHours = $state.auto_run.rate_limit_wait_hours
     }
     if ($state.auto_run.PSObject.Properties.Name -contains 'security_between_tasks') {
+        $SecurityBetweenTasks = [bool]$state.auto_run.security_between_tasks
         if (-not $state.auto_run.security_between_tasks -and -not $PSBoundParameters.ContainsKey('SkipSecurity')) {
             $SkipSecurity = [switch]::new($true)
         }
     }
 }
+if ($SkipSecurity) { $SecurityBetweenTasks = $false }
 
 # Verify handoff files
 $missingHandoffs = @()
@@ -286,7 +289,7 @@ Write-Host "  Project:     $($state.project)" -ForegroundColor White
 Write-Host "  Tasks:       $totalTasks pending" -ForegroundColor White
 Write-Host "  Checkpoint:  ${CheckpointSeconds}s" -ForegroundColor White
 Write-Host "  Retries:     $MaxRetries per task" -ForegroundColor White
-Write-Host "  Security:    $(if ($SkipSecurity) { 'SKIPPED' } else { 'end of run (single scan)' })" -ForegroundColor White
+Write-Host "  Security:    $(if ($SkipSecurity) { 'SKIPPED' } elseif ($SecurityBetweenTasks) { 'after each task' } else { 'end of run (single scan)' })" -ForegroundColor White
 Write-Host "  Rate limit:  wait ${RateLimitWaitHours}h on throttle" -ForegroundColor White
 if ($DryRun) { Write-Host "  Mode:        DRY RUN" -ForegroundColor Yellow }
 Write-Host ""
@@ -416,6 +419,42 @@ for ($i = 0; $i -lt $pendingTasks.Count; $i++) {
     Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "done" -Current $taskNum -Total $totalTasks
     [void]$completed.Add($taskId)
 
+    # ── Per-Task Security Scan ──
+    if (-not $SkipSecurity -and $SecurityBetweenTasks -and -not $DryRun) {
+        Write-TaskLine -TaskId $taskId -Title "$taskTitle (security)" -Status "security" -Current $taskNum -Total $totalTasks
+        $changedFiles = Get-ChangedFiles
+        $secPrompt    = "Audit the following changed files for security vulnerabilities: $changedFiles. " +
+            "These files were modified by task $taskId. " +
+            "Report ALL findings. Any CRITICAL finding is a hard blocker -- do not clear for push."
+        $secResult = Invoke-Claude -Agent "security" -Prompt $secPrompt
+        if ($secResult.RateLimited) {
+            Write-Host "  Security scan rate limited -- continuing, run manually before pushing." -ForegroundColor Yellow
+        }
+        elseif ($secResult.Output -match "CRITICAL") {
+            Write-Banner "CRITICAL SECURITY FINDING  $([char]0x2014)  $taskId" Red
+            Write-Host $secResult.Output -ForegroundColor Red
+            Write-Host ""
+            Write-Host "  Do NOT push. Fix CRITICAL findings first." -ForegroundColor Red
+            $state = Read-StateFile
+            $state.security_status.open_findings   += 1
+            $state.security_status.cleared_for_push = $false
+            $state.context.blocked_on               = "CRITICAL security finding in $taskId -- must fix before push"
+            $state.last_updated                     = (Get-Date -Format 'o')
+            $state.last_updated_by                  = 'auto-run'
+            Save-StateFile -State $state
+            $halted = $true
+        }
+        else {
+            Write-Host "  Security scan for ${taskId}: PASS" -ForegroundColor Green
+            $state = Read-StateFile
+            $state.security_status.last_scan = (Get-Date -Format 'o')
+            $state.last_updated              = (Get-Date -Format 'o')
+            $state.last_updated_by           = 'auto-run'
+            Save-StateFile -State $state
+        }
+        if ($halted) { break }
+    }
+
     # ── Checkpoint ──
     if ($i -lt $pendingTasks.Count - 1) {
         $nextTask = $pendingTasks[$i + 1]
@@ -425,7 +464,7 @@ for ($i = 0; $i -lt $pendingTasks.Count; $i++) {
 
 # ─── End-of-Run Security Scan ───────────────────────────────────────────────
 
-if (-not $SkipSecurity -and -not $DryRun -and $completed.Count -gt 0 -and -not $halted) {
+if (-not $SkipSecurity -and -not $SecurityBetweenTasks -and -not $DryRun -and $completed.Count -gt 0 -and -not $halted) {
     Write-Banner "SECURITY SCAN  $([char]0x2014)  end of run" Yellow
 
     $changedFiles  = Get-ChangedFiles
@@ -464,6 +503,18 @@ if (-not $SkipSecurity -and -not $DryRun -and $completed.Count -gt 0 -and -not $
         $state.last_updated_by                  = 'auto-run'
         Save-StateFile -State $state
     }
+}
+
+# ─── Per-Task Security: Mark Cleared ─────────────────────────────────────────
+
+if (-not $SkipSecurity -and $SecurityBetweenTasks -and -not $DryRun -and $completed.Count -gt 0 -and -not $halted) {
+    Write-Host "  Security:  all $($completed.Count) per-task scan(s) PASSED -- cleared for push" -ForegroundColor Green
+    $state = Read-StateFile
+    $state.security_status.last_scan        = (Get-Date -Format 'o')
+    $state.security_status.cleared_for_push = $true
+    $state.last_updated                     = (Get-Date -Format 'o')
+    $state.last_updated_by                  = 'auto-run'
+    Save-StateFile -State $state
 }
 
 # ─── Final Summary ────────────────────────────────────────────────────────────

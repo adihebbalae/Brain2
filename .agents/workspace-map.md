@@ -46,7 +46,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   │   ├── useTodos.ts              # ✓ Data fetching hook for todos with optimistic updates (TASK-008)
 │   │   ├── useTodos.test.ts         # ✓ useTodos hook tests (TASK-008)
 │   │   ├── useDeadlines.ts          # ✓ Data fetching hook for deadlines (TASK-009)
-│   │   └── useDeadlines.test.ts     # ✓ useDeadlines hook tests (TASK-009)
+│   │   ├── useDeadlines.test.ts     # ✓ useDeadlines hook tests (TASK-009)
+│   │   └── useChats.ts              # ✓ Data fetching hook for chat exports with debounced search (TASK-014)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
@@ -57,7 +58,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── DeadlineTimeline.test.tsx # ✓ DeadlineTimeline tests (TASK-009)
 │       ├── QuickCapture.tsx         # ✓ Quick capture input bar component (TASK-010)
 │       ├── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
-│       └── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
+│       ├── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
+│       └── ChatExplorer.tsx         # ✓ Chat export viewer with inline message expansion and tagging (TASK-014)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
@@ -66,7 +68,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
-    │   └── ai.ts                    # ✓ GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all (TASK-013)
+    │   ├── ai.ts                    # ✓ GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all (TASK-013)
+    │   └── chats.ts                 # ✓ GET /api/chats, GET /api/chats/search, GET /api/chats/:uuid, PATCH /api/chats/:uuid/tags (TASK-014)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -85,6 +88,12 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── notification-service.ts  # ✓ Background service for red deadlines, stale projects, daily digest (TASK-012)
         ├── ollama-client.ts         # ✓ Ollama API client with 1h cache (TASK-013)
         ├── ollama-client.test.ts    # ✓ 12 unit tests for Ollama client (TASK-013)
+        ├── chat-export-parser.ts    # ✓ Parses Claude conversation exports with search and tagging (TASK-014)
+        ├── chat-export-parser.test.ts  # ✓ 23 unit tests for chat export parser (TASK-014)
+        ├── vault-config.ts          # ✓ Multi-vault configuration with env-reading wrappers (TASK-015)
+        ├── vault-config.test.ts     # ✓ 17 unit tests for vault-config (TASK-015)
+        ├── vault-dirs.ts            # ✓ Core vault directory resolution logic (TASK-015)
+        ├── multi-vault.test.ts      # ✓ 12 unit tests for multi-vault todo/deadline extraction (TASK-015)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -144,6 +153,9 @@ README.md                        # Boilerplate documentation
 - `server/lib/ollama-client.ts` — Ollama API client with 1-hour cache for AI summaries
 - `server/routes/ai.ts` — GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all endpoints
 - `server/lib/ollama-client.test.ts` — 12 unit tests for Ollama client
+- `server/lib/chat-export-parser.ts` — Claude conversation export parser with search and tagging (TASK-014)
+- `server/routes/chats.ts` — GET /api/chats, GET /api/chats/search, GET /api/chats/:uuid, PATCH /api/chats/:uuid/tags endpoints (TASK-014)
+- `server/lib/chat-export-parser.test.ts` — 23 unit tests for chat export parser (TASK-014)
 
 **Config**:
 - `package.json` — npm scripts (dev, build, test, type-check)
@@ -162,6 +174,7 @@ README.md                        # Boilerplate documentation
 - `src/hooks/useTodos.test.ts` — ✓ 8 tests: fetch, error handling, optimistic update, rollback, refetch (TASK-008)
 - `src/hooks/useDeadlines.ts` — ✓ Custom hook for fetching deadlines from API (TASK-009)
 - `src/hooks/useDeadlines.test.ts` — ✓ 5 tests: fetch, error handling, refetch (TASK-009)
+- `src/hooks/useChats.ts` — ✓ Custom hook for fetching chat exports with 300ms debounced search (TASK-014)
 - `src/components/ProjectCard.tsx` — ✓ Project card with status badge, summary, next steps, Open in VS Code button (TASK-007)
 - `src/components/ProjectCard.test.tsx` — ✓ 9 tests: status badges, stale borders, next steps truncation (TASK-007)
 - `src/components/StatusOverview.tsx` — ✓ Stats bar showing active/stale/archived counts, total TODOs (TASK-007)
@@ -172,4 +185,5 @@ README.md                        # Boilerplate documentation
 - `src/components/QuickCapture.tsx` — ✓ Quick capture input bar with POST /api/capture, success/error toasts, Ctrl+K shortcut, input sanitization (TASK-010)
 - `src/components/QuickCapture.test.tsx` — ✓ 20 tests: input/button, submit, toasts, keyboard shortcut, whitespace handling, loading states (TASK-010)
 - `src/components/ErrorBoundary.tsx` — ✓ React class-based error boundary for graceful component error handling (TASK-011)
+- `src/components/ChatExplorer.tsx` — ✓ Chat export viewer with conversation list, inline message expansion, tag editing with project autocomplete (TASK-014)
 - `server/integration.test.ts` — ✓ 26 E2E integration tests validating all PRD success criteria (TASK-011)

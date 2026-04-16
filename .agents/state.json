@@ -312,8 +312,9 @@
                   "TASK-014":  {
                                    "title":  "Chat export viewer (import, search, tag)",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
+                                   "completed_at":  "2026-04-13",
                                    "depends_on":  [
                                                       "TASK-011"
                                                   ],
@@ -326,10 +327,115 @@
                                                                "Can tag conversations with project names",
                                                                "Tagged conversations cross-reference with project cards"
                                                            ]
+                               },
+                  "TASK-015":  {
+                                   "title":  "Multi-vault support (VAULT_DIRS array)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "done",
+                                   "model":  "sonnet",
+                                   "completed_at":  "2026-04-16",
+                                   "depends_on":  [
+                                                      "TASK-011"
+                                                  ],
+                                   "priority":  "P2",
+                                   "description":  "Add VAULT_DIRS env var (comma-separated list of absolute paths) that extends VAULT_DIR. Backend TODO extractor, deadline reader, and wiki ingest all scan every configured vault directory. Fallback: if VAULT_DIRS not set, behavior identical to current VAULT_DIR-only mode. Enables reading from Apple Notes exports, a second Obsidian vault, Logseq, etc. — any folder of markdown files.",
+                                   "acceptance_criteria":  [
+                                                               "VAULT_DIRS=path1,path2 in .env.example with documentation",
+                                                               "TODO extractor scans all configured vault dirs",
+                                                               "Deadline reader scans all configured vault dirs for deadlines.md",
+                                                               "Graceful skip + warning log for non-existent configured dirs",
+                                                               "All existing tests still pass with single VAULT_DIR",
+                                                               "Path traversal protection applied to each configured dir",
+                                                               "New tests for multi-vault todo and deadline extraction"
+                                                           ]
+                               },
+                  "TASK-016":  {
+                                   "title":  "LLM Wiki core: schema, ingest, index, log",
+                                   "assigned_to":  "engineer",
+                                   "status":  "in_progress",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-013",
+                                                      "TASK-015"
+                                                  ],
+                                   "priority":  "P2",
+                                   "description":  "Build the LLM Wiki infrastructure inside VAULT_DIR/Wiki/. Three layers: raw sources (user\u0027s existing notes — immutable), wiki (Ollama-generated markdown pages), schema (Wiki/SCHEMA.md — conventions seeded from Karpathy pattern via kytmanov/obsidian-llm-wiki-local). Implement: POST /api/wiki/ingest {sourcePath} — reads source, Ollama extracts key info and creates/updates wiki pages, updates Wiki/index.md, appends to Wiki/log.md. GET /api/wiki/index — returns parsed index. GET /api/wiki/pages — lists all wiki pages with metadata. Wiki/ dir auto-created on first ingest. References: kytmanov/obsidian-llm-wiki-local (Ollama + Obsidian wikilink patterns), Astro-Han/karpathy-llm-wiki (schema and workflow).",
+                                   "acceptance_criteria":  [
+                                                               "Wiki/ directory and SCHEMA.md created on first ingest",
+                                                               "POST /api/wiki/ingest accepts { sourcePath } and creates/updates wiki pages",
+                                                               "Each ingest updates Wiki/index.md catalog and appends to Wiki/log.md",
+                                                               "GET /api/wiki/index returns array of pages with summaries and source counts",
+                                                               "GET /api/wiki/pages lists all pages with creation date and source count",
+                                                               "Source path validated: must be inside VAULT_DIR or PROJECTS_DIR (traversal protection)",
+                                                               "Graceful no-op when Ollama unavailable",
+                                                               "Obsidian-compatible wikilinks [[Page Name]] in generated markdown",
+                                                               "Unit tests for schema seeding, ingest orchestration, index parsing, log appending"
+                                                           ]
+                               },
+                  "TASK-017":  {
+                                   "title":  "LLM Wiki query + lint + dashboard panel",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-016"
+                                                  ],
+                                   "priority":  "P2",
+                                   "description":  "Add query and lint operations to the wiki. POST /api/wiki/query {question} — Ollama reads index.md + retrieves relevant pages by keyword match, synthesizes answer with page citations. POST /api/wiki/lint — checks: orphan pages (no inbound links), stale pages (source file newer than wiki page mtime), concepts mentioned but lacking a page, missing cross-references. Returns structured report with health_score 0-100. Frontend: WikiPanel component — shows when Wiki/ dir exists. Search box for queries (500ms debounce), lint health badge (green/amber/red), page list with last-updated, ingest button that accepts a file path.",
+                                   "acceptance_criteria":  [
+                                                               "POST /api/wiki/query returns { answer, citations: [pageName] }",
+                                                               "POST /api/wiki/lint returns { orphans, stale, gaps, health_score }",
+                                                               "WikiPanel renders in dashboard when Wiki/ directory exists",
+                                                               "Query search box debounced 500ms, shows cited page names",
+                                                               "Lint health badge: green (\u003e80), amber (50-80), red (\u003c50)",
+                                                               "Ingest button accepts a source path and triggers POST /api/wiki/ingest",
+                                                               "Unit tests for query synthesis, lint logic, and health score calculation"
+                                                           ]
+                               },
+                  "TASK-018":  {
+                                   "title":  "Self-learning: gap analysis + resource recommendations",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-017"
+                                                  ],
+                                   "priority":  "P2",
+                                   "description":  "Extend wiki lint with gap analysis and resource discovery. POST /api/wiki/gaps — Ollama reads Wiki/index.md + active project state files to identify: (1) knowledge topics mentioned in active projects but absent from wiki, (2) wiki pages marked as seedling or with no source. For each gap, query DuckDuckGo Instant Answer API (no key required) for top 3 YouTube/article results. Write prioritized gap list to VAULT_DIR/Wiki/gaps.md. Extend notification-service.ts: weekly ntfy notification listing top 3 gaps. Frontend: GapList component under WikiPanel — shows gaps with resource links and an Add to Inbox button that prepends - [ ] [date] Learn: {topic} to inbox.md.",
+                                   "acceptance_criteria":  [
+                                                               "POST /api/wiki/gaps returns { gaps: [{ topic, priority, resources: [{ title, url, type }] }] }",
+                                                               "Gaps ranked by cross-reference frequency in active project state files",
+                                                               "Resources fetched via DuckDuckGo Instant Answer API (zero API keys)",
+                                                               "gaps.md written to VAULT_DIR/Wiki/gaps.md",
+                                                               "Weekly ntfy notification fires once per week with top 3 gaps",
+                                                               "Add to Inbox button creates correct inbox.md entry",
+                                                               "GapList renders under WikiPanel when gaps.md exists",
+                                                               "Unit tests for gap extraction, resource formatting, and inbox write"
+                                                           ]
+                               },
+                  "TASK-019":  {
+                                   "title":  "Multi-account Claude chat sync",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "depends_on":  [
+                                                      "TASK-014"
+                                                  ],
+                                   "priority":  "P2",
+                                   "description":  "Extend TASK-014 chat export viewer to support multiple Claude accounts. Change flat scan (ChatExports/*.json) to recursive (ChatExports/**/*.json) — subfolder name becomes the account label. Both flat exports (backward compatible, account = \u0027default\u0027) and subfolder-organized exports (ChatExports/Personal/, ChatExports/Work/) supported. Update chat-export-parser.ts to add account field to ConversationMeta. Update ChatExplorer frontend to show account badge and filter dropdown.",
+                                   "acceptance_criteria":  [
+                                                               "Existing flat exports in ChatExports/ still work (account = \u0027default\u0027)",
+                                                               "Subfolder exports scanned: ChatExports/AccountName/*.json all loaded",
+                                                               "ConversationMeta type includes account: string field",
+                                                               "ChatExplorer shows account badge on conversation list items",
+                                                               "Filter dropdown allows showing/hiding conversations by account",
+                                                               "All 23 existing TASK-014 tests still pass",
+                                                               "New tests for recursive scan, account derivation, and filter logic"
+                                                           ]
                                }
               },
-    "active_task":  "TASK-011",
-    "status":  "mvp_complete",
+    "active_task":  null,
+    "status":  "p2_planning",
     "handoff":  {
                     "from":  "manager",
                     "to":  "engineer",
@@ -340,8 +446,8 @@
                 },
     "security_status":  {
                             "last_scan":  "2026-04-06",
-                            "open_findings":  0,
-                            "cleared_for_push":  true
+                            "open_findings":  1,
+                            "cleared_for_push":  false
                         },
     "decisions":  [
                       {
@@ -381,7 +487,10 @@
                       "2026-04-05: TASK-011 completed — Full integration: Added 60-second polling to all data hooks (useProjects, useTodos, useDeadlines), wired TodoAggregator and DeadlineTimeline into App.tsx with two-column layout, created ErrorBoundary component for graceful error handling, integrated QuickCapture with refetch callbacks for both projects and todos, created comprehensive integration test suite (26 tests) validating all PRD success criteria (project scanner with state file priority, TODO extraction with 5 pattern types, checkbox write-back, deadline parsing with urgency, quick capture, full offline operation, performance benchmarks), updated App tests to mock all three API endpoints, 183 total tests passing, type-check clean, MVP complete",
                       "2026-04-06: smoke test passed — 183 tests, all 4 API routes verified. P1 tasks revised: Google Calendar → ntfy, Claude API → Ollama",
                       "2026-04-13: TASK-012 completed — Implemented ntfy push notification system: background service sends notifications for red deadlines (urgency check every 60min + startup), stale projects (30+ days, max once per 7 days), and daily digest (configurable time, default 08:00). Uses native fetch for HTTP POST to ntfy.sh, fire-and-forget pattern with error logging, state persistence in VAULT_DIR/.cortex-notify-state.json for deduplication. Silent no-op when NTFY_TOPIC not set. Files: server/lib/notifier.ts, notification-state.ts, notification-service.ts, integrated in server/index.ts. 15 unit tests passing, type-check clean",
-                      "2026-04-13: TASK-013 completed — Implemented Ollama AI summarization system: local AI summaries for active projects using llama3.1:8b model. Created server/lib/ollama-client.ts with getOllamaStatus and summarizeProject functions, 1-hour in-memory cache keyed by projectName:fileMtime. Created server/routes/ai.ts with 3 endpoints: GET /api/ai/status (Ollama availability check), GET /api/ai/summarize/:project (single project summary), POST /api/ai/summarize-all (bulk summarize with sequential processing). Path traversal protection on all endpoints, state file content truncated to 2000 chars. Frontend: updated useProjects hook to auto-fetch AI summaries after initial load (non-blocking), updated ProjectCard to display AI summary in indigo box with \u0027AI ·\u0027 label. Graceful degradation when Ollama unavailable (returns null, no error UI). Files: server/lib/ollama-client.ts, server/routes/ai.ts, server/lib/ollama-client.test.ts. 12 unit tests passing (cache, status checks, timeout handling, content truncation), type-check clean, 195 total tests passing"
+                      "2026-04-13: TASK-013 completed — Implemented Ollama AI summarization system: local AI summaries for active projects using llama3.1:8b model. Created server/lib/ollama-client.ts with getOllamaStatus and summarizeProject functions, 1-hour in-memory cache keyed by projectName:fileMtime. Created server/routes/ai.ts with 3 endpoints: GET /api/ai/status (Ollama availability check), GET /api/ai/summarize/:project (single project summary), POST /api/ai/summarize-all (bulk summarize with sequential processing). Path traversal protection on all endpoints, state file content truncated to 2000 chars. Frontend: updated useProjects hook to auto-fetch AI summaries after initial load (non-blocking), updated ProjectCard to display AI summary in indigo box with \u0027AI ·\u0027 label. Graceful degradation when Ollama unavailable (returns null, no error UI). Files: server/lib/ollama-client.ts, server/routes/ai.ts, server/lib/ollama-client.test.ts. 12 unit tests passing (cache, status checks, timeout handling, content truncation), type-check clean, 195 total tests passing",
+                      "2026-04-14: P2 scoped — 5 tasks planned: TASK-015 (multi-vault), TASK-016 (LLM Wiki core), TASK-017 (Wiki query+lint+panel), TASK-018 (self-learning gaps), TASK-019 (multi-account chat sync). Dependency order: 015→016→017→018, 014→019. References: kytmanov/obsidian-llm-wiki-local for Ollama+Obsidian patterns, Astro-Han/karpathy-llm-wiki for schema workflow.",
+                      "2026-04-13: TASK-014 completed — Implemented chat export viewer: users can drop Claude conversation JSON exports into VAULT_DIR/ChatExports/, dashboard displays conversation list with search, preview, and project tagging. Backend: created server/lib/chat-export-parser.ts with 4 functions (listConversations, searchConversations, getConversation, setConversationTags), server/routes/chats.ts with 4 endpoints (GET /api/chats, GET /api/chats/search, GET /api/chats/:uuid, PATCH /api/chats/:uuid/tags). Tags stored in .tags.json sidecar with atomic writes. Full-text search ranks title matches higher than content matches. Path traversal protection on all operations. Frontend: created src/hooks/useChats.ts with 300ms debounced search, src/components/ChatExplorer.tsx with conversation list, inline message expansion, tag editing with project name autocomplete, long message truncation. ChatExplorer conditionally renders (hidden when no exports). Files: server/lib/chat-export-parser.ts, server/lib/chat-export-parser.test.ts, server/routes/chats.ts, src/hooks/useChats.ts, src/components/ChatExplorer.tsx. 23 unit tests passing (parsing, search ranking, tag persistence, path security), type-check clean, 232 total tests passing",
+                      "2026-04-16: TASK-015 completed — Implemented multi-vault support: VAULT_DIRS environment variable (comma-separated absolute paths) enables scanning multiple knowledge bases (secondary Obsidian vaults, Apple Notes exports, Logseq). Created server/lib/vault-config.ts with env-reading wrappers (getVaultDirs, isPathInVault, getPrimaryVaultDir), server/lib/vault-dirs.ts with core resolution logic. Updated server/routes/todos.ts and server/routes/deadlines.ts to scan all configured vaults. Enhanced todo-extractor.ts and deadline-reader.ts with multi-vault functions (extractTodosMultiVault, readDeadlinesMultiVault). Added VAULT_DIRS to .env.example with clear documentation. Features: automatic path deduplication, non-existent directories logged as warnings but included (may be created later), non-absolute paths skipped with warning, path traversal protection across all vaults, write operations always use primary vault (VAULT_DIR), backward compatible (works with single VAULT_DIR when VAULT_DIRS not set). Created comprehensive test suites: server/lib/vault-config.test.ts (17 tests), server/lib/multi-vault.test.ts (12 tests). 276 total tests passing (added 29 new tests), type-check clean"
                   ],
     "auto_run":  {
                      "task_order":  [
@@ -398,18 +507,23 @@
                                         "TASK-011",
                                         "TASK-012",
                                         "TASK-013",
-                                        "TASK-014"
+                                        "TASK-014",
+                                        "TASK-015",
+                                        "TASK-016",
+                                        "TASK-017",
+                                        "TASK-018",
+                                        "TASK-019"
                                     ],
                      "checkpoint_seconds":  45,
                      "max_retries":  3,
-                     "security_between_tasks":  true,
+                     "security_between_tasks":  false,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-13T23:54:28.9444331-05:00",
+    "last_updated":  "2026-04-16T12:11:49.2467806-05:00",
     "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-014",
-                         "title":  "Chat export viewer (import, search, tag)",
+                         "id":  "TASK-016",
+                         "title":  "LLM Wiki core: schema, ingest, index, log",
                          "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }

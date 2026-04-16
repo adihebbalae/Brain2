@@ -1,168 +1,244 @@
-# Handoff: Chat export viewer (import, search, tag)
-**Task ID**: TASK-014
+# Handoff: LLM Wiki core — schema, ingest, index, log
+**Task ID**: TASK-016
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center. Express.js backend on :3001, React frontend on :5173.
 
-**This task builds on TASK-011 (full integration)**. The vault directory already has a `ChatExports/` folder at `VAULT_DIR/ChatExports/`. Claude conversation exports are JSON files downloaded from Claude.ai → Settings → Export Data.
+**Stack**: React + Vite + TypeScript, Express.js (TypeScript), Tailwind CSS v4, Vitest.
+**Package manager**: npm (NOT pnpm).
+**Run tests**: `npm test` (Vitest). `npm run type-check` must stay clean.
 
-**Claude export format** (each file is a JSON array of conversations):
-```json
-[
-  {
-    "uuid": "...",
-    "name": "Conversation title",
-    "created_at": "2026-03-15T10:20:00Z",
-    "updated_at": "2026-03-16T08:00:00Z",
-    "chat_messages": [
-      {
-        "uuid": "...",
-        "sender": "human" | "assistant",
-        "text": "...",
-        "created_at": "2026-03-15T10:20:00Z"
-      }
-    ]
-  }
-]
-```
+**This task builds on TASK-015 and TASK-013**. Read the files created/modified by those tasks before starting. Check `git log` to see recent changes.
 
-**User workflow**: User drops JSON export files into `VAULT_DIR/ChatExports/`. Dashboard shows them with search + project tagging. Tags are stored in a sidecar file `VAULT_DIR/ChatExports/.tags.json`.
+**What this task DOES NOT include**: Query, lint, and the frontend WikiPanel — those are TASK-017. This task only builds the backend infrastructure.
+
+### What already exists (from TASK-013)
+- `server/lib/ollama-client.ts` — `getOllamaStatus()` and `summarizeProject()` with 1hr cache. The Ollama client already exists and works.
+- `server/routes/ai.ts` — `/api/ai/status`, `/api/ai/summarize/:project`, `/api/ai/summarize-all`
+- Ollama runs at `http://localhost:11434`, model `llama3.1:8b` (from `OLLAMA_URL` and `OLLAMA_MODEL` env vars)
+
+### What already exists (from TASK-015)
+- `server/lib/vault-config.ts` — `getVaultDirs()`, `isPathInVault()`, `getPrimaryVaultDir()`
+
+### Karpathy LLM Wiki pattern (implement this)
+Three layers:
+1. **Raw sources** — existing notes in VAULT_DIR (immutable — LLM reads, never writes)
+2. **Wiki** — `VAULT_DIR/Wiki/` — Ollama-generated markdown pages. LLM owns this entirely.
+3. **Schema** — `VAULT_DIR/Wiki/SCHEMA.md` — conventions for how the wiki is structured
+
+Key files the LLM uses to navigate:
+- `VAULT_DIR/Wiki/index.md` — catalog of all pages with one-line summaries, updated on every ingest
+- `VAULT_DIR/Wiki/log.md` — append-only record of ingests/queries/lints with timestamps
+
+**Why this matters**: Standard RAG re-derives knowledge on every query. The wiki compiles it once, cross-references permanently. "Ask a subtle question requiring 5 sources" — the wiki already has the synthesis, no re-derivation needed.
+
+## Files to Read First
+- `.agents/workspace-map.md` — full project structure
+- `server/lib/ollama-client.ts` — existing Ollama client to extend (DO NOT rewrite)
+- `server/lib/vault-config.ts` — getVaultDirs, getPrimaryVaultDir (from TASK-015)
+- `server/index.ts` — how routes are registered
+- `server/routes/ai.ts` — pattern for existing Ollama routes
 
 ## Task
 
-### Files to create:
+### 1. Create `VAULT_DIR/Wiki/SCHEMA.md` on first ingest (if not exists)
 
-#### `server/lib/chat-export-parser.ts`
+Seed content (write exactly this):
 
-```ts
-export interface ChatMessage {
-  uuid: string
-  sender: 'human' | 'assistant'
-  text: string
-  createdAt: string
-}
+```markdown
+# Cortex Wiki Schema
 
-export interface Conversation {
-  uuid: string
-  name: string
-  createdAt: string
-  updatedAt: string
-  messageCount: number
-  preview: string        // first human message, truncated to 200 chars
-  tags: string[]
-  sourceFile: string     // filename only, not full path
-}
+> Maintained by Cortex + Ollama. Do not edit manually — changes will be overwritten.
+> Based on Karpathy's LLM Wiki pattern (April 2026).
 
-export interface ConversationDetail extends Conversation {
-  messages: ChatMessage[]
-}
+## Directory Structure
 
-export async function listConversations(vaultDir: string): Promise<Conversation[]>
-export async function getConversation(vaultDir: string, uuid: string): Promise<ConversationDetail | null>
-export async function searchConversations(vaultDir: string, query: string): Promise<Conversation[]>
-export async function setConversationTags(vaultDir: string, uuid: string, tags: string[]): Promise<void>
+- `index.md` — Catalog of all pages. Updated on every ingest.
+- `log.md` — Append-only ingest/query/lint log.
+- `SCHEMA.md` — This file. Conventions guide.
+- `*.md` — Topic/entity/concept pages.
+
+## Page Conventions
+
+- **Title**: Use `[[Wikilink]]` format for cross-references to other pages.
+- **Frontmatter**: Every page has YAML frontmatter:
+  ```yaml
+  ---
+  title: Page Title
+  status: seedling | developing | mature
+  sources: [relative/path/to/source.md]
+  last_updated: YYYY-MM-DD
+  ---
+  ```  
+- **Page types**: entity (person, project, tool), concept (idea, framework), source (summary of a raw source), synthesis (cross-source analysis).
+
+## Index Format
+
+Each line in index.md:
+```
+- [[Page Name]] — One-line summary. (sources: N)
 ```
 
-**`listConversations`**:
-- Scan `VAULT_DIR/ChatExports/` for `*.json` files (skip `.tags.json`)
-- Parse each file as a JSON array of conversations
-- Load tags from `.tags.json` sidecar and merge
-- Sort by `updatedAt` descending
-- Return `Conversation[]` (no messages — keep response light)
+## Log Format
 
-**`searchConversations`**:
-- Case-insensitive full-text search across: conversation name, all message text
-- Returns conversations matching the query, sorted by relevance (matches in name rank higher)
-
-**`setConversationTags`**:
-- Read/update `VAULT_DIR/ChatExports/.tags.json` (format: `{ [uuid]: string[] }`)
-- Atomic write (write to temp file, then rename)
-
-**Path security**: All file reads MUST be scoped to `VAULT_DIR/ChatExports/`. Reject any path that escapes this directory.
-
-#### `server/routes/chats.ts`
-
-```ts
-GET  /api/chats              — list all conversations (no messages)
-GET  /api/chats/search?q=... — full-text search
-GET  /api/chats/:uuid        — single conversation with full messages
-PATCH /api/chats/:uuid/tags  — body: { tags: string[] }, update tags
+Each entry in log.md:
+```
+## [YYYY-MM-DD HH:mm] ingest | Source: filename.md
+Brief note about what was added/updated.
+```
 ```
 
-Mount in `server/index.ts`:
-```ts
-import { chatsRouter } from './routes/chats'
-app.use('/api/chats', chatsRouter)
-```
-
-#### Frontend: `src/components/ChatExplorer.tsx`
-
-Add as a new dashboard section (below the main two-column grid in App.tsx):
-
-**Conversation list**:
-- Shows: title, date (relative), message count, preview (first 100 chars of first human message), tag chips
-- Search bar (debounced 300ms, calls `GET /api/chats/search?q=...`)
-- Click to expand inline (or show full message thread in a slide-over panel)
-- Empty state: "Drop Claude export JSON files into `SecondBrain/ChatExports/` to get started"
-
-**Tag autocomplete**:
-- When assigning tags, suggest existing project names from the projects API
-- Allow free-text tags too
-- Pill display with x to remove
-
-**Message thread view** (inline expand):
-- Human messages: right-aligned, blue bubble
-- Assistant messages: left-aligned, gray bubble
-- Truncate long messages with "Show more"
-
-#### `src/hooks/useChats.ts`
+### 2. Create `server/lib/wiki-manager.ts`
 
 ```ts
-export function useChats() {
-  // returns { conversations, loading, error, search, setSearch, tagConversation, refetch }
-  // search state drives debounced API calls
-  // tagConversation(uuid, tags) calls PATCH and updates local state
+export interface WikiPage {
+  name: string           // filename without .md
+  path: string           // absolute path
+  title: string          // from frontmatter or filename
+  status: string         // seedling | developing | mature
+  sources: string[]      // from frontmatter sources array
+  lastUpdated: string    // from frontmatter last_updated
+  summary: string        // from index.md one-liner
 }
+
+export interface IngestResult {
+  pagesCreated: string[]
+  pagesUpdated: string[]
+  error?: string
+}
+
+/**
+ * Ensures Wiki/ directory and SCHEMA.md exist.
+ * Creates them if not present. Safe to call on every ingest.
+ */
+export async function ensureWikiExists(wikiDir: string): Promise<void>
+
+/**
+ * Main ingest function.
+ * Reads source file, sends to Ollama with wiki-aware prompt, parses response,
+ * creates/updates wiki pages, updates index.md, appends to log.md.
+ */
+export async function ingestSource(sourcePath: string, wikiDir: string): Promise<IngestResult>
+
+/**
+ * Reads and parses index.md. Returns array of WikiPage stubs (name + summary only).
+ */
+export async function readIndex(wikiDir: string): Promise<WikiPage[]>
+
+/**
+ * Lists ALL wiki pages by scanning Wiki/*.md (excluding SCHEMA.md, index.md, log.md).
+ * Returns full WikiPage objects parsed from frontmatter.
+ */
+export async function listPages(wikiDir: string): Promise<WikiPage[]>
+
+/**
+ * Appends an entry to log.md.
+ */
+export async function appendLog(wikiDir: string, operation: string, detail: string): Promise<void>
 ```
 
-### Tests: `server/lib/chat-export-parser.test.ts`
+**`ingestSource` implementation**:
 
-Use a temp directory with fixture JSON files:
-- `listConversations` returns all conversations across multiple export files
-- `searchConversations` matches in message text (case-insensitive)
-- `setConversationTags` writes to `.tags.json` and returns tags on next `listConversations`
-- Security: path traversal in uuid parameter is rejected
+1. Read source file content (validate it's inside a vault dir with `isPathInVault`)
+2. Truncate content to 4000 chars (Ollama context limit)
+3. Call Ollama with this prompt:
+```
+You are maintaining a personal wiki. Given this source document, do the following:
+
+1. Extract the 3-5 most important concepts, entities, or ideas.
+2. For each, write a brief wiki page (2-4 paragraphs) using [[Wikilink]] for cross-references.
+3. Use this exact format for each page:
+
+---WIKI_PAGE---
+name: PageName
+status: seedling
+sources: ${relativePath}
+content:
+# PageName
+
+[page content with [[wikilinks]] for related concepts]
+
+---END_PAGE---
+
+Source document:
+${content}
+```
+4. Parse the Ollama response: extract each `---WIKI_PAGE---` block
+5. For each parsed page:
+   - Determine file path: `wikiDir/PageName.md`
+   - If file exists: merge (append new content under a `## Updated [date]` heading, update frontmatter `last_updated` and add source to `sources` array)
+   - If file doesn't exist: create with full frontmatter + content
+6. Update `index.md`: add/update one-liner for each touched page
+7. Append to `log.md`
+8. Return `IngestResult`
+
+**If Ollama is unavailable**: Return `{ pagesCreated: [], pagesUpdated: [], error: "Ollama unavailable" }` — never throw.
+
+### 3. Create `server/routes/wiki.ts`
+
+Endpoints:
+
+**`POST /api/wiki/ingest`**
+- Body: `{ sourcePath: string }` — absolute path to source file
+- Validate: `sourcePath` must be inside a configured vault or projects dir
+- Call `ingestSource(sourcePath, wikiDir)`
+- Returns: `{ pagesCreated, pagesUpdated, error? }` with HTTP 200 always (errors in body)
+- If wiki doesn't exist yet: `ensureWikiExists` first
+
+**`GET /api/wiki/index`**
+- Returns: `{ pages: WikiPage[], wikiExists: boolean }`
+- If Wiki/ doesn't exist: return `{ pages: [], wikiExists: false }`
+
+**`GET /api/wiki/pages`**
+- Returns: `{ pages: WikiPage[] }`
+- Full page list with frontmatter metadata
+
+### 4. Register routes in `server/index.ts`
+
+```ts
+import wikiRouter from './routes/wiki'
+app.use('/api/wiki', wikiRouter)
+```
+
+### 5. Write tests in `server/lib/wiki-manager.test.ts`
+
+Test without calling real Ollama — mock `ollama-client.ts`. Cover:
+- `ensureWikiExists`: creates Wiki/ and SCHEMA.md on first call, no-op on subsequent calls
+- `ingestSource`: parses Ollama response correctly, creates page files with correct frontmatter
+- `ingestSource`: updates existing page (merges, doesn't overwrite)
+- `ingestSource`: handles Ollama unavailable gracefully (returns error, doesn't throw)
+- `readIndex`: parses `- [[Name]] — Summary. (sources: N)` format
+- `listPages`: scans directory, skips SCHEMA/index/log, parses frontmatter
+- `appendLog`: appends correct format entry
 
 ## Acceptance Criteria
-- [ ] `GET /api/chats` returns conversation list without message bodies
-- [ ] `GET /api/chats/search?q=ollama` returns matching conversations
-- [ ] `GET /api/chats/:uuid` returns full message thread
-- [ ] `PATCH /api/chats/:uuid/tags` persists tags to `.tags.json`
-- [ ] Tags survive server restart (persisted, not in-memory)
-- [ ] ChatExplorer renders in dashboard with search bar
-- [ ] Tag editing with project-name autocomplete works
-- [ ] Empty state appears when `ChatExports/` is empty
-- [ ] Path traversal rejected on all endpoints
-- [ ] Tests pass
+- [ ] `server/lib/wiki-manager.ts` created with all 5 exported functions
+- [ ] `server/routes/wiki.ts` with 3 endpoints (ingest, index, pages)
+- [ ] Route registered in `server/index.ts`
+- [ ] `POST /api/wiki/ingest` creates wiki pages when Ollama responds
+- [ ] `POST /api/wiki/ingest` gracefully returns error object when Ollama unavailable
+- [ ] `GET /api/wiki/index` returns `{ wikiExists: false }` when wiki not yet initialized
+- [ ] `VAULT_DIR/Wiki/SCHEMA.md` seeded with correct content on first ingest
+- [ ] `index.md` updated after every ingest
+- [ ] `log.md` appended after every ingest
+- [ ] Obsidian-compatible `[[wikilinks]]` in generated pages
+- [ ] All source paths validated (path traversal protection)
+- [ ] All 232+ existing tests still pass
+- [ ] New tests cover all wiki-manager functions (mock Ollama)
+- [ ] `npm run type-check` clean
 
 ## Validation Gates
-- [ ] `npm run type-check` → zero errors
-- [ ] `npm test` → all tests green
+- [ ] `npm test` — all tests pass
+- [ ] `npm run type-check` — zero errors
+- [ ] `git add -A && git commit -m "feat(TASK-016): LLM Wiki core — ingest, index, log"`
 
 ## Constraints
-- Do NOT load full message text in `listConversations` — only `preview` (keeps the list fast)
-- Do NOT store tags inside the export JSON files — sidecar `.tags.json` only  
-- Search must work offline — no external search service
-- Tag suggestions pull from existing `/api/projects` response (reuse, don't duplicate)
-- The ChatExplorer section is optional-render: if `ChatExports/` has no `.json` files, render nothing (no empty section taking up space)
-
-## On Completion
-```
-git add -A
-git commit -m "feat(TASK-014): chat export viewer with search and project tagging"
-```
-
-Update `.agents/state.json` tasks.TASK-014.status to "done".
-Update `.agents/state.json` `active_task` to null.
+- Do NOT call real Ollama in tests — mock `ollama-client.ts`
+- Do NOT rewrite `ollama-client.ts` — import and use it as-is
+- Wiki/ directory: only write inside `VAULT_DIR/Wiki/` (primary vault, NOT secondary VAULT_DIRS)
+- Path traversal: source files CAN come from any vault dir or projects dir, but wiki OUTPUT goes only to primary vault
+- Do NOT add any npm packages — use only what's already in `package.json`
+- Do NOT break existing tests
+- Make reasonable assumptions and document them in code comments

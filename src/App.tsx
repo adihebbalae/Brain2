@@ -7,6 +7,7 @@ import { TodoAggregator } from './components/TodoAggregator'
 import { DeadlineTimeline } from './components/DeadlineTimeline'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ChatExplorer } from './components/ChatExplorer'
+import { WikiPanel } from './components/WikiPanel'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -123,6 +124,13 @@ function App() {
               <TodoAggregator />
             </ErrorBoundary>
           </div>
+        </div>
+
+        {/* Wiki Panel */}
+        <div className="mt-8">
+          <ErrorBoundary fallbackMessage="Error loading wiki">
+            <WikiPanel />
+          </ErrorBoundary>
         </div>
 
         {/* Chat Exports section (below main grid) */}

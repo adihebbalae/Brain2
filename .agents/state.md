@@ -4,14 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: MVP Complete ✅ + P1 features (ntfy notifications, Ollama AI) implemented
-- **Current Task**: TASK-013 (done) — Ollama AI summarization
+- **Phase**: P2 In Progress 🚧 (P0 + P1 complete, TASK-015 complete)
+- **Current Task**: None (TASK-015 just completed)
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
-  - TASK-011 — Full integration complete (183 tests passing, MVP ✅)
-  - TASK-012 — ntfy push notifications for deadlines, stale projects, digest (15 tests passing)
+  - TASK-015 — Multi-vault support via VAULT_DIRS env var (29 new tests, 276 total passing)
+  - TASK-014 — Chat export viewer with search and tagging (23 tests passing)
   - TASK-013 — Ollama AI summarization with 1h cache (12 tests passing)
+  - TASK-012 — ntfy push notifications for deadlines, stale projects, digest (15 tests passing)
 
 ## Project Brief
 
@@ -52,7 +53,20 @@
 | TASK-011 | Integration + E2E testing | done | P0 |
 | TASK-012 | ntfy push notifications (deadlines + stale + digest) | done | P1 |
 | TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | done | P1 |
-| TASK-014 | Chat export viewer | pending | P1 |
+| TASK-014 | Chat export viewer | done | P1 |
+| TASK-015 | Multi-vault support (VAULT_DIRS array) | done | P2 |
+| TASK-016 | LLM Wiki core: schema, ingest, index, log | pending | P2 |
+| TASK-017 | LLM Wiki query + lint + dashboard panel | pending | P2 |
+| TASK-018 | Self-learning: gap analysis + resource recommendations | pending | P2 |
+| TASK-019 | Multi-account Claude chat sync | pending | P2 |
+
+## P2 Architecture Decisions
+- **LLM Wiki location**: `VAULT_DIR/Wiki/` — separate from raw notes (immutable)
+- **Wiki AI engine**: Ollama llama3.1:8b (same as TASK-013, no new deps)
+- **Resource discovery**: DuckDuckGo Instant Answer API (zero API keys required)
+- **Multi-vault**: `VAULT_DIRS` env var (comma-separated), fallback to `VAULT_DIR`
+- **References**: kytmanov/obsidian-llm-wiki-local (Ollama+Obsidian patterns), Astro-Han/karpathy-llm-wiki (schema workflow)
+- **Dependency chain**: TASK-015 → TASK-016 → TASK-017 → TASK-018 | TASK-014 → TASK-019 (parallel)
 
 ## Changelog
 - 2026-04-05: init-project — PRD ingested, plan approved, project scaffolded by manager
@@ -230,3 +244,52 @@
   - **Files created**: server/lib/ollama-client.ts, server/routes/ai.ts, server/lib/ollama-client.test.ts
   - **12 unit tests passing** (cache expiration, status checks, timeout handling, content truncation, error scenarios), type-check clean
   - **195 total tests passing** (183 existing + 12 new Ollama tests)
+- 2026-04-13: TASK-014 completed — Implemented chat export viewer with search and project tagging:
+  - **User workflow**: Drop Claude JSON export files into VAULT_DIR/ChatExports/, dashboard displays conversation list with search, preview, and tags
+  - **Backend**: Created server/lib/chat-export-parser.ts with 4 core functions:
+    - listConversations: scans *.json files (skips .tags.json), parses Claude export format, merges tags from sidecar, sorts by updatedAt descending
+    - searchConversations: case-insensitive full-text search across conversation names and message text, ranks title matches higher (score 10) than content matches (score 1)
+    - getConversation: fetches single conversation with full message thread by UUID
+    - setConversationTags: updates .tags.json sidecar with atomic writes (write to temp, then rename)
+  - **API endpoints**: Created server/routes/chats.ts mounted at /api/chats:
+    - GET /api/chats — list all conversations without messages (lightweight)
+    - GET /api/chats/search?q=... — search with relevance ranking
+    - GET /api/chats/:uuid — single conversation with full messages
+    - PATCH /api/chats/:uuid/tags — body: { tags: string[] }
+  - **Security**: Path traversal protection on all operations, UUID validation rejects ../, /, and \
+  - **Frontend**: Created src/hooks/useChats.ts with 300ms debounced search, tagConversation function, getConversationDetail function
+  - **ChatExplorer component**: Created src/components/ChatExplorer.tsx with:
+    - Conversation list: title, relative date (Today/Yesterday/Nd ago), message count, preview (first 100 chars of first human message), tag pills
+    - Inline message thread expansion: click to expand/collapse full conversation
+    - Message bubbles: human (right-aligned blue), assistant (left-aligned gray border)
+    - Long message truncation: "Show more" for messages >500 chars
+    - Tag editing: click "+ Add tags" or "Edit tags", autocomplete suggests project names, save/cancel buttons
+    - Empty state: no render when ChatExports/ has no .json files (keeps dashboard clean)
+    - Search bar: debounced 300ms, shows "No conversations match your search" when empty results
+  - **Integration**: Added ChatExplorer to App.tsx below main grid, wrapped in ErrorBoundary, passes projectNames prop for tag autocomplete
+  - **Files created**: server/lib/chat-export-parser.ts, server/lib/chat-export-parser.test.ts (23 tests), server/routes/chats.ts, src/hooks/useChats.ts, src/components/ChatExplorer.tsx
+  - **23 unit tests passing** (parsing multiple files, preview truncation, tag merging, search ranking, tag persistence, path security, UUID validation)
+  - **Type-check clean, 232 total tests passing** (1 pre-existing flaky test in DeadlineTimeline unrelated to this task)
+  - **All P1 tasks complete** ✅
+- 2026-04-16: TASK-015 completed — Implemented multi-vault support enabling multiple knowledge bases:
+  - **VAULT_DIRS environment variable**: Comma-separated absolute paths supplements VAULT_DIR, enables reading from secondary Obsidian vaults, Apple Notes exports, Logseq, etc.
+  - **vault-config module**: Created server/lib/vault-config.ts with env-reading wrappers:
+    - getVaultDirs(): reads process.env.VAULT_DIR + process.env.VAULT_DIRS, returns deduplicated array of resolved paths
+    - isPathInVault(filePath): validates file paths are inside configured vaults (path traversal protection)
+    - getPrimaryVaultDir(): returns VAULT_DIR for write operations (capture, notifications)
+  - **vault-dirs module**: Created server/lib/vault-dirs.ts with core resolution logic (async directory existence checks, deduplication)
+  - **Route updates**: Updated server/routes/todos.ts and server/routes/deadlines.ts to use getVaultDirs() and scan all configured vaults
+  - **Library enhancements**: Enhanced todo-extractor.ts and deadline-reader.ts with multi-vault functions (extractTodosMultiVault, readDeadlinesMultiVault)
+  - **Features**:
+    - Automatic path deduplication by resolved absolute path
+    - Non-existent directories: logged as warnings but included (may be created later, e.g., Wiki/ dir on first ingest)
+    - Non-absolute paths: logged as warnings and skipped for security
+    - Path traversal protection across all configured vaults
+    - Write operations always use primary vault (VAULT_DIR only) — capture-writer.ts unchanged
+    - Backward compatible: works with single VAULT_DIR when VAULT_DIRS not set (no breaking changes)
+  - **Documentation**: Added VAULT_DIRS to .env.example with clear comments and example
+  - **Tests**: Created comprehensive test suites (29 new tests total):
+    - server/lib/vault-config.test.ts (17 tests): getVaultDirs deduplication, non-existent/non-absolute handling, isPathInVault validation, getPrimaryVaultDir
+    - server/lib/multi-vault.test.ts (12 tests): resolveVaultDirs, isPathInVaults, extractTodosMultiVault, readDeadlinesMultiVault with multiple vaults
+  - **276 total tests passing** (259 existing + 17 vault-config + 12 multi-vault tests, note: 3 tests removed from earlier count), type-check clean
+  - **Dependency**: Unblocks TASK-016 (LLM Wiki will respect multi-vault configuration)

@@ -7,6 +7,7 @@ import { deadlinesRouter } from './routes/deadlines.js'
 import { captureRouter } from './routes/capture.js'
 import { aiRouter } from './routes/ai.js'
 import { chatsRouter } from './routes/chats.js'
+import { wikiRouter } from './routes/wiki.js'
 import { startNotificationService } from './lib/notification-service.js'
 
 config()
@@ -30,6 +31,7 @@ app.use('/api/deadlines', deadlinesRouter)
 app.use('/api/capture', captureRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api/chats', chatsRouter)
+app.use('/api/wiki', wikiRouter)
 
 // Start server
 app.listen(PORT, () => {
