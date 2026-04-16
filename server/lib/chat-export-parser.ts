@@ -18,6 +18,7 @@ export interface Conversation {
   preview: string        // first human message, truncated to 200 chars
   tags: string[]
   sourceFile: string     // filename only, not full path
+  account: string        // account name: "default" for top-level files, subfolder name otherwise
 }
 
 export interface ConversationDetail extends Conversation {
@@ -96,7 +97,8 @@ async function saveTags(chatExportsDir: string, tags: TagsMap): Promise<void> {
 function rawToConversation(
   raw: RawConversation,
   sourceFile: string,
-  tags: string[]
+  tags: string[],
+  account: string
 ): Conversation {
   const firstHumanMessage = raw.chat_messages.find(m => m.sender === 'human')
   const preview = firstHumanMessage
@@ -111,7 +113,8 @@ function rawToConversation(
     messageCount: raw.chat_messages.length,
     preview,
     tags,
-    sourceFile
+    sourceFile,
+    account
   }
 }
 
@@ -121,9 +124,10 @@ function rawToConversation(
 function rawToConversationDetail(
   raw: RawConversation,
   sourceFile: string,
-  tags: string[]
+  tags: string[],
+  account: string
 ): ConversationDetail {
-  const base = rawToConversation(raw, sourceFile, tags)
+  const base = rawToConversation(raw, sourceFile, tags, account)
   const messages: ChatMessage[] = raw.chat_messages.map(m => ({
     uuid: m.uuid,
     sender: m.sender,
@@ -138,9 +142,73 @@ function rawToConversationDetail(
 }
 
 /**
+ * Scan ChatExports directory recursively (one level deep) and return file paths with account labels
+ */
+async function scanChatExports(chatExportsDir: string): Promise<Array<{ filePath: string; account: string; fileName: string }>> {
+  const results: Array<{ filePath: string; account: string; fileName: string }> = []
+
+  try {
+    const entries = await fs.readdir(chatExportsDir, { withFileTypes: true })
+
+    // First, scan top-level JSON files → account: "default"
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.json') && entry.name !== '.tags.json') {
+        const filePath = path.join(chatExportsDir, entry.name)
+
+        // Path traversal protection
+        if (!validatePath(filePath, chatExportsDir)) {
+          continue
+        }
+
+        results.push({ filePath, account: 'default', fileName: entry.name })
+      }
+    }
+
+    // Then, scan one level of subdirectories → account: subfolder name
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const accountName = entry.name
+        const subDir = path.join(chatExportsDir, accountName)
+
+        // Path traversal protection for subdirectory
+        if (!validatePath(subDir, chatExportsDir)) {
+          continue
+        }
+
+        try {
+          const subEntries = await fs.readdir(subDir)
+
+          for (const file of subEntries) {
+            if (file.endsWith('.json') && file !== '.tags.json') {
+              const filePath = path.join(subDir, file)
+
+              // Path traversal protection for file
+              if (!validatePath(filePath, chatExportsDir)) {
+                continue
+              }
+
+              results.push({ filePath, account: accountName, fileName: file })
+            }
+          }
+        } catch (err) {
+          // Skip subdirectories that can't be read
+          console.error(`Failed to read subdirectory ${accountName}:`, err)
+          continue
+        }
+      }
+    }
+  } catch (err) {
+    // Directory doesn't exist or can't be read
+    return []
+  }
+
+  return results
+}
+
+/**
  * List all conversations from ChatExports directory
  */
-export async function listConversations(vaultDir: string): Promise<Conversation[]> {
+export async function listConversations(vaultDir: string, account?: string): Promise<Conversation[]> {
   const chatExportsDir = path.join(vaultDir, 'ChatExports')
 
   // Validate path
@@ -151,35 +219,27 @@ export async function listConversations(vaultDir: string): Promise<Conversation[
   // Load tags
   const tagsMap = await loadTags(chatExportsDir)
 
-  // Scan directory for JSON files
-  let files: string[] = []
-  try {
-    const entries = await fs.readdir(chatExportsDir)
-    files = entries.filter(f => f.endsWith('.json') && f !== '.tags.json')
-  } catch (err) {
-    // Directory doesn't exist or can't be read
-    return []
-  }
+  // Scan directory recursively for JSON files
+  const fileEntries = await scanChatExports(chatExportsDir)
+
+  // Filter by account if specified
+  const filteredEntries = account
+    ? fileEntries.filter(entry => entry.account === account)
+    : fileEntries
 
   // Parse all conversations from all files
   const conversations: Conversation[] = []
-  for (const file of files) {
-    const filePath = path.join(chatExportsDir, file)
-
-    if (!validatePath(filePath, chatExportsDir)) {
-      continue // Skip files outside the directory
-    }
-
+  for (const entry of filteredEntries) {
     try {
-      const content = await fs.readFile(filePath, 'utf-8')
+      const content = await fs.readFile(entry.filePath, 'utf-8')
       const rawConversations = JSON.parse(content) as RawConversation[]
 
       for (const raw of rawConversations) {
         const tags = tagsMap[raw.uuid] || []
-        conversations.push(rawToConversation(raw, file, tags))
+        conversations.push(rawToConversation(raw, entry.fileName, tags, entry.account))
       }
     } catch (err) {
-      console.error(`Failed to parse ${file}:`, err)
+      console.error(`Failed to parse ${entry.filePath}:`, err)
       // Skip malformed files
       continue
     }
@@ -213,33 +273,21 @@ export async function getConversation(
   // Load tags
   const tagsMap = await loadTags(chatExportsDir)
 
-  // Scan all files to find the conversation
-  let files: string[] = []
-  try {
-    const entries = await fs.readdir(chatExportsDir)
-    files = entries.filter(f => f.endsWith('.json') && f !== '.tags.json')
-  } catch {
-    return null
-  }
+  // Scan all files recursively to find the conversation
+  const fileEntries = await scanChatExports(chatExportsDir)
 
-  for (const file of files) {
-    const filePath = path.join(chatExportsDir, file)
-
-    if (!validatePath(filePath, chatExportsDir)) {
-      continue
-    }
-
+  for (const entry of fileEntries) {
     try {
-      const content = await fs.readFile(filePath, 'utf-8')
+      const content = await fs.readFile(entry.filePath, 'utf-8')
       const rawConversations = JSON.parse(content) as RawConversation[]
 
       const found = rawConversations.find(c => c.uuid === uuid)
       if (found) {
         const tags = tagsMap[uuid] || []
-        return rawToConversationDetail(found, file, tags)
+        return rawToConversationDetail(found, entry.fileName, tags, entry.account)
       }
     } catch (err) {
-      console.error(`Failed to parse ${file}:`, err)
+      console.error(`Failed to parse ${entry.filePath}:`, err)
       continue
     }
   }
@@ -252,7 +300,8 @@ export async function getConversation(
  */
 export async function searchConversations(
   vaultDir: string,
-  query: string
+  query: string,
+  account?: string
 ): Promise<Conversation[]> {
   const chatExportsDir = path.join(vaultDir, 'ChatExports')
 
@@ -262,7 +311,7 @@ export async function searchConversations(
   }
 
   if (!query.trim()) {
-    return listConversations(vaultDir)
+    return listConversations(vaultDir, account)
   }
 
   const lowerQuery = query.toLowerCase()
@@ -270,27 +319,20 @@ export async function searchConversations(
   // Load tags
   const tagsMap = await loadTags(chatExportsDir)
 
-  // Scan all files
-  let files: string[] = []
-  try {
-    const entries = await fs.readdir(chatExportsDir)
-    files = entries.filter(f => f.endsWith('.json') && f !== '.tags.json')
-  } catch {
-    return []
-  }
+  // Scan all files recursively
+  const fileEntries = await scanChatExports(chatExportsDir)
+
+  // Filter by account if specified
+  const filteredEntries = account
+    ? fileEntries.filter(entry => entry.account === account)
+    : fileEntries
 
   // Parse and search
   const results: Array<{ conversation: Conversation; score: number }> = []
 
-  for (const file of files) {
-    const filePath = path.join(chatExportsDir, file)
-
-    if (!validatePath(filePath, chatExportsDir)) {
-      continue
-    }
-
+  for (const entry of filteredEntries) {
     try {
-      const content = await fs.readFile(filePath, 'utf-8')
+      const content = await fs.readFile(entry.filePath, 'utf-8')
       const rawConversations = JSON.parse(content) as RawConversation[]
 
       for (const raw of rawConversations) {
@@ -310,13 +352,13 @@ export async function searchConversations(
         if (score > 0) {
           const tags = tagsMap[raw.uuid] || []
           results.push({
-            conversation: rawToConversation(raw, file, tags),
+            conversation: rawToConversation(raw, entry.fileName, tags, entry.account),
             score
           })
         }
       }
     } catch (err) {
-      console.error(`Failed to parse ${file}:`, err)
+      console.error(`Failed to parse ${entry.filePath}:`, err)
       continue
     }
   }

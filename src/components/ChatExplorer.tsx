@@ -6,7 +6,18 @@ interface ChatExplorerProps {
 }
 
 export function ChatExplorer({ projectNames = [] }: ChatExplorerProps) {
-  const { conversations, loading, error, search, setSearch, tagConversation, getConversationDetail } = useChats()
+  const {
+    conversations,
+    loading,
+    error,
+    search,
+    setSearch,
+    tagConversation,
+    getConversationDetail,
+    accounts,
+    activeAccount,
+    setActiveAccount
+  } = useChats()
   const [expandedConv, setExpandedConv] = useState<string | null>(null)
   const [conversationDetail, setConversationDetail] = useState<ConversationDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -146,6 +157,10 @@ export function ChatExplorer({ projectNames = [] }: ChatExplorerProps) {
     )
   }
 
+  // Determine if we should show account badges and filter
+  const showAccountFeatures = accounts.length > 1
+  const shouldShowBadge = (account: string) => showAccountFeatures && account !== 'default'
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <h2 className="text-xl font-semibold mb-4">Chat Exports ({conversations.length})</h2>
@@ -161,6 +176,25 @@ export function ChatExplorer({ projectNames = [] }: ChatExplorerProps) {
         />
       </div>
 
+      {/* Account filter dropdown (only show when 2+ accounts) */}
+      {showAccountFeatures && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Filter by account</label>
+          <select
+            value={activeAccount || ''}
+            onChange={e => setActiveAccount(e.target.value || null)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All accounts</option>
+            {accounts.map(account => (
+              <option key={account} value={account}>
+                {account}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Conversation list */}
       <div className="space-y-3">
         {conversations.map(conv => (
@@ -171,7 +205,14 @@ export function ChatExplorer({ projectNames = [] }: ChatExplorerProps) {
               onClick={() => handleExpandConversation(conv.uuid)}
             >
               <div className="flex items-start justify-between mb-2">
-                <h3 className="font-medium text-gray-900 flex-1">{conv.name}</h3>
+                <div className="flex items-center gap-2 flex-1">
+                  <h3 className="font-medium text-gray-900">{conv.name}</h3>
+                  {shouldShowBadge(conv.account) && (
+                    <span className="inline-flex items-center px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded">
+                      {conv.account}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-gray-500 ml-2">{formatDate(conv.updatedAt)}</span>
               </div>
 

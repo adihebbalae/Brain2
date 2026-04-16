@@ -16,6 +16,7 @@ export interface Conversation {
   preview: string
   tags: string[]
   sourceFile: string
+  account: string
 }
 
 export interface ConversationDetail extends Conversation {
@@ -31,6 +32,9 @@ interface UseChatsReturn {
   tagConversation: (uuid: string, tags: string[]) => Promise<void>
   refetch: () => void
   getConversationDetail: (uuid: string) => Promise<ConversationDetail | null>
+  accounts: string[]
+  activeAccount: string | null
+  setActiveAccount: (account: string | null) => void
 }
 
 export function useChats(): UseChatsReturn {
@@ -39,6 +43,8 @@ export function useChats(): UseChatsReturn {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearchValue] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [activeAccount, setActiveAccountValue] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<string[]>([])
 
   // Debounce search input (300ms)
   useEffect(() => {
@@ -54,9 +60,14 @@ export function useChats(): UseChatsReturn {
       setLoading(true)
       setError(null)
 
-      const url = debouncedSearch
+      // Build URL with optional account filter
+      let url = debouncedSearch
         ? `/api/chats/search?q=${encodeURIComponent(debouncedSearch)}`
         : '/api/chats'
+
+      if (activeAccount) {
+        url += (debouncedSearch ? '&' : '?') + `account=${encodeURIComponent(activeAccount)}`
+      }
 
       const response = await fetch(url)
 
@@ -64,14 +75,24 @@ export function useChats(): UseChatsReturn {
         throw new Error(`Failed to fetch conversations: ${response.statusText}`)
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as Conversation[]
       setConversations(data)
+
+      // Derive unique accounts from loaded conversations
+      const uniqueAccounts = Array.from(new Set(data.map(c => c.account)))
+        .sort((a, b) => {
+          // Sort with "default" first, then alphabetically
+          if (a === 'default') return -1
+          if (b === 'default') return 1
+          return a.localeCompare(b)
+        })
+      setAccounts(uniqueAccounts)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load conversations')
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch])
+  }, [debouncedSearch, activeAccount])
 
   useEffect(() => {
     fetchConversations()
@@ -127,6 +148,10 @@ export function useChats(): UseChatsReturn {
     }
   }, [])
 
+  const setActiveAccount = useCallback((account: string | null) => {
+    setActiveAccountValue(account)
+  }, [])
+
   return {
     conversations,
     loading,
@@ -135,6 +160,9 @@ export function useChats(): UseChatsReturn {
     setSearch,
     tagConversation,
     refetch: fetchConversations,
-    getConversationDetail
+    getConversationDetail,
+    accounts,
+    activeAccount,
+    setActiveAccount
   }
 }

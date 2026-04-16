@@ -1,5 +1,5 @@
-# Handoff: Self-learning — gap analysis + resource recommendations
-**Task ID**: TASK-018
+# Handoff: Multi-account Claude chat sync
+**Task ID**: TASK-019
 **Mode**: autonomous (no user interaction available)
 
 ## Context
@@ -10,238 +10,190 @@
 **Package manager**: npm (NOT pnpm).
 **Run tests**: `npm test`. `npm run type-check` must be clean.
 
-**This task builds on TASK-017**. Read the files created in that task before starting. Check `git log` for recent changes.
+**This task builds on TASK-014**. Read the files created in that task before starting. Check `git log` for recent changes.
 
-### What already exists (from TASK-016 and TASK-017)
-- `server/lib/wiki-manager.ts` — `readIndex`, `listPages`, `lintWiki`, `queryWiki`, `appendLog`
-- `server/routes/wiki.ts` — ingest, index, pages, query, lint endpoints
-- `server/lib/notification-service.ts` — background service that already sends ntfy notifications
-- `server/lib/notifier.ts` — `sendNotification(topic, title, message, priority?)`
-- `src/components/WikiPanel.tsx` — wiki panel component (extend in this task with GapList)
-- `src/hooks/useWiki.ts` — wiki hook (extend with gaps endpoint)
+**This task is INDEPENDENT of TASK-015 through TASK-018** — it can run concurrently or after them. It only touches the chat export system.
 
-### What this task adds
-1. **Backend**: `POST /api/wiki/gaps` — gap analysis + DuckDuckGo resource lookup + writes `gaps.md`
-2. **Backend**: Weekly ntfy notification listing top 3 gaps
-3. **Frontend**: `GapList` section inside `WikiPanel` — shows gaps with resource links + "Add to Inbox" button
+### What already exists (from TASK-014)
+- `server/lib/chat-export-parser.ts` — `listConversations`, `searchConversations`, `getConversation`, `setConversationTags`
+- `server/routes/chats.ts` — `GET /api/chats`, `GET /api/chats/search`, `GET /api/chats/:uuid`, `PATCH /api/chats/:uuid/tags`
+- `src/hooks/useChats.ts` — data fetching hook with debounced search
+- `src/components/ChatExplorer.tsx` — conversation list with search, tag editing, inline message expansion
+- `VAULT_DIR/ChatExports/` — flat directory of Claude JSON exports  
+- `VAULT_DIR/ChatExports/.tags.json` — sidecar file for tag storage
 
-### DuckDuckGo Instant Answer API
-Zero API keys, zero auth. Simple HTTP GET:
+### 23 existing tests in `chat-export-parser.test.ts` — ALL must still pass.
+
+### Current behavior (flat scan)
+`chat-export-parser.ts` currently scans `ChatExports/*.json` — only top-level JSON files.
+
+### What this task changes
+
+**Make the scan recursive**: `ChatExports/**/*.json` — scan all subdirectories.
+
+**Subfolder = account label**: If a JSON file is at `ChatExports/Personal/export.json`, the account is `"Personal"`. If at `ChatExports/export.json` (top-level), the account is `"default"`.
+
 ```
-GET https://api.duckduckgo.com/?q={query}&format=json&no_redirect=1&no_html=1&skip_disambig=1
+ChatExports/
+  conversation-123.json        → account: "default" (backward compatible)
+  Personal/
+    conversation-456.json      → account: "Personal"
+  Work/
+    conversation-789.json      → account: "Work"
 ```
-Returns JSON with `AbstractText`, `RelatedTopics[]` (each has `Text` and `FirstURL`).
-
-Use **native `fetch`** (Node 18+ built-in) — do NOT add axios or node-fetch to package.json.
-
-For YouTube results: append `site:youtube.com` to the query:
-```
-GET https://api.duckduckgo.com/?q={topic}+tutorial+site:youtube.com&format=json&...
-```
-Return top 3 `RelatedTopics` entries (filter out empty `FirstURL`).
-
-**If DuckDuckGo is unreachable**: return empty `resources: []` for that gap — never throw.
 
 ## Files to Read First
 - `.agents/workspace-map.md` — full project structure
-- `server/lib/wiki-manager.ts` — existing functions (especially `lintWiki` for gap list as seed)
-- `server/lib/notification-service.ts` — how weekly/scheduled notifications are sent
-- `server/lib/notifier.ts` — `sendNotification` signature
-- `server/routes/wiki.ts` — existing wiki routes
-- `src/components/WikiPanel.tsx` — extend this component (TASK-017)
-- `src/hooks/useWiki.ts` — extend this hook
+- `server/lib/chat-export-parser.ts` — all current logic (MUST understand before modifying)
+- `server/lib/chat-export-parser.test.ts` — all 23 existing tests (must not break)
+- `src/hooks/useChats.ts` — data hook (extend)
+- `src/components/ChatExplorer.tsx` — extend with account badge and filter
 
 ## Task
 
-### 1. Add `analyzeGaps` to `server/lib/wiki-manager.ts`
+### 1. Update TypeScript types
+
+In `server/lib/chat-export-parser.ts` (or `src/types.ts` — follow existing pattern), add `account` field:
 
 ```ts
-export interface GapResource {
+export interface ConversationMeta {
+  uuid: string
   title: string
-  url: string
-  type: 'article' | 'video' | 'unknown'
+  createdAt: string
+  updatedAt: string
+  messageCount: number
+  preview: string
+  tags: string[]
+  account: string  // ← ADD THIS. "default" for top-level files, subfolder name otherwise
 }
-
-export interface KnowledgeGap {
-  topic: string
-  reason: string         // e.g. "Referenced 4x in active projects but no wiki page"
-  priority: number       // 1 (highest) to 5
-  resources: GapResource[]
-}
-
-export interface GapAnalysisResult {
-  gaps: KnowledgeGap[]
-  generatedAt: string    // ISO timestamp
-  error?: string
-}
-
-export async function analyzeGaps(
-  wikiDir: string,
-  projectsDir: string
-): Promise<GapAnalysisResult>
 ```
 
-**Implementation**:
+### 2. Update `listConversations` in `chat-export-parser.ts`
 
-**Step 1 — Collect gap candidates**
-
-Source A — from wiki lint:
-- Run `lintWiki(wikiDir)` internally
-- Each item in `gaps` (referenced `[[links]]` with no page) is a candidate
-- Each item in `orphans` that has no sources is a candidate ("documented but isolated")
-
-Source B — from active projects:
-- Scan `PROJECTS_DIR` for state files (reuse scanner pattern from `server/lib/scanner.ts`)
-- Read each active project's state file content
-- Extract `[[wikilinks]]` patterns from the content
-- Find any `[[Topic]]` that appears in project files but doesn't have a wiki page (not in `listPages`)
-
-**Step 2 — Score and rank gaps**
-
-For each candidate topic:
-- `priority` = how many project files reference it (more references = higher priority = lower number)
-- Deduplicate by topic name (case-insensitive)
-- Cap at top 10 gaps
-
-**Step 3 — Fetch resources for each gap** (top 5 only, to keep latency reasonable)
-
-For each of the top 5 gaps:
-```
-const query = encodeURIComponent(`${topic} guide tutorial`)
-fetch(`https://api.duckduckgo.com/?q=${query}&format=json&no_redirect=1&no_html=1&skip_disambig=1`)
-```
-Parse `RelatedTopics`: keep first 2 with non-empty `FirstURL`. Set `type: 'video'` if URL contains `youtube.com`, else `type: 'article'`.
-
-Second call for YouTube:
-```
-const ytQuery = encodeURIComponent(`${topic} tutorial site:youtube.com`)
-fetch(`https://api.duckduckgo.com/?q=${ytQuery}&format=json&...`)
-```
-Add first YouTube result if found.
-
-**Step 4 — Write `gaps.md`**
-
-Write to `VAULT_DIR/Wiki/gaps.md`:
-```markdown
-# Knowledge Gaps
-> Generated by Cortex on YYYY-MM-DD HH:mm
-
-## Priority Gaps
-
-### 1. TopicName
-**Reason**: Referenced 4x in active projects but no wiki page
-**Resources**:
-- [Article Title](https://url) — article
-- [YouTube: Tutorial Title](https://youtube.com/...) — video
-
-### 2. ...
-```
-
-**Step 5 — Return and log**
-- Append to `log.md`: `## [date] gaps | Found ${gaps.length} gaps`
-- Return `GapAnalysisResult`
-
-If wiki doesn't exist yet: return `{ gaps: [], generatedAt: now, error: 'Wiki not initialized' }`
-
-### 2. Add endpoint to `server/routes/wiki.ts`
-
-**`POST /api/wiki/gaps`**
-- No body needed
-- Reads `PROJECTS_DIR` from `process.env.PROJECTS_DIR`
-- Returns: `GapAnalysisResult` (200 always, errors in body)
-- Can take 10-30 seconds (DuckDuckGo calls) — that's acceptable for an on-demand endpoint
-
-### 3. Add weekly gap notification to `server/lib/notification-service.ts`
-
-The notification service already has a `setInterval`-based loop. **Add a weekly gap digest**:
-
-- Track last gap notification in the existing `.cortex-notify-state.json` file under key `lastGapNotification: string (ISO date)`
-- Check weekly: if `now - lastGapNotification > 7 days` (or never sent), trigger gap analysis
-- Send ntfy notification: title `"📚 Weekly Learning Gaps"`, message listing top 3 gap topics
-- Update `lastGapNotification` in state
-- **Do this check inside the existing interval loop** — do NOT create a new `setInterval`
-
-### 4. Extend `src/hooks/useWiki.ts`
-
-Add `gaps` fetch to the hook:
+Currently scans flat directory. Change to recursive with account derivation:
 
 ```ts
-interface WikiState {
-  // ... existing fields ...
-  gaps: KnowledgeGap[] | null
-  gapsLoading: boolean
+// Pseudocode for new scan logic:
+function scanChatExports(exportDir: string): Array<{ filePath: string; account: string }> {
+  const results = []
+  
+  // Top-level JSON files → account: "default"
+  for (const file of fs.readdirSync(exportDir)) {
+    if (file.endsWith('.json') && file !== '.tags.json') {
+      results.push({ filePath: path.join(exportDir, file), account: 'default' })
+    }
+  }
+  
+  // One level of subdirectories → account: subfolder name
+  for (const entry of fs.readdirSync(exportDir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      const accountName = entry.name
+      const subDir = path.join(exportDir, accountName)
+      for (const file of fs.readdirSync(subDir)) {
+        if (file.endsWith('.json') && file !== '.tags.json') {
+          results.push({ filePath: path.join(subDir, file), account: accountName })
+        }
+      }
+    }
+  }
+  
+  return results
 }
-
-// Add method:
-analyzeGaps: () => Promise<GapAnalysisResult>
 ```
 
-- `gaps` is `null` until user triggers analysis
-- `analyzeGaps()` calls `POST /api/wiki/gaps`, sets `gaps` in state on completion
+**IMPORTANT**: Only go ONE level deep (direct subdirectories only). Do NOT recurse further.
 
-### 5. Extend `src/components/WikiPanel.tsx`
+Apply path traversal protection: each resolved file path must start with the resolved `ChatExports/` dir.
 
-Add a **GapList section** below the pages list:
+Update `listConversations` to call this, add `account` field to each `ConversationMeta`.
 
+### 3. Update `searchConversations` in `chat-export-parser.ts`
+
+- Include `account` field in all returned `ConversationMeta` objects
+- Optionally accept an `account` filter: `searchConversations(query, exportDir, account?: string)` — if `account` provided, only include conversations from that account
+
+### 4. Update `setConversationTags` / tags sidecar
+
+Tags are stored in `.tags.json`. Currently keyed by UUID. No change needed — UUIDs are still unique across accounts, so tag storage is already correct.
+
+### 5. Update `server/routes/chats.ts`
+
+**`GET /api/chats`**: accepts optional query param `?account=Personal` — passes to `listConversations`. If omitted: return all accounts.
+
+**`GET /api/chats/search`**: accepts optional `?account=Personal` alongside existing `?q=` param.
+
+No other endpoint changes needed.
+
+### 6. Update `src/hooks/useChats.ts`
+
+Add `accounts` to the hook state:
+
+```ts
+interface ChatsState {
+  conversations: ConversationMeta[]
+  loading: boolean
+  error: string | null
+  accounts: string[]     // ← ADD: derived unique list from loaded conversations
+  activeAccount: string | null  // ← ADD: currently selected filter (null = all)
+  setActiveAccount: (account: string | null) => void
+}
 ```
-┌──────────────────────────────────────────────┐
-│  📚 Learning Gaps                    [Analyze] │
-│                                               │
-│  (empty state: "Click Analyze to find gaps")  │
-│                                               │
-│  When loaded:                                 │
-│  Priority 1 · TopicName                       │
-│    Referenced 4x in active projects           │
-│    [📄 Article Title] [▶ YouTube Tutorial]    │
-│    [+ Add to Inbox]                           │
-│                                               │
-│  Priority 2 · ...                             │
-└──────────────────────────────────────────────┘
-```
 
-**"Analyze" button**: calls `analyzeGaps()`, shows spinner while loading (can take 10-30s — show "Analyzing... (this may take a moment)" message).
+- `accounts`: derived from unique `conversation.account` values in the loaded list
+- `setActiveAccount`: updates filter; triggers refetch with `?account=` param if non-null
 
-**Resource links**: open in new tab (`target="_blank" rel="noopener noreferrer"`).
+### 7. Update `src/components/ChatExplorer.tsx`
 
-**"Add to Inbox" button**: calls `POST /api/capture` with text `Learn: {topic}`. On success: show brief toast "Added to inbox".
+**Account badge on each conversation**:
+- If account is `"default"` OR if only one account exists: **don't show the badge** (backward-compatible UX)
+- Otherwise: show a small badge on each conversation item: `bg-indigo-100 text-indigo-700 text-xs` with account name
 
-### 6. Write tests
+**Account filter dropdown** (only show when 2+ accounts exist):
+- Dropdown above the conversation list: `All accounts | Personal | Work | ...`
+- Changing selection calls `setActiveAccount`
+- Selection shown as active state on the dropdown option
 
-**`server/lib/wiki-manager.test.ts`** (extend existing):
-- `analyzeGaps`: returns empty result when wiki not initialized
-- `analyzeGaps`: gap detection from lint gaps (mock `lintWiki`)
-- `analyzeGaps`: gap detection from project file `[[links]]` — mock filesystem with a state file containing `[[SomeTopic]]`
-- `analyzeGaps`: DuckDuckGo unavailable → resources: [] (no throw)
-- `analyzeGaps`: writes `gaps.md` correctly
-- Weekly notification: fires when lastGapNotification > 7 days ago
+### 8. Update tests in `chat-export-parser.test.ts`
 
-**`src/components/WikiPanel.test.tsx`** (extend existing):
-- GapList shows empty state before analysis
-- GapList renders gaps with resources after analysis
-- "Add to Inbox" calls POST /api/capture with correct payload
+**All 23 existing tests must still pass** — do not change their behavior.
+
+Add new tests:
+- `scanChatExports` with flat files only → all `account: "default"`
+- `scanChatExports` with subfolder `Personal/export.json` → `account: "Personal"`
+- `scanChatExports` with mixed flat + subfolder → correct account derivation
+- `listConversations` returns `account` field in all results
+- `searchConversations` with `account` filter returns only matching
+- Path traversal: file in `ChatExports/../evil.json` → rejected
+- Does NOT recurse 2+ levels deep
+
+**`src/components/ChatExplorer.test.tsx`** (new or extend):
+- Account badge hidden when all conversations have `account: "default"`
+- Account badge shown when multiple accounts present
+- Filter dropdown hidden when only 1 account
+- Filter dropdown shown and functional when 2+ accounts
 
 ## Acceptance Criteria
-- [ ] `analyzeGaps` function in `wiki-manager.ts` 
-- [ ] `POST /api/wiki/gaps` endpoint returns gap analysis
-- [ ] `gaps.md` written to `VAULT_DIR/Wiki/gaps.md`
-- [ ] Resources fetched via DuckDuckGo (zero API keys)
-- [ ] DuckDuckGo unavailable: graceful empty resources, no crash
-- [ ] Weekly ntfy gap digest added to notification service
-- [ ] GapList section in WikiPanel with Analyze button
-- [ ] "Add to Inbox" creates correct `inbox.md` entry
-- [ ] Resource links open in new tab
-- [ ] All 232+ existing tests still pass
-- [ ] New tests cover gap analysis, DuckDuckGo failure, notification timing, GapList component
+- [ ] Flat exports (`ChatExports/*.json`) still loaded as `account: "default"` (backward compatible)
+- [ ] Subfolder exports (`ChatExports/AccountName/*.json`) loaded with correct account name
+- [ ] Only ONE level of subdirectories supported (no deeper recursion)
+- [ ] `ConversationMeta` type includes `account: string`
+- [ ] `GET /api/chats?account=X` filters by account
+- [ ] ChatExplorer shows account badge when 2+ accounts present
+- [ ] ChatExplorer shows account filter dropdown when 2+ accounts
+- [ ] Account badge hidden for single-account users (clean UX for existing users)
+- [ ] All 23 existing TASK-014 tests still pass
+- [ ] New tests for recursive scan, account derivation, and filter
 - [ ] `npm run type-check` clean
 
 ## Validation Gates
-- [ ] `npm test` — all tests pass
+- [ ] `npm test` — all tests pass (including all 23 existing chat tests)
 - [ ] `npm run type-check` — zero errors
-- [ ] `git add -A && git commit -m "feat(TASK-018): self-learning gap analysis + resource recommendations"`
+- [ ] `git add -A && git commit -m "feat(TASK-019): multi-account Claude chat sync"`
 
 ## Constraints
-- Do NOT add any npm packages — use native `fetch` for DuckDuckGo calls
-- DuckDuckGo rate limits: 1 call per gap, sequential (don't parallelize all calls) with 200ms delay between
-- Do NOT break existing notification tests
-- "Add to Inbox" must use `POST /api/capture` — do NOT write to inbox.md directly from the frontend
-- Do NOT call DuckDuckGo in tests — mock `fetch` or the function that calls it
+- Do NOT break any of the 23 existing chat-export-parser tests
+- Do NOT go more than ONE level deep into subdirectories
+- Path traversal: all file reads must stay inside `ChatExports/`
+- Account name comes from directory name only — do NOT read any metadata from the export JSON to determine account
+- Do NOT change the tags storage format in `.tags.json`
+- Do NOT add npm packages

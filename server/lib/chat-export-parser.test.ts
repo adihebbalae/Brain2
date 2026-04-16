@@ -77,7 +77,8 @@ describe('chat-export-parser', () => {
         messageCount: 2,
         preview: 'Hello, how are you?',
         tags: [],
-        sourceFile: 'export-1.json'
+        sourceFile: 'export-1.json',
+        account: 'default'
       })
     })
 
@@ -525,6 +526,409 @@ describe('chat-export-parser', () => {
       await expect(
         setConversationTags(vaultDir, '../../../etc/passwd', ['tag1'])
       ).rejects.toThrow('Invalid conversation UUID')
+    })
+  })
+
+  describe('multi-account support', () => {
+    it('scans flat files with account: "default"', async () => {
+      const exportData = [
+        {
+          uuid: 'conv-1',
+          name: 'Flat File Conversation',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-1',
+              sender: 'human' as const,
+              text: 'Test message',
+              created_at: '2026-03-15T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(chatExportsDir, 'export-1.json'),
+        JSON.stringify(exportData)
+      )
+
+      const conversations = await listConversations(vaultDir)
+
+      expect(conversations).toHaveLength(1)
+      expect(conversations[0].account).toBe('default')
+    })
+
+    it('scans subdirectory with account name from folder', async () => {
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      await fs.mkdir(personalDir, { recursive: true })
+
+      const exportData = [
+        {
+          uuid: 'conv-2',
+          name: 'Personal Conversation',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-2',
+              sender: 'human' as const,
+              text: 'Personal message',
+              created_at: '2026-03-15T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'export-personal.json'),
+        JSON.stringify(exportData)
+      )
+
+      const conversations = await listConversations(vaultDir)
+
+      expect(conversations).toHaveLength(1)
+      expect(conversations[0].account).toBe('Personal')
+      expect(conversations[0].name).toBe('Personal Conversation')
+    })
+
+    it('scans mixed flat and subfolder exports with correct account derivation', async () => {
+      // Flat export
+      const flatExport = [
+        {
+          uuid: 'conv-flat',
+          name: 'Flat Conversation',
+          created_at: '2026-03-01T10:00:00Z',
+          updated_at: '2026-03-01T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-flat',
+              sender: 'human' as const,
+              text: 'Flat message',
+              created_at: '2026-03-01T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(chatExportsDir, 'flat-export.json'),
+        JSON.stringify(flatExport)
+      )
+
+      // Personal subfolder
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      await fs.mkdir(personalDir, { recursive: true })
+
+      const personalExport = [
+        {
+          uuid: 'conv-personal',
+          name: 'Personal Conversation',
+          created_at: '2026-03-02T10:00:00Z',
+          updated_at: '2026-03-02T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-personal',
+              sender: 'human' as const,
+              text: 'Personal message',
+              created_at: '2026-03-02T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'personal-export.json'),
+        JSON.stringify(personalExport)
+      )
+
+      // Work subfolder
+      const workDir = path.join(chatExportsDir, 'Work')
+      await fs.mkdir(workDir, { recursive: true })
+
+      const workExport = [
+        {
+          uuid: 'conv-work',
+          name: 'Work Conversation',
+          created_at: '2026-03-03T10:00:00Z',
+          updated_at: '2026-03-03T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-work',
+              sender: 'human' as const,
+              text: 'Work message',
+              created_at: '2026-03-03T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(workDir, 'work-export.json'),
+        JSON.stringify(workExport)
+      )
+
+      const conversations = await listConversations(vaultDir)
+
+      expect(conversations).toHaveLength(3)
+
+      // Check each conversation has correct account
+      const flatConv = conversations.find(c => c.uuid === 'conv-flat')
+      const personalConv = conversations.find(c => c.uuid === 'conv-personal')
+      const workConv = conversations.find(c => c.uuid === 'conv-work')
+
+      expect(flatConv?.account).toBe('default')
+      expect(personalConv?.account).toBe('Personal')
+      expect(workConv?.account).toBe('Work')
+    })
+
+    it('filters conversations by account parameter', async () => {
+      // Create Personal and Work subfolders
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      const workDir = path.join(chatExportsDir, 'Work')
+      await fs.mkdir(personalDir, { recursive: true })
+      await fs.mkdir(workDir, { recursive: true })
+
+      const personalExport = [
+        {
+          uuid: 'conv-personal',
+          name: 'Personal',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: []
+        }
+      ]
+
+      const workExport = [
+        {
+          uuid: 'conv-work',
+          name: 'Work',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: []
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'export.json'),
+        JSON.stringify(personalExport)
+      )
+      await fs.writeFile(
+        path.join(workDir, 'export.json'),
+        JSON.stringify(workExport)
+      )
+
+      // Filter by Personal account
+      const personalConvs = await listConversations(vaultDir, 'Personal')
+      expect(personalConvs).toHaveLength(1)
+      expect(personalConvs[0].account).toBe('Personal')
+
+      // Filter by Work account
+      const workConvs = await listConversations(vaultDir, 'Work')
+      expect(workConvs).toHaveLength(1)
+      expect(workConvs[0].account).toBe('Work')
+
+      // No filter - get all
+      const allConvs = await listConversations(vaultDir)
+      expect(allConvs).toHaveLength(2)
+    })
+
+    it('searchConversations includes account field', async () => {
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      await fs.mkdir(personalDir, { recursive: true })
+
+      const exportData = [
+        {
+          uuid: 'conv-1',
+          name: 'Searchable Conversation',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-1',
+              sender: 'human' as const,
+              text: 'Find me',
+              created_at: '2026-03-15T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'export.json'),
+        JSON.stringify(exportData)
+      )
+
+      const results = await searchConversations(vaultDir, 'Find me')
+
+      expect(results).toHaveLength(1)
+      expect(results[0].account).toBe('Personal')
+    })
+
+    it('searchConversations filters by account parameter', async () => {
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      const workDir = path.join(chatExportsDir, 'Work')
+      await fs.mkdir(personalDir, { recursive: true })
+      await fs.mkdir(workDir, { recursive: true })
+
+      const personalExport = [
+        {
+          uuid: 'conv-personal',
+          name: 'Personal Search',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-1',
+              sender: 'human' as const,
+              text: 'test keyword',
+              created_at: '2026-03-15T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      const workExport = [
+        {
+          uuid: 'conv-work',
+          name: 'Work Search',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-2',
+              sender: 'human' as const,
+              text: 'test keyword',
+              created_at: '2026-03-15T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'export.json'),
+        JSON.stringify(personalExport)
+      )
+      await fs.writeFile(
+        path.join(workDir, 'export.json'),
+        JSON.stringify(workExport)
+      )
+
+      // Search with Personal filter
+      const personalResults = await searchConversations(vaultDir, 'test keyword', 'Personal')
+      expect(personalResults).toHaveLength(1)
+      expect(personalResults[0].account).toBe('Personal')
+
+      // Search with Work filter
+      const workResults = await searchConversations(vaultDir, 'test keyword', 'Work')
+      expect(workResults).toHaveLength(1)
+      expect(workResults[0].account).toBe('Work')
+
+      // Search without filter
+      const allResults = await searchConversations(vaultDir, 'test keyword')
+      expect(allResults).toHaveLength(2)
+    })
+
+    it('getConversation includes account field', async () => {
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      await fs.mkdir(personalDir, { recursive: true })
+
+      const exportData = [
+        {
+          uuid: 'conv-detail',
+          name: 'Detail Test',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: [
+            {
+              uuid: 'msg-1',
+              sender: 'human' as const,
+              text: 'Test',
+              created_at: '2026-03-15T10:00:00Z'
+            }
+          ]
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'export.json'),
+        JSON.stringify(exportData)
+      )
+
+      const conversation = await getConversation(vaultDir, 'conv-detail')
+
+      expect(conversation).not.toBeNull()
+      expect(conversation?.account).toBe('Personal')
+    })
+
+    it('does not recurse more than one level deep', async () => {
+      // Create nested directories: Personal/Nested/
+      const personalDir = path.join(chatExportsDir, 'Personal')
+      const nestedDir = path.join(personalDir, 'Nested')
+      await fs.mkdir(nestedDir, { recursive: true })
+
+      // Put export in nested dir (should NOT be found)
+      const nestedExport = [
+        {
+          uuid: 'conv-nested',
+          name: 'Should Not Be Found',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: []
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(nestedDir, 'export.json'),
+        JSON.stringify(nestedExport)
+      )
+
+      // Also put a valid export in Personal/ (should be found)
+      const validExport = [
+        {
+          uuid: 'conv-valid',
+          name: 'Should Be Found',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: []
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(personalDir, 'valid-export.json'),
+        JSON.stringify(validExport)
+      )
+
+      const conversations = await listConversations(vaultDir)
+
+      // Should only find the valid one, not the nested one
+      expect(conversations).toHaveLength(1)
+      expect(conversations[0].uuid).toBe('conv-valid')
+    })
+
+    it('rejects path traversal in subdirectory names', async () => {
+      // Try to create a malicious subdirectory that attempts path traversal
+      const maliciousDir = path.join(chatExportsDir, '..', 'evil')
+      await fs.mkdir(maliciousDir, { recursive: true })
+
+      const maliciousExport = [
+        {
+          uuid: 'conv-evil',
+          name: 'Evil Conversation',
+          created_at: '2026-03-15T10:00:00Z',
+          updated_at: '2026-03-15T11:00:00Z',
+          chat_messages: []
+        }
+      ]
+
+      await fs.writeFile(
+        path.join(maliciousDir, 'evil-export.json'),
+        JSON.stringify(maliciousExport)
+      )
+
+      // Should not find the malicious file (path validation should reject it)
+      const conversations = await listConversations(vaultDir)
+      expect(conversations).toHaveLength(0)
     })
   })
 })

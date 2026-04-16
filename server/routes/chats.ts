@@ -11,15 +11,17 @@ config()
 
 const router = Router()
 
-// GET /api/chats - list all conversations
-router.get('/', async (_req, res) => {
+// GET /api/chats - list all conversations (optional ?account= filter)
+router.get('/', async (req, res) => {
   const { VAULT_DIR } = process.env
   if (!VAULT_DIR) {
     return res.status(500).json({ error: 'VAULT_DIR not configured' })
   }
 
+  const account = req.query.account as string | undefined
+
   try {
-    const conversations = await listConversations(VAULT_DIR)
+    const conversations = await listConversations(VAULT_DIR, account)
     return res.json(conversations)
   } catch (err) {
     console.error('Failed to list conversations:', err)
@@ -27,7 +29,7 @@ router.get('/', async (_req, res) => {
   }
 })
 
-// GET /api/chats/search?q=... - search conversations
+// GET /api/chats/search?q=...&account=... - search conversations (optional account filter)
 router.get('/search', async (req, res) => {
   const { VAULT_DIR } = process.env
   if (!VAULT_DIR) {
@@ -35,12 +37,14 @@ router.get('/search', async (req, res) => {
   }
 
   const query = req.query.q as string
+  const account = req.query.account as string | undefined
+
   if (!query) {
     return res.status(400).json({ error: 'Query parameter "q" is required' })
   }
 
   try {
-    const results = await searchConversations(VAULT_DIR, query)
+    const results = await searchConversations(VAULT_DIR, query, account)
     return res.json(results)
   } catch (err) {
     console.error('Failed to search conversations:', err)
