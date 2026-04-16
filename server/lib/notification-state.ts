@@ -5,6 +5,7 @@ export interface NotificationState {
   lastDeadlineNotify: Record<string, string>  // deadlineId → ISO date last notified
   lastStaleNotify: Record<string, string>     // projectName → ISO date last notified
   lastDigestDate: string                       // ISO date of last digest (YYYY-MM-DD or "")
+  lastGapNotification: string                  // ISO date of last gap notification (YYYY-MM-DD or "")
 }
 
 function emptyState(): NotificationState {
@@ -12,6 +13,7 @@ function emptyState(): NotificationState {
     lastDeadlineNotify: {},
     lastStaleNotify: {},
     lastDigestDate: '',
+    lastGapNotification: '',
   }
 }
 
@@ -28,6 +30,7 @@ export async function loadNotificationState(vaultDir: string): Promise<Notificat
       lastDeadlineNotify: parsed.lastDeadlineNotify ?? {},
       lastStaleNotify: parsed.lastStaleNotify ?? {},
       lastDigestDate: parsed.lastDigestDate ?? '',
+      lastGapNotification: parsed.lastGapNotification ?? '',
     }
   } catch {
     // File missing or invalid — first run

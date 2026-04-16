@@ -7,9 +7,12 @@ export function WikiPanel() {
     pages,
     loading,
     error,
+    gaps,
+    gapsLoading,
     query,
     lint,
     ingest,
+    analyzeGaps,
   } = useWiki()
 
   const [queryInput, setQueryInput] = useState('')
@@ -23,6 +26,9 @@ export function WikiPanel() {
   const [ingestPath, setIngestPath] = useState('')
   const [ingestStatus, setIngestStatus] = useState<string | null>(null)
   const [ingestLoading, setIngestLoading] = useState(false)
+
+  const [gapsStatus, setGapsStatus] = useState<string | null>(null)
+  const [addingToInbox, setAddingToInbox] = useState<string | null>(null)
 
   // Show empty state when wiki doesn't exist
   if (!loading && !wikiExists) {
@@ -108,6 +114,46 @@ export function WikiPanel() {
 
     setIngestLoading(false)
     setTimeout(() => setIngestStatus(null), 5000)
+  }
+
+  async function handleAnalyzeGaps() {
+    setGapsStatus(null)
+    const result = await analyzeGaps()
+
+    if (result.error) {
+      setGapsStatus(`❌ ${result.error}`)
+    } else {
+      setGapsStatus(`✅ Found ${result.gaps.length} gaps`)
+    }
+
+    setTimeout(() => setGapsStatus(null), 5000)
+  }
+
+  async function handleAddToInbox(topic: string) {
+    setAddingToInbox(topic)
+    try {
+      const response = await fetch('http://localhost:3001/api/capture', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: `Learn: ${topic}` }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add to inbox')
+      }
+
+      // Brief toast feedback - we can reuse the gapsStatus for this
+      setGapsStatus(`✅ Added "${topic}" to inbox`)
+      setTimeout(() => setGapsStatus(null), 2000)
+    } catch (err) {
+      console.error('Failed to add to inbox:', err)
+      setGapsStatus('❌ Failed to add to inbox')
+      setTimeout(() => setGapsStatus(null), 3000)
+    } finally {
+      setAddingToInbox(null)
+    }
   }
 
   const getHealthBadgeClasses = (score: number) => {
@@ -221,6 +267,82 @@ export function WikiPanel() {
                 <span className={`ml-2 px-2 py-0.5 text-xs rounded ${getStatusBadgeClasses(page.status)}`}>
                   {page.status === 'seedling' ? '🌱' : page.status === 'developing' ? '🌿' : '🌳'}
                 </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Gap List section */}
+      <div className="border-t border-gray-200 pt-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-gray-700">📚 Learning Gaps</h3>
+          <button
+            onClick={handleAnalyzeGaps}
+            disabled={gapsLoading}
+            className="px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 disabled:opacity-50"
+          >
+            {gapsLoading ? 'Analyzing...' : 'Analyze'}
+          </button>
+        </div>
+
+        {gapsLoading && (
+          <p className="text-xs text-gray-500 mb-3">Analyzing... (this may take a moment)</p>
+        )}
+
+        {gapsStatus && (
+          <p className="text-xs text-gray-700 mb-3">{gapsStatus}</p>
+        )}
+
+        {!gaps && !gapsLoading && (
+          <p className="text-sm text-gray-600 py-4 text-center">
+            Click Analyze to find gaps
+          </p>
+        )}
+
+        {gaps && gaps.length === 0 && !gapsLoading && (
+          <p className="text-sm text-gray-600 py-4 text-center">
+            No knowledge gaps found — your wiki is complete! 🎉
+          </p>
+        )}
+
+        {gaps && gaps.length > 0 && (
+          <div className="space-y-4 max-h-[400px] overflow-y-auto">
+            {gaps.map((gap, idx) => (
+              <div key={idx} className="border border-gray-200 rounded-md p-3">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500">
+                      Priority {gap.priority}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">{gap.topic}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">{gap.reason}</p>
+
+                {gap.resources && gap.resources.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {gap.resources.map((resource, rIdx) => (
+                      <a
+                        key={rIdx}
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        {resource.type === 'video' ? '▶' : '📄'} {resource.title}
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => handleAddToInbox(gap.topic)}
+                  disabled={addingToInbox === gap.topic}
+                  className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {addingToInbox === gap.topic ? 'Adding...' : '+ Add to Inbox'}
+                </button>
               </div>
             ))}
           </div>

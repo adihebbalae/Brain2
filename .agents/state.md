@@ -4,9 +4,9 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 In Progress 🚧 (P0 + P1 complete, TASK-016 complete)
-- **Current Task**: Ready for TASK-017 (Wiki query + lint + frontend panel)
-- **Blocked On**: None
+- **Phase**: P2 partial + P3 planned 🚧 (P0 + P1 + TASK-015/016 complete)
+- **Current Task**: TASK-017 blocked (failed 3 attempts) — needs medic/consultant review
+- **Blocked On**: TASK-017 failed after 3 attempts — investigate before resuming P2 chain
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
   - TASK-016 — LLM Wiki core with Ollama ingest pipeline (23 new tests, 299 total passing)
@@ -56,9 +56,45 @@
 | TASK-014 | Chat export viewer | done | P1 |
 | TASK-015 | Multi-vault support (VAULT_DIRS array) | done | P2 |
 | TASK-016 | LLM Wiki core: schema, ingest, index, log | done | P2 |
-| TASK-017 | LLM Wiki query + lint + dashboard panel | pending | P2 |
-| TASK-018 | Self-learning: gap analysis + resource recommendations | pending | P2 |
+| TASK-017 | LLM Wiki query + lint + dashboard panel | **blocked** | P2 |
+| TASK-018 | Self-learning: gap analysis + resource recommendations | in_progress | P2 |
 | TASK-019 | Multi-account Claude chat sync | pending | P2 |
+| TASK-020 | Google Calendar OAuth2 integration | pending | P3 |
+| TASK-021 | YouTube watch history (Google Takeout) | pending | P3 |
+| TASK-022 | Article/bookmark reading tracker | pending | P3 |
+| TASK-023 | Full RAG chat interface over all data | pending | P3 |
+| TASK-024 | Knowledge graph visualizer (D3.js wikilinks) | pending | P3 |
+| TASK-025 | Weekly review generator + daily context | pending | P3 |
+| TASK-026 | Git activity log across all projects | pending | P3 |
+| TASK-027 | Obsidian Canvas reader | pending | P3 |
+| TASK-028 | Spaced repetition note resurfacing | pending | P3 |
+| TASK-029 | Browser web clipper Chrome extension | pending | P3 |
+
+## P3 Architecture Decisions
+- **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
+- **YouTube history**: Local file parse only (no API key). User drops Google Takeout `watch-history.json` at `YOUTUBE_HISTORY_PATH`. Setup guide written to vault.
+- **Bookmarks**: Chrome `Bookmarks` JSON (flat tree walk) + `VAULT_DIR/Resources/ReadingLog.md` markdown. Saved links only — no browser history.
+- **RAG chat**: Keyword-overlap scoring (no vector DB). Top-20 chunks → Ollama context → stream SSE. Depends on TASK-016.
+- **Knowledge graph**: D3.js force layout. Nodes colored by PARA folder. Click → `obsidian://` deep link.
+- **Weekly review**: Triggered on Sunday startup or POST endpoint. Uses git log + todos + reading list + calendar. Saves to vault DailyNotes.
+- **Git activity**: `git log` across all `.git` dirs in PROJECTS_DIR. 90-day CSS grid heatmap.
+- **Canvas reader**: JSON Canvas spec (.canvas files). Read+write (add-node for MCP use).
+- **Spaced repetition**: `VAULT_DIR/Resources/review-log.json` tracks last-reviewed per note. 30/60/90d thresholds.
+- **Web clipper**: Chrome Manifest V3 extension in `src/extension/`. Developer-mode install only.
+
+## P3 Dependency Order
+```
+TASK-020 (Calendar) → standalone
+TASK-021 (YouTube) → standalone
+TASK-022 (Bookmarks) → standalone
+TASK-024 (Knowledge graph) → standalone
+TASK-026 (Git activity) → standalone
+TASK-027 (Canvas reader) → standalone
+TASK-028 (Spaced rep) → standalone
+TASK-029 (Web clipper) → depends on TASK-006 (done)
+TASK-025 (Weekly review) → depends on 020 + 021 + 022 + 026
+TASK-023 (Full RAG) → depends on TASK-016 (done)
+```
 
 ## P2 Architecture Decisions
 - **LLM Wiki location**: `VAULT_DIR/Wiki/` — separate from raw notes (immutable)

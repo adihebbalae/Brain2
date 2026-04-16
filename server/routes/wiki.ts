@@ -13,6 +13,7 @@ import {
   ensureWikiExists,
   queryWiki,
   lintWiki,
+  analyzeGaps,
 } from '../lib/wiki-manager.js';
 
 const router = Router();
@@ -199,6 +200,42 @@ router.post('/lint', async (_req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/wiki/gaps
+ * Analyze knowledge gaps and fetch resource recommendations
+ * Returns: GapAnalysisResult (always HTTP 200, errors in body)
+ */
+router.post('/gaps', async (_req, res) => {
+  try {
+    const primaryVault = getPrimaryVaultDir();
+    const wikiDir = path.join(primaryVault, 'Wiki');
+
+    // Check if Wiki directory exists
+    try {
+      await fs.access(wikiDir);
+    } catch {
+      // Wiki doesn't exist yet
+      return res.json({
+        gaps: [],
+        generatedAt: new Date().toISOString(),
+        error: 'Wiki not initialized',
+      });
+    }
+
+    // Analyze gaps
+    const result = await analyzeGaps(wikiDir, PROJECTS_DIR);
+
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.json({
+      gaps: [],
+      generatedAt: new Date().toISOString(),
+      error: message,
+    });
   }
 });
 

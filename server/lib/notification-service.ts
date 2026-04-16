@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { readDeadlines } from './deadline-reader.js'
 import { scanProjects } from './scanner.js'
 import { extractTodos } from './todo-extractor.js'
@@ -111,6 +112,43 @@ async function runChecks(): Promise<void> {
     }
   } catch (error) {
     console.error('[notification-service] Daily digest failed:', error)
+  }
+
+  // --- 4. Weekly gap notification ---
+  try {
+    if (!wasNotifiedWithinDays(state.lastGapNotification, 7)) {
+      // Import analyzeGaps dynamically
+      const { analyzeGaps } = await import('./wiki-manager.js')
+      const wikiDir = path.join(vaultDir, 'Wiki')
+
+      // Check if wiki exists
+      const { promises: fsPromises } = await import('node:fs')
+      try {
+        await fsPromises.access(wikiDir)
+
+        // Analyze gaps
+        const gapResult = await analyzeGaps(wikiDir, projectsDir)
+
+        if (!gapResult.error && gapResult.gaps.length > 0) {
+          const top3 = gapResult.gaps.slice(0, 3)
+          let message = '📚 Weekly Learning Gaps\n\n'
+          for (const gap of top3) {
+            message += `• ${gap.topic} (${gap.reason})\n`
+          }
+
+          await sendNotification(topic, message, {
+            priority: 'default',
+            tags: ['books'],
+          })
+          state.lastGapNotification = todayString()
+          stateChanged = true
+        }
+      } catch {
+        // Wiki doesn't exist - skip gap notification
+      }
+    }
+  } catch (error) {
+    console.error('[notification-service] Weekly gap notification failed:', error)
   }
 
   if (stateChanged) {

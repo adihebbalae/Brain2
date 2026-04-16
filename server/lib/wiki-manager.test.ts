@@ -14,6 +14,7 @@ import {
   appendLog,
   queryWiki,
   lintWiki,
+  analyzeGaps,
 } from './wiki-manager';
 
 // Mock ollama-client
@@ -27,8 +28,14 @@ vi.mock('./vault-config.js', () => ({
   getPrimaryVaultDir: vi.fn(),
 }));
 
+// Mock scanner
+vi.mock('./scanner.js', () => ({
+  scanProjects: vi.fn(),
+}));
+
 import { getOllamaStatus } from './ollama-client';
 import { isPathInVault } from './vault-config';
+import { scanProjects } from './scanner';
 
 describe('wiki-manager', () => {
   let testDir: string;
@@ -928,6 +935,274 @@ Content.
       const logContent = await fs.readFile(logPath, 'utf-8');
       expect(logContent).toContain('lint');
       expect(logContent).toContain('score:');
+    });
+  });
+
+  describe('analyzeGaps', () => {
+    let projectsDir: string;
+
+    beforeEach(async () => {
+      projectsDir = path.join(testDir, 'projects');
+      await fs.mkdir(projectsDir, { recursive: true });
+
+      // Create wiki directory and index
+      await fs.mkdir(wikiDir, { recursive: true });
+      await fs.writeFile(path.join(wikiDir, 'index.md'), '# Wiki Index\n\n', 'utf-8');
+      await fs.writeFile(path.join(wikiDir, 'log.md'), '# Wiki Log\n\n', 'utf-8');
+
+      // Reset mocks
+      vi.clearAllMocks();
+    });
+
+    it('should return error when wiki not initialized', async () => {
+      const emptyWikiDir = path.join(testDir, 'empty');
+      const result = await analyzeGaps(emptyWikiDir, projectsDir);
+
+      expect(result.error).toBe('Wiki not initialized');
+      expect(result.gaps).toEqual([]);
+    });
+
+    it('should detect gaps from lint results', async () => {
+      // Create a page that references a missing page
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+This references [[MissingTopic]] which doesn't exist.
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      // Mock empty projects
+      vi.mocked(scanProjects).mockResolvedValue([]);
+
+      // Mock fetch to simulate DuckDuckGo unavailable
+      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+      const result = await analyzeGaps(wikiDir, projectsDir);
+
+      expect(result.error).toBeUndefined();
+      expect(result.gaps.length).toBeGreaterThan(0);
+      expect(result.gaps[0].topic).toBe('MissingTopic');
+      expect(result.gaps[0].resources).toEqual([]); // DuckDuckGo failed gracefully
+    });
+
+    it('should detect gaps from project state files with [[wikilinks]]', async () => {
+      // Create a project with wikilinks in state file
+      const project1Dir = path.join(projectsDir, 'project1');
+      await fs.mkdir(project1Dir, { recursive: true });
+
+      const stateContent = `---
+status: active
+---
+
+# Project 1
+
+Working on [[SomeTopic]] and [[AnotherTopic]].
+`;
+      const stateFile = path.join(project1Dir, 'state.md');
+      await fs.writeFile(stateFile, stateContent, 'utf-8');
+
+      // Mock scanner to return this project
+      vi.mocked(scanProjects).mockResolvedValue([
+        {
+          name: 'project1',
+          path: project1Dir,
+          stateFile,
+          status: 'in_progress',
+          lastModified: new Date().toISOString(),
+          summary: 'Test project',
+          nextSteps: [],
+          staleDays: 0,
+        },
+      ]);
+
+      // Mock fetch for DuckDuckGo
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          RelatedTopics: [
+            {
+              FirstURL: 'https://example.com/article1',
+              Text: 'Test article about the topic',
+            },
+          ],
+        }),
+      });
+
+      const result = await analyzeGaps(wikiDir, projectsDir);
+
+      expect(result.error).toBeUndefined();
+      expect(result.gaps.length).toBeGreaterThan(0);
+
+      const topics = result.gaps.map((g) => g.topic);
+      expect(topics).toContain('SomeTopic');
+      expect(topics).toContain('AnotherTopic');
+
+      // Check that resources were fetched for top gaps
+      const topGap = result.gaps[0];
+      if (topGap.resources.length > 0) {
+        expect(topGap.resources[0].url).toBe('https://example.com/article1');
+        expect(topGap.resources[0].type).toBe('article');
+      }
+    });
+
+    it('should rank gaps by reference count', async () => {
+      // Create multiple projects referencing the same topics with different frequencies
+      const project1Dir = path.join(projectsDir, 'project1');
+      const project2Dir = path.join(projectsDir, 'project2');
+      await fs.mkdir(project1Dir, { recursive: true });
+      await fs.mkdir(project2Dir, { recursive: true });
+
+      // Project 1 references TopicA 3 times
+      const state1 = `
+# Project 1
+[[TopicA]] and [[TopicA]] and [[TopicA]]
+[[TopicB]] once
+`;
+      const stateFile1 = path.join(project1Dir, 'state.md');
+      await fs.writeFile(stateFile1, state1, 'utf-8');
+
+      // Project 2 references TopicA once more
+      const state2 = `
+# Project 2
+[[TopicA]] again
+`;
+      const stateFile2 = path.join(project2Dir, 'state.md');
+      await fs.writeFile(stateFile2, state2, 'utf-8');
+
+      vi.mocked(scanProjects).mockResolvedValue([
+        {
+          name: 'project1',
+          path: project1Dir,
+          stateFile: stateFile1,
+          status: 'in_progress',
+          lastModified: new Date().toISOString(),
+          summary: '',
+          nextSteps: [],
+          staleDays: 0,
+        },
+        {
+          name: 'project2',
+          path: project2Dir,
+          stateFile: stateFile2,
+          status: 'in_progress',
+          lastModified: new Date().toISOString(),
+          summary: '',
+          nextSteps: [],
+          staleDays: 0,
+        },
+      ]);
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ RelatedTopics: [] }),
+      });
+
+      const result = await analyzeGaps(wikiDir, projectsDir);
+
+      expect(result.gaps.length).toBeGreaterThan(0);
+
+      // TopicA should be ranked higher (priority 1) because it's referenced 4 times
+      const topicA = result.gaps.find((g) => g.topic === 'TopicA');
+      const topicB = result.gaps.find((g) => g.topic === 'TopicB');
+
+      expect(topicA).toBeDefined();
+      expect(topicB).toBeDefined();
+      expect(topicA!.priority).toBeLessThanOrEqual(topicB!.priority);
+      expect(topicA!.reason).toContain('4x');
+    });
+
+    it('should write gaps.md with correct format', async () => {
+      // Create a simple gap
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+References [[TestGap]].
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      vi.mocked(scanProjects).mockResolvedValue([]);
+      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+      await analyzeGaps(wikiDir, projectsDir);
+
+      // Check gaps.md was created
+      const gapsPath = path.join(wikiDir, 'gaps.md');
+      const gapsContent = await fs.readFile(gapsPath, 'utf-8');
+
+      expect(gapsContent).toContain('# Knowledge Gaps');
+      expect(gapsContent).toContain('Generated by Cortex on');
+      expect(gapsContent).toContain('## Priority Gaps');
+      expect(gapsContent).toContain('TestGap');
+    });
+
+    it('should handle DuckDuckGo unavailable gracefully', async () => {
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+References [[Topic1]].
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      vi.mocked(scanProjects).mockResolvedValue([]);
+
+      // Mock fetch to fail (DuckDuckGo unavailable)
+      global.fetch = vi.fn().mockRejectedValue(new Error('Network timeout'));
+
+      const result = await analyzeGaps(wikiDir, projectsDir);
+
+      // Should not throw, should return empty resources
+      expect(result.error).toBeUndefined();
+      expect(result.gaps[0].resources).toEqual([]);
+    });
+
+    it('should append to log after gap analysis', async () => {
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+References [[Topic1]] and [[Topic2]].
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      vi.mocked(scanProjects).mockResolvedValue([]);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ RelatedTopics: [] }),
+      });
+
+      await analyzeGaps(wikiDir, projectsDir);
+
+      const logPath = path.join(wikiDir, 'log.md');
+      const logContent = await fs.readFile(logPath, 'utf-8');
+      expect(logContent).toContain('gaps');
+      expect(logContent).toContain('Found');
     });
   });
 });

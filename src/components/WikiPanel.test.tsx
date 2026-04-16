@@ -17,9 +17,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -53,9 +56,12 @@ describe('WikiPanel', () => {
       ],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -82,9 +88,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: mockLint,
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -115,9 +124,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: mockLint,
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -147,9 +159,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: mockLint,
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -176,9 +191,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: mockQuery,
       lint: vi.fn(),
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -204,9 +222,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: mockQuery,
       lint: vi.fn(),
       ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -237,9 +258,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: vi.fn(),
       ingest: mockIngest,
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -269,9 +293,12 @@ describe('WikiPanel', () => {
       pages: [],
       loading: false,
       error: null,
+      gaps: null,
+      gapsLoading: false,
       query: vi.fn(),
       lint: vi.fn(),
       ingest: mockIngest,
+      analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
 
@@ -286,5 +313,203 @@ describe('WikiPanel', () => {
     await waitFor(() => {
       expect(screen.getByText(/Source file not found/)).toBeTruthy()
     })
+  })
+
+  it('should show empty state for gaps before analysis', () => {
+    vi.mocked(useWikiHook.useWiki).mockReturnValue({
+      wikiExists: true,
+      pages: [],
+      loading: false,
+      error: null,
+      gaps: null,
+      gapsLoading: false,
+      query: vi.fn(),
+      lint: vi.fn(),
+      ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
+      refetch: vi.fn(),
+    })
+
+    render(<WikiPanel />)
+
+    expect(screen.getByText('📚 Learning Gaps')).toBeTruthy()
+    expect(screen.getByText('Click Analyze to find gaps')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^analyze$/i })).toBeTruthy()
+  })
+
+  it('should render gaps with resources after analysis', () => {
+    vi.mocked(useWikiHook.useWiki).mockReturnValue({
+      wikiExists: true,
+      pages: [],
+      loading: false,
+      error: null,
+      gaps: [
+        {
+          topic: 'React Hooks',
+          reason: 'Referenced 4x in active projects but no wiki page',
+          priority: 1,
+          resources: [
+            {
+              title: 'React Hooks Documentation',
+              url: 'https://react.dev/reference/react',
+              type: 'article' as const,
+            },
+            {
+              title: 'React Hooks Tutorial',
+              url: 'https://youtube.com/watch?v=abc123',
+              type: 'video' as const,
+            },
+          ],
+        },
+        {
+          topic: 'TypeScript',
+          reason: 'Referenced 2x in active projects but no wiki page',
+          priority: 2,
+          resources: [],
+        },
+      ],
+      gapsLoading: false,
+      query: vi.fn(),
+      lint: vi.fn(),
+      ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
+      refetch: vi.fn(),
+    })
+
+    render(<WikiPanel />)
+
+    // Check gap 1
+    expect(screen.getByText('React Hooks')).toBeTruthy()
+    expect(screen.getByText('Referenced 4x in active projects but no wiki page')).toBeTruthy()
+    expect(screen.getByText('Priority 1')).toBeTruthy()
+    expect(screen.getByText(/React Hooks Documentation/)).toBeTruthy()
+    expect(screen.getByText(/React Hooks Tutorial/)).toBeTruthy()
+
+    // Check gap 2
+    expect(screen.getByText('TypeScript')).toBeTruthy()
+    expect(screen.getByText('Referenced 2x in active projects but no wiki page')).toBeTruthy()
+    expect(screen.getByText('Priority 2')).toBeTruthy()
+
+    // Check for Add to Inbox buttons (one per gap)
+    const addButtons = screen.getAllByRole('button', { name: /add to inbox/i })
+    expect(addButtons).toHaveLength(2)
+  })
+
+  it('should call analyzeGaps when Analyze button is clicked', async () => {
+    const mockAnalyzeGaps = vi.fn().mockResolvedValue({
+      gaps: [],
+      generatedAt: new Date().toISOString(),
+    })
+
+    vi.mocked(useWikiHook.useWiki).mockReturnValue({
+      wikiExists: true,
+      pages: [],
+      loading: false,
+      error: null,
+      gaps: null,
+      gapsLoading: false,
+      query: vi.fn(),
+      lint: vi.fn(),
+      ingest: vi.fn(),
+      analyzeGaps: mockAnalyzeGaps,
+      refetch: vi.fn(),
+    })
+
+    render(<WikiPanel />)
+
+    const analyzeButton = screen.getByRole('button', { name: /^analyze$/i })
+    fireEvent.click(analyzeButton)
+
+    await waitFor(() => {
+      expect(mockAnalyzeGaps).toHaveBeenCalled()
+    })
+  })
+
+  it('should call POST /api/capture when Add to Inbox is clicked', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    })
+    global.fetch = mockFetch
+
+    vi.mocked(useWikiHook.useWiki).mockReturnValue({
+      wikiExists: true,
+      pages: [],
+      loading: false,
+      error: null,
+      gaps: [
+        {
+          topic: 'React Hooks',
+          reason: 'Referenced 4x in active projects but no wiki page',
+          priority: 1,
+          resources: [],
+        },
+      ],
+      gapsLoading: false,
+      query: vi.fn(),
+      lint: vi.fn(),
+      ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
+      refetch: vi.fn(),
+    })
+
+    render(<WikiPanel />)
+
+    const addButton = screen.getByRole('button', { name: /add to inbox/i })
+    fireEvent.click(addButton)
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:3001/api/capture',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: 'Learn: React Hooks' }),
+        })
+      )
+    })
+  })
+
+  it('should show loading message while analyzing gaps', () => {
+    vi.mocked(useWikiHook.useWiki).mockReturnValue({
+      wikiExists: true,
+      pages: [],
+      loading: false,
+      error: null,
+      gaps: null,
+      gapsLoading: true,
+      query: vi.fn(),
+      lint: vi.fn(),
+      ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
+      refetch: vi.fn(),
+    })
+
+    render(<WikiPanel />)
+
+    expect(screen.getByText('Analyzing...')).toBeTruthy()
+    expect(screen.getByText('Analyzing... (this may take a moment)')).toBeTruthy()
+  })
+
+  it('should show empty result message when no gaps found', () => {
+    vi.mocked(useWikiHook.useWiki).mockReturnValue({
+      wikiExists: true,
+      pages: [],
+      loading: false,
+      error: null,
+      gaps: [],
+      gapsLoading: false,
+      query: vi.fn(),
+      lint: vi.fn(),
+      ingest: vi.fn(),
+      analyzeGaps: vi.fn(),
+      refetch: vi.fn(),
+    })
+
+    render(<WikiPanel />)
+
+    expect(screen.getByText(/No knowledge gaps found — your wiki is complete/)).toBeTruthy()
   })
 })

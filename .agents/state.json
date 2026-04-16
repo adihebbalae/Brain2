@@ -48,7 +48,7 @@
                                              "Google Calendar deferred to P1 with guided OAuth setup",
                                              "Create Obsidian vault from scratch with PARA structure"
                                          ],
-                    "blocked_on":  null
+                    "blocked_on":  "TASK-017 failed after 3 attempts - needs medic or consultant review before resuming P2"
                 },
     "project_brief":  "Cortex — local-only personal command center for Adi. Aggregates all projects from C:\\Users\\boomb\\Documents\\_Projects (scans state files), extracts TODOs from all markdown, shows deadlines from deadlines.md with urgency timeline, and provides quick capture to inbox.md. React+Vite+Tailwind frontend on :5173, Express.js TS backend on :3001. No database — all filesystem. P1: Google Calendar sync, Claude API summaries, chat export viewer.",
     "tasks":  {
@@ -376,7 +376,7 @@
                   "TASK-017":  {
                                    "title":  "LLM Wiki query + lint + dashboard panel",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "blocked",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-016"
@@ -396,7 +396,7 @@
                   "TASK-018":  {
                                    "title":  "Self-learning: gap analysis + resource recommendations",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "depends_on":  [
                                                       "TASK-017"
@@ -433,10 +433,201 @@
                                                                "All 23 existing TASK-014 tests still pass",
                                                                "New tests for recursive scan, account derivation, and filter logic"
                                                            ]
+                               },
+                  "TASK-026":  {
+                                   "title":  "Git activity log across all projects",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "For each subdirectory in PROJECTS_DIR that contains a .git folder, run: git -C \u003cdir\u003e log --since=90.days --format=%ai|%s. Parse output to extract date and subject. Aggregate to: {date: commit_count} map for heatmap, plus per-project last-commit info. Expose GET /api/git-activity returning {heatmap:{[date:string]:number}, projects:[{name,lastCommit,commitCount}]}. Add GitActivityPanel: 90-day contribution heatmap using CSS grid (no d3), each cell colored by commit count (0=bg-gray-800, 1-2=bg-green-900, 3-5=bg-green-700, 6+=bg-green-500). Hover shows date and count. Below heatmap: per-project row with last commit message.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/git-activity returns heatmap data",
+                                                               "Only scans dirs with .git folder",
+                                                               "Heatmap CSS grid renders correctly",
+                                                               "Per-project last commit shown",
+                                                               "Tests for git log parser"
+                                                           ]
+                               },
+                  "TASK-027":  {
+                                   "title":  "Obsidian Canvas reader",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "Scan VAULT_DIR recursively for *.canvas files (JSON Canvas spec: {nodes:[{id,type,text,x,y,width,height}], edges:[{id,fromNode,toNode}]}). For each canvas, extract node count, edge count, and first 3 node texts as preview. Expose GET /api/canvases returning array of {filename, nodeCounts, edgeCount, preview}. Add CanvasPanel to dashboard showing canvas cards. Each card: canvas name, N nodes, N edges, preview text snippets. Also expose POST /api/canvases/:filename/add-node accepting {text, color} to append a new node (write-back allowed — canvas files are in vault). This makes it usable as an MCP action from Claude.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/canvases returns list of canvas metadata",
+                                                               "JSON Canvas spec correctly parsed",
+                                                               "CanvasPanel renders canvas cards with preview",
+                                                               "POST add-node appends node to canvas file correctly",
+                                                               "Path traversal check on :filename param",
+                                                               "Tests for canvas parser and add-node"
+                                                           ]
+                               },
+                  "TASK-025":  {
+                                   "title":  "Weekly review generator + daily context",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+                                                      "TASK-020",
+                                                      "TASK-021",
+                                                      "TASK-022",
+                                                      "TASK-026"
+                                                  ],
+                                   "description":  "Two features in one: (1) Daily context: GET /api/daily-context returns today\u0027s deadlines (from existing /api/deadlines), calendar events (from TASK-020 if available), 3 random vault notes for resurfacing. DailyPanel renders this in a card on the dashboard homepage. (2) Weekly review: POST /api/weekly-review (or auto-triggered on Sunday startup). Gathers data: git commits this week (TASK-026), todos closed, articles saved (TASK-022), deadlines next week. Calls Ollama to generate a 200-word markdown summary. Saves to VAULT_DIR/DailyNotes/YYYY-WXX-weekly-review.md. Sends ntfy notification with summary link.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/daily-context returns deadlines + events + random notes",
+                                                               "DailyPanel renders on dashboard",
+                                                               "POST /api/weekly-review generates Ollama summary",
+                                                               "Weekly review saved to vault correctly",
+                                                               "ntfy notification sent with weekly review",
+                                                               "Tests for daily context assembly"
+                                                           ]
+                               },
+                  "TASK-022":  {
+                                   "title":  "Article/bookmark reading tracker",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "Parse two sources and merge. (1) Chrome bookmarks: read AppData\\Local\\Google\\Chrome\\User Data\\Default\\Bookmarks JSON file (tree structure with roots.bookmark_bar.children etc). Extract all bookmark nodes with name and url. (2) VAULT_DIR/Resources/ReadingLog.md: parse lines matching \u0027- [ ] date | [title](url)\u0027 and \u0027- [x] date | [title](url)\u0027. Merge and deduplicate by URL. Expose GET /api/reading?status=all|read|unread. Run Ollama nomic-embed-text-style topic grouping on titles (use keyword extraction since embedding would be overkill — just top 3 words from title). Add ReadingPanel with read/unread split and topic clusters. CHROME_BOOKMARKS_PATH defaults to the platform path, overridable via .env.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/reading returns merged bookmarks + reading log items",
+                                                               "Chrome bookmarks tree correctly flattened",
+                                                               "ReadingLog.md both [ ] and [x] states parsed",
+                                                               "Topic clusters shown in ReadingPanel",
+                                                               "Graceful if Chrome bookmarks file missing",
+                                                               "Tests for both parsers"
+                                                           ]
+                               },
+                  "TASK-028":  {
+                                   "title":  "Spaced repetition note resurfacing",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "Track review history in VAULT_DIR/Resources/review-log.json ({[filepath:string]: lastReviewedISO|null}). On startup, scan vault and add any new notes. GET /api/review-queue returns up to 10 notes with status: never_reviewed (null), overdue_30d, overdue_60d, overdue_90d. Notes are scored by: never reviewed first, then by how overdue they are. POST /api/review-log {filePath} marks as reviewed (updates review-log.json). Add ReviewPanel to dashboard: show top note from queue with title + first 100 chars. Buttons: \u0027Mark Reviewed\u0027 and \u0027Skip (reshuffle)\u0027. Random resurface button pulls random note regardless of queue.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/review-queue returns sorted overdue notes",
+                                                               "POST /api/review-log correctly updates review-log.json",
+                                                               "ReviewPanel renders with mark/skip buttons",
+                                                               "Path traversal check for filePath in POST body",
+                                                               "review-log.json initialized on first run",
+                                                               "Tests for overdue scoring logic"
+                                                           ]
+                               },
+                  "TASK-021":  {
+                                   "title":  "YouTube watch history (Google Takeout)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "Parse Google Takeout watch-history.json (path: YOUTUBE_HISTORY_PATH in .env). File is a JSON array with fields: title, titleUrl, subtitles (array with name=channel), time. Extract title, channel, watch timestamp. Group by month and deduplicate. Expose GET /api/youtube-history. Add MediaPanel component showing last 30 days of watches and top 5 channels. Also write VAULT_DIR/Resources/YouTube-Takeout-Setup.md guide explaining: takeout.google.com → select YouTube → deselect all → select watch-history → download → copy watch-history.json to the configured path.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/youtube-history returns parsed history grouped by month",
+                                                               "Top channels correctly extracted from subtitles field",
+                                                               "MediaPanel renders last 30 days of watches",
+                                                               "Setup guide written to VAULT_DIR/Resources/YouTube-Takeout-Setup.md",
+                                                               "Graceful empty state when YOUTUBE_HISTORY_PATH not set",
+                                                               "Tests for watch history parser"
+                                                           ]
+                               },
+                  "TASK-020":  {
+                                   "title":  "Google Calendar OAuth2 integration",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "OAuth2 read-only Google Calendar integration. Create Google Cloud project, implement OAuth2 flow (GET /api/calendar/auth + /api/calendar/callback), store tokens in data/calendar-tokens.json (gitignored). Expose GET /api/calendar returning today + next 7 days events. Add CalendarPanel component showing time blocks and free gaps. Detect free gaps when stale projects exist and show suggestion chip. New .env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI.",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/calendar returns events array",
+                                                               "OAuth2 flow works (auth → callback → token stored)",
+                                                               "CalendarPanel renders today\u0027s events and free gaps",
+                                                               "Free gap + stale project =\u003e suggestion chip shown",
+                                                               "data/calendar-tokens.json is gitignored",
+                                                               "Tests for calendar route with mocked Google API"
+                                                           ]
+                               },
+                  "TASK-029":  {
+                                   "title":  "Browser web clipper Chrome extension",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+                                                      "TASK-006"
+                                                  ],
+                                   "description":  "Build a Chrome extension (manifest v3) in src/extension/ directory. Files: manifest.json (name=Cortex Clipper, version=1.0.0, permissions=[activeTab], action={popup}), popup.html (shows current tab title + url pre-filled, optional note textarea, Clip button), popup.js (reads current tab via chrome.tabs.query, POSTs to http://localhost:3001/api/capture). POST body: {text: \u0027[title](url) - note\u0027, source: \u0027web-clipper\u0027, tags: [\u0027clipped\u0027]}. Icons: generate simple SVG icons at 16/48/128px using inline SVG data URIs in manifest. Include src/extension/README.md with developer mode install instructions. Add CORS allow for chrome-extension:// origin in server. No external API calls from extension.",
+                                   "acceptance_criteria":  [
+                                                               "src/extension/manifest.json valid manifest v3",
+                                                               "Popup shows current tab URL and title auto-filled",
+                                                               "POST to /api/capture succeeds from extension",
+                                                               "Server CORS allows chrome-extension:// origin",
+                                                               "README.md explains developer mode install",
+                                                               "No external network calls from extension"
+                                                           ]
+                               },
+                  "TASK-024":  {
+                                   "title":  "Knowledge graph visualizer (D3.js wikilinks)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "Parse all .md files in VAULT_DIR for [[wikilinks]] (regex: \\[\\[([^\\]|#]+)\\]\\]). Build nodes+edges. Nodes: each unique note filename (no extension), colored by PARA folder (Inbox=slate, Projects=blue, Areas=green, Resources=amber, Archive=gray, Wiki=purple). Edges: source→target pairs. Expose GET /api/knowledge-graph returning {nodes:[{id,label,folder,linkCount}], edges:[{source,target}]}. Add KnowledgeGraph component using D3.js (npm install d3 @types/d3). Force-directed layout, click node opens obsidian://open?vault=SecondBrain\u0026file=noteName. Slider for node limit (default 200).",
+                                   "acceptance_criteria":  [
+                                                               "GET /api/knowledge-graph returns nodes+edges",
+                                                               "Nodes colored by PARA folder correctly",
+                                                               "D3 force graph renders without crashing on large vaults",
+                                                               "Click node opens Obsidian deep link",
+                                                               "Slider limits rendered nodes",
+                                                               "Tests for wikilink parser"
+                                                           ]
+                               },
+                  "TASK-023":  {
+                                   "title":  "Full RAG chat interface over all data",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P3",
+                                   "depends_on":  [
+                                                      "TASK-016"
+                                                  ],
+                                   "description":  "Build conversational Ollama chat over all Cortex data. On each POST /api/chat/query: (1) keyword-extract the query (split, lowercase, filter stopwords), (2) search all data sources for relevant chunks — vault notes (scan markdown), projects state files, chat exports, wiki entries (TASK-016 output), reading list — score by keyword overlap, take top-20 chunks, (3) build context string from top chunks capped at 6000 chars, (4) call Ollama llama3.1:8b with context + question, (5) stream response as SSE. Add BrainChat component: full-panel chat UI with input box and streamed message display. Maintain session-only conversation history array (not persisted).",
+                                   "acceptance_criteria":  [
+                                                               "POST /api/chat/query returns SSE stream with Ollama response",
+                                                               "Context assembled from all data sources",
+                                                               "BrainChat component renders with streaming",
+                                                               "Session history maintained (reset on refresh is fine)",
+                                                               "Tests for context assembly and keyword scoring"
+                                                           ]
                                }
               },
     "active_task":  null,
-    "status":  "p2_planning",
+    "status":  "p3_planning",
     "handoff":  {
                     "from":  "manager",
                     "to":  "engineer",
@@ -514,18 +705,28 @@
                                         "TASK-016",
                                         "TASK-017",
                                         "TASK-018",
-                                        "TASK-019"
+                                        "TASK-019",
+                                        "TASK-020",
+                                        "TASK-021",
+                                        "TASK-022",
+                                        "TASK-024",
+                                        "TASK-026",
+                                        "TASK-027",
+                                        "TASK-028",
+                                        "TASK-029",
+                                        "TASK-025",
+                                        "TASK-023"
                                     ],
                      "checkpoint_seconds":  45,
                      "max_retries":  3,
                      "security_between_tasks":  false,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-16T12:21:07.3450764-05:00",
-    "last_updated_by":  "auto-run",
+    "last_updated":  "2026-04-16",
+    "last_updated_by":  "manager",
     "current_task":  {
-                         "id":  "TASK-017",
-                         "title":  "LLM Wiki query + lint + dashboard panel",
+                         "id":  "TASK-018",
+                         "title":  "Self-learning: gap analysis + resource recommendations",
                          "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }

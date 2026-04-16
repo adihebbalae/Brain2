@@ -16,6 +16,8 @@ interface WikiState {
   pages: WikiPage[]
   loading: boolean
   error: string | null
+  gaps: KnowledgeGap[] | null
+  gapsLoading: boolean
 }
 
 interface QueryResult {
@@ -38,16 +40,38 @@ interface IngestResult {
   error?: string
 }
 
+interface GapResource {
+  title: string
+  url: string
+  type: 'article' | 'video' | 'unknown'
+}
+
+interface KnowledgeGap {
+  topic: string
+  reason: string
+  priority: number
+  resources: GapResource[]
+}
+
+interface GapAnalysisResult {
+  gaps: KnowledgeGap[]
+  generatedAt: string
+  error?: string
+}
+
 export function useWiki(): WikiState & {
   query: (question: string) => Promise<QueryResult>
   lint: () => Promise<LintResult>
   ingest: (sourcePath: string) => Promise<IngestResult>
+  analyzeGaps: () => Promise<GapAnalysisResult>
   refetch: () => void
 } {
   const [wikiExists, setWikiExists] = useState(false)
   const [pages, setPages] = useState<WikiPage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gaps, setGaps] = useState<KnowledgeGap[] | null>(null)
+  const [gapsLoading, setGapsLoading] = useState(false)
 
   const fetchIndex = useCallback(async () => {
     try {
@@ -153,14 +177,51 @@ export function useWiki(): WikiState & {
     }
   }, [fetchIndex])
 
+  const analyzeGaps = useCallback(async (): Promise<GapAnalysisResult> => {
+    setGapsLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/wiki/gaps`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to analyze gaps: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Update gaps state on completion
+      if (!data.error) {
+        setGaps(data.gaps || [])
+      }
+
+      return data
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze gaps'
+      return {
+        gaps: [],
+        generatedAt: new Date().toISOString(),
+        error: errorMessage,
+      }
+    } finally {
+      setGapsLoading(false)
+    }
+  }, [])
+
   return {
     wikiExists,
     pages,
     loading,
     error,
+    gaps,
+    gapsLoading,
     query,
     lint,
     ingest,
+    analyzeGaps,
     refetch: fetchIndex,
   }
 }
