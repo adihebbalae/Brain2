@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 In Progress 🚧 (P0 + P1 complete, TASK-015 complete)
-- **Current Task**: None (TASK-015 just completed)
+- **Phase**: P2 In Progress 🚧 (P0 + P1 complete, TASK-016 complete)
+- **Current Task**: Ready for TASK-017 (Wiki query + lint + frontend panel)
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
-  - TASK-015 — Multi-vault support via VAULT_DIRS env var (29 new tests, 276 total passing)
-  - TASK-014 — Chat export viewer with search and tagging (23 tests passing)
-  - TASK-013 — Ollama AI summarization with 1h cache (12 tests passing)
-  - TASK-012 — ntfy push notifications for deadlines, stale projects, digest (15 tests passing)
+  - TASK-016 — LLM Wiki core with Ollama ingest pipeline (23 new tests, 299 total passing)
+  - TASK-015 — Multi-vault support via VAULT_DIRS env var (29 new tests)
+  - TASK-014 — Chat export viewer with search and tagging (23 tests)
+  - TASK-013 — Ollama AI summarization with 1h cache (12 tests)
 
 ## Project Brief
 
@@ -55,7 +55,7 @@
 | TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | done | P1 |
 | TASK-014 | Chat export viewer | done | P1 |
 | TASK-015 | Multi-vault support (VAULT_DIRS array) | done | P2 |
-| TASK-016 | LLM Wiki core: schema, ingest, index, log | pending | P2 |
+| TASK-016 | LLM Wiki core: schema, ingest, index, log | done | P2 |
 | TASK-017 | LLM Wiki query + lint + dashboard panel | pending | P2 |
 | TASK-018 | Self-learning: gap analysis + resource recommendations | pending | P2 |
 | TASK-019 | Multi-account Claude chat sync | pending | P2 |
@@ -293,3 +293,29 @@
     - server/lib/multi-vault.test.ts (12 tests): resolveVaultDirs, isPathInVaults, extractTodosMultiVault, readDeadlinesMultiVault with multiple vaults
   - **276 total tests passing** (259 existing + 17 vault-config + 12 multi-vault tests, note: 3 tests removed from earlier count), type-check clean
   - **Dependency**: Unblocks TASK-016 (LLM Wiki will respect multi-vault configuration)
+- 2026-04-16: TASK-016 completed — Implemented LLM Wiki core infrastructure based on Karpathy LLM Wiki pattern:
+  - **Architecture**: Three-layer design: (1) Raw sources (user's existing notes, immutable), (2) Wiki pages (Ollama-generated markdown in VAULT_DIR/Wiki/), (3) Schema (conventions in SCHEMA.md)
+  - **wiki-manager module**: Created server/lib/wiki-manager.ts with 5 core functions:
+    - ensureWikiExists(wikiDir): Auto-creates Wiki/, SCHEMA.md, index.md, log.md on first ingest (idempotent, safe to call repeatedly)
+    - ingestSource(sourcePath, wikiDir): Main ingest pipeline — reads source file → truncates to 4000 chars → calls Ollama with ---WIKI_PAGE--- format prompt → parses response → creates/updates wiki pages with YAML frontmatter → updates index.md → appends to log.md
+    - readIndex(wikiDir): Parses index.md catalog format `- [[Page Name]] — Summary. (sources: N)` into WikiPage stubs
+    - listPages(wikiDir): Scans Wiki/*.md (excluding SCHEMA/index/log), parses frontmatter for full metadata
+    - appendLog(wikiDir, operation, detail): Appends timestamped entries `## [YYYY-MM-DD HH:mm] operation | Source: detail`
+  - **API endpoints**: Created server/routes/wiki.ts with 3 REST endpoints:
+    - POST /api/wiki/ingest: Accepts `{ sourcePath }`, validates path in vault/projects, returns `{ pagesCreated, pagesUpdated, error? }` always HTTP 200
+    - GET /api/wiki/index: Returns `{ pages: WikiPage[], wikiExists: boolean }`
+    - GET /api/wiki/pages: Returns `{ pages: WikiPage[] }` with full frontmatter metadata
+  - **Ollama integration**: Uses existing ollama-client.getOllamaStatus, makes direct fetch to /api/generate with custom wiki prompt
+  - **Wiki page format**: YAML frontmatter (title, status: seedling/developing/mature, sources: [], last_updated: YYYY-MM-DD) + markdown content with [[wikilinks]]
+  - **Page merging**: Updates append content under `## Updated [date]` heading without overwriting, deduplicates sources array in frontmatter
+  - **Security**: Path traversal protection via vault-config.isPathInVault, validates sourcePath must be in configured vault or projects dir
+  - **Error handling**: Graceful degradation when Ollama unavailable (returns error in body, never throws), handles missing source file, empty Ollama response, parse failures
+  - **Tests**: Created server/lib/wiki-manager.test.ts with 23 comprehensive unit tests:
+    - Mocks Ollama fetch responses with ---WIKI_PAGE--- format
+    - Uses temp filesystem for file operations
+    - Covers ensureWikiExists idempotency, ingestSource parse/create/update/error cases, readIndex format parsing with skipped non-matching lines, listPages filtering (skips SCHEMA/index/log), appendLog format
+    - All tests pass with full coverage of acceptance criteria
+  - **299 total tests passing** (276 existing + 23 new wiki-manager tests), type-check clean
+  - **Files created**: server/lib/wiki-manager.ts (16.5KB, 5 exported functions), server/routes/wiki.ts (rewritten, 3 endpoints), server/lib/wiki-manager.test.ts (19.5KB, 23 tests)
+  - **Dependencies**: Uses vault-config.isPathInVault from TASK-015, uses ollama-client.getOllamaStatus from TASK-013
+  - **Next**: Unblocks TASK-017 (query + lint + WikiPanel frontend component)

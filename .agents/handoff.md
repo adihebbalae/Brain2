@@ -1,244 +1,215 @@
-# Handoff: LLM Wiki core — schema, ingest, index, log
-**Task ID**: TASK-016
+# Handoff: LLM Wiki query + lint + dashboard panel
+**Task ID**: TASK-017
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center. Express.js backend on :3001, React frontend on :5173.
 
-**Stack**: React + Vite + TypeScript, Express.js (TypeScript), Tailwind CSS v4, Vitest.
+**Stack**: React + Vite + TypeScript, Express.js (TypeScript), Tailwind CSS v4 (`@import "tailwindcss"` style — NOT v3 plugin syntax), Vitest.
 **Package manager**: npm (NOT pnpm).
-**Run tests**: `npm test` (Vitest). `npm run type-check` must stay clean.
+**Run tests**: `npm test`. `npm run type-check` must be clean.
 
-**This task builds on TASK-015 and TASK-013**. Read the files created/modified by those tasks before starting. Check `git log` to see recent changes.
+**This task builds on TASK-016**. Read the files created in that task before starting. Check `git log` for recent changes.
 
-**What this task DOES NOT include**: Query, lint, and the frontend WikiPanel — those are TASK-017. This task only builds the backend infrastructure.
+### What already exists (from TASK-016)
+- `server/lib/wiki-manager.ts` — `ingestSource`, `ensureWikiExists`, `readIndex`, `listPages`, `appendLog`
+- `server/routes/wiki.ts` — `POST /api/wiki/ingest`, `GET /api/wiki/index`, `GET /api/wiki/pages`
+- `VAULT_DIR/Wiki/` directory with SCHEMA.md, index.md, log.md on first use
 
-### What already exists (from TASK-013)
-- `server/lib/ollama-client.ts` — `getOllamaStatus()` and `summarizeProject()` with 1hr cache. The Ollama client already exists and works.
-- `server/routes/ai.ts` — `/api/ai/status`, `/api/ai/summarize/:project`, `/api/ai/summarize-all`
-- Ollama runs at `http://localhost:11434`, model `llama3.1:8b` (from `OLLAMA_URL` and `OLLAMA_MODEL` env vars)
-
-### What already exists (from TASK-015)
-- `server/lib/vault-config.ts` — `getVaultDirs()`, `isPathInVault()`, `getPrimaryVaultDir()`
-
-### Karpathy LLM Wiki pattern (implement this)
-Three layers:
-1. **Raw sources** — existing notes in VAULT_DIR (immutable — LLM reads, never writes)
-2. **Wiki** — `VAULT_DIR/Wiki/` — Ollama-generated markdown pages. LLM owns this entirely.
-3. **Schema** — `VAULT_DIR/Wiki/SCHEMA.md` — conventions for how the wiki is structured
-
-Key files the LLM uses to navigate:
-- `VAULT_DIR/Wiki/index.md` — catalog of all pages with one-line summaries, updated on every ingest
-- `VAULT_DIR/Wiki/log.md` — append-only record of ingests/queries/lints with timestamps
-
-**Why this matters**: Standard RAG re-derives knowledge on every query. The wiki compiles it once, cross-references permanently. "Ask a subtle question requiring 5 sources" — the wiki already has the synthesis, no re-derivation needed.
+### What this task adds
+1. **Backend**: Two new wiki endpoints — `POST /api/wiki/query` and `POST /api/wiki/lint`
+2. **Frontend**: `WikiPanel` component that appears in the dashboard when `Wiki/` exists
 
 ## Files to Read First
 - `.agents/workspace-map.md` — full project structure
-- `server/lib/ollama-client.ts` — existing Ollama client to extend (DO NOT rewrite)
-- `server/lib/vault-config.ts` — getVaultDirs, getPrimaryVaultDir (from TASK-015)
-- `server/index.ts` — how routes are registered
-- `server/routes/ai.ts` — pattern for existing Ollama routes
+- `server/lib/wiki-manager.ts` — existing wiki functions (TASK-016)
+- `server/routes/wiki.ts` — existing wiki routes (to extend)
+- `src/App.tsx` — main dashboard layout (where WikiPanel gets added)
+- `src/components/ProjectCard.tsx` — pattern for backend-connected components
+- `src/hooks/useProjects.ts` — pattern for data fetching hooks
 
 ## Task
 
-### 1. Create `VAULT_DIR/Wiki/SCHEMA.md` on first ingest (if not exists)
+### 1. Extend `server/lib/wiki-manager.ts` — add two functions
 
-Seed content (write exactly this):
-
-```markdown
-# Cortex Wiki Schema
-
-> Maintained by Cortex + Ollama. Do not edit manually — changes will be overwritten.
-> Based on Karpathy's LLM Wiki pattern (April 2026).
-
-## Directory Structure
-
-- `index.md` — Catalog of all pages. Updated on every ingest.
-- `log.md` — Append-only ingest/query/lint log.
-- `SCHEMA.md` — This file. Conventions guide.
-- `*.md` — Topic/entity/concept pages.
-
-## Page Conventions
-
-- **Title**: Use `[[Wikilink]]` format for cross-references to other pages.
-- **Frontmatter**: Every page has YAML frontmatter:
-  ```yaml
-  ---
-  title: Page Title
-  status: seedling | developing | mature
-  sources: [relative/path/to/source.md]
-  last_updated: YYYY-MM-DD
-  ---
-  ```  
-- **Page types**: entity (person, project, tool), concept (idea, framework), source (summary of a raw source), synthesis (cross-source analysis).
-
-## Index Format
-
-Each line in index.md:
-```
-- [[Page Name]] — One-line summary. (sources: N)
-```
-
-## Log Format
-
-Each entry in log.md:
-```
-## [YYYY-MM-DD HH:mm] ingest | Source: filename.md
-Brief note about what was added/updated.
-```
-```
-
-### 2. Create `server/lib/wiki-manager.ts`
+#### `queryWiki(question: string, wikiDir: string): Promise<QueryResult>`
 
 ```ts
-export interface WikiPage {
-  name: string           // filename without .md
-  path: string           // absolute path
-  title: string          // from frontmatter or filename
-  status: string         // seedling | developing | mature
-  sources: string[]      // from frontmatter sources array
-  lastUpdated: string    // from frontmatter last_updated
-  summary: string        // from index.md one-liner
-}
-
-export interface IngestResult {
-  pagesCreated: string[]
-  pagesUpdated: string[]
+export interface QueryResult {
+  answer: string
+  citations: string[]   // page names referenced in the answer
   error?: string
 }
-
-/**
- * Ensures Wiki/ directory and SCHEMA.md exist.
- * Creates them if not present. Safe to call on every ingest.
- */
-export async function ensureWikiExists(wikiDir: string): Promise<void>
-
-/**
- * Main ingest function.
- * Reads source file, sends to Ollama with wiki-aware prompt, parses response,
- * creates/updates wiki pages, updates index.md, appends to log.md.
- */
-export async function ingestSource(sourcePath: string, wikiDir: string): Promise<IngestResult>
-
-/**
- * Reads and parses index.md. Returns array of WikiPage stubs (name + summary only).
- */
-export async function readIndex(wikiDir: string): Promise<WikiPage[]>
-
-/**
- * Lists ALL wiki pages by scanning Wiki/*.md (excluding SCHEMA.md, index.md, log.md).
- * Returns full WikiPage objects parsed from frontmatter.
- */
-export async function listPages(wikiDir: string): Promise<WikiPage[]>
-
-/**
- * Appends an entry to log.md.
- */
-export async function appendLog(wikiDir: string, operation: string, detail: string): Promise<void>
 ```
 
-**`ingestSource` implementation**:
-
-1. Read source file content (validate it's inside a vault dir with `isPathInVault`)
-2. Truncate content to 4000 chars (Ollama context limit)
-3. Call Ollama with this prompt:
+Implementation:
+1. Check if wiki exists (`Wiki/index.md` must exist) — if not: return `{ answer: '', citations: [], error: 'Wiki not initialized' }`
+2. Read `index.md` to get the page catalog
+3. Find relevant pages: simple keyword match — split `question` into words (≥4 chars), find pages whose summary or name contains any of those words (case-insensitive). Keep top 5.
+4. Read the content of each relevant page
+5. Call Ollama with:
 ```
-You are maintaining a personal wiki. Given this source document, do the following:
+You are answering a question using a personal wiki. Use only the provided wiki pages.
+Cite pages by name using [[PageName]] format.
 
-1. Extract the 3-5 most important concepts, entities, or ideas.
-2. For each, write a brief wiki page (2-4 paragraphs) using [[Wikilink]] for cross-references.
-3. Use this exact format for each page:
+Wiki pages:
+${pages.map(p => `[[${p.name}]]:\n${p.content}`).join('\n\n---\n\n')}
 
----WIKI_PAGE---
-name: PageName
-status: seedling
-sources: ${relativePath}
-content:
-# PageName
+Question: ${question}
 
-[page content with [[wikilinks]] for related concepts]
-
----END_PAGE---
-
-Source document:
-${content}
+Answer concisely (2-4 sentences) with [[citations]]:
 ```
-4. Parse the Ollama response: extract each `---WIKI_PAGE---` block
-5. For each parsed page:
-   - Determine file path: `wikiDir/PageName.md`
-   - If file exists: merge (append new content under a `## Updated [date]` heading, update frontmatter `last_updated` and add source to `sources` array)
-   - If file doesn't exist: create with full frontmatter + content
-6. Update `index.md`: add/update one-liner for each touched page
-7. Append to `log.md`
-8. Return `IngestResult`
+6. Parse [[PageName]] citations from response
+7. Append to `log.md`: `## [date] query | ${question.slice(0,50)}`
+8. Return `{ answer, citations }`
+9. If Ollama unavailable: return `{ answer: '', citations: [], error: 'Ollama unavailable' }`
 
-**If Ollama is unavailable**: Return `{ pagesCreated: [], pagesUpdated: [], error: "Ollama unavailable" }` — never throw.
-
-### 3. Create `server/routes/wiki.ts`
-
-Endpoints:
-
-**`POST /api/wiki/ingest`**
-- Body: `{ sourcePath: string }` — absolute path to source file
-- Validate: `sourcePath` must be inside a configured vault or projects dir
-- Call `ingestSource(sourcePath, wikiDir)`
-- Returns: `{ pagesCreated, pagesUpdated, error? }` with HTTP 200 always (errors in body)
-- If wiki doesn't exist yet: `ensureWikiExists` first
-
-**`GET /api/wiki/index`**
-- Returns: `{ pages: WikiPage[], wikiExists: boolean }`
-- If Wiki/ doesn't exist: return `{ pages: [], wikiExists: false }`
-
-**`GET /api/wiki/pages`**
-- Returns: `{ pages: WikiPage[] }`
-- Full page list with frontmatter metadata
-
-### 4. Register routes in `server/index.ts`
+#### `lintWiki(wikiDir: string): Promise<LintResult>`
 
 ```ts
-import wikiRouter from './routes/wiki'
-app.use('/api/wiki', wikiRouter)
+export interface LintResult {
+  orphans: string[]        // pages with no inbound [[links]] from other pages
+  stale: string[]          // pages where source file is newer than wiki page mtime
+  gaps: string[]           // [[links]] referenced in pages but no corresponding .md file
+  healthScore: number      // 0-100: 100 = perfect, -5 per orphan, -10 per stale, -10 per gap
+}
 ```
 
-### 5. Write tests in `server/lib/wiki-manager.test.ts`
+Implementation:
+1. List all wiki pages (`listPages`)
+2. Read each page's content
+3. **Orphans**: build inbound link map — for each page, find all `[[PageName]]` references in its content; any page not referenced by any other page is an orphan. (Skip index.md/log.md in this check.)
+4. **Stale**: for each page, check its `sources` frontmatter array — for each source path, check if `fs.statSync(sourcePath).mtime > fs.statSync(wikiPage).mtime`. If source is newer → stale.
+5. **Gaps**: collect all `[[PageName]]` references across all pages — find any that don't have a corresponding `PageName.md` in the wiki dir.
+6. **healthScore**: start at 100, subtract 5 per orphan, 10 per stale, 10 per gap, clamp to 0.
+7. Append to `log.md`: `## [date] lint | score: ${healthScore}, orphans: ${orphans.length}, stale: ${stale.length}, gaps: ${gaps.length}`
+8. Return `LintResult`
 
-Test without calling real Ollama — mock `ollama-client.ts`. Cover:
-- `ensureWikiExists`: creates Wiki/ and SCHEMA.md on first call, no-op on subsequent calls
-- `ingestSource`: parses Ollama response correctly, creates page files with correct frontmatter
-- `ingestSource`: updates existing page (merges, doesn't overwrite)
-- `ingestSource`: handles Ollama unavailable gracefully (returns error, doesn't throw)
-- `readIndex`: parses `- [[Name]] — Summary. (sources: N)` format
-- `listPages`: scans directory, skips SCHEMA/index/log, parses frontmatter
-- `appendLog`: appends correct format entry
+### 2. Extend `server/routes/wiki.ts` — add two endpoints
+
+**`POST /api/wiki/query`**
+- Body: `{ question: string }` — validate non-empty, max 500 chars
+- Returns 200: `QueryResult`
+
+**`POST /api/wiki/lint`**
+- No body
+- Returns 200: `LintResult` + `{ wikiExists: boolean }`
+
+### 3. Create `src/hooks/useWiki.ts`
+
+```ts
+interface WikiState {
+  wikiExists: boolean
+  pages: WikiPage[]
+  loading: boolean
+  error: string | null
+}
+
+interface WikiPage {
+  name: string
+  title: string
+  status: string
+  sources: string[]
+  lastUpdated: string
+  summary: string
+}
+
+export function useWiki(): WikiState & {
+  query: (question: string) => Promise<{ answer: string; citations: string[] }>
+  lint: () => Promise<LintResult>
+  ingest: (sourcePath: string) => Promise<{ pagesCreated: string[]; pagesUpdated: string[] }>
+  refetch: () => void
+}
+```
+
+- Fetches `GET /api/wiki/index` on mount
+- `wikiExists` drives conditional render in WikiPanel
+- `query`, `lint`, `ingest` are async functions that call the respective POST endpoints
+
+### 4. Create `src/components/WikiPanel.tsx`
+
+Renders conditionally — only when `wikiExists: true` from `useWiki()`.
+
+When wiki doesn't exist yet: render a subtle "No wiki yet — ingest a file to start" empty state with an Ingest button.
+
+**Layout** (Tailwind, dark sidebar style like other components):
+```
+┌──────────────────────────────────┐
+│  🧠 Wiki  [health badge]  [Lint] │
+├──────────────────────────────────┤
+│  [Query input........................] [Ask] │
+│                                            │
+│  [Answer text]                             │
+│  Cited: [[Page1]] [[Page2]]                │
+├──────────────────────────────────┤
+│  Pages (N)                       │
+│  · PageName — summary  [seedling]│
+│  · ...                           │
+├──────────────────────────────────┤
+│  Ingest: [_____________path____] [Ingest] │
+└──────────────────────────────────┘
+```
+
+**Health badge**: 
+- Score > 80: green `bg-green-100 text-green-800`
+- Score 50–80: amber `bg-yellow-100 text-yellow-800`
+- Score < 50: red `bg-red-100 text-red-800`
+- Shows "Health: {score}" or "Not linted" before first lint
+
+**Query section**:
+- Text input, 500ms debounce — but only submit on Enter or button click (debounce for UX, not auto-submit)
+- While loading: show spinner
+- After answer: show answer text + citation chips `[[PageName]]` as small badges
+
+**Pages list**: scrollable, max-height 300px, one line per page: name + summary + status badge
+
+**Ingest section**: text input for file path (absolute), "Ingest" button. On success: show toast "Created N pages, updated M pages". On error: show error message.
+
+**Lint button**: triggers `lint()`, updates health badge. Shows toast with orphan/stale/gap counts.
+
+### 5. Add WikiPanel to `src/App.tsx`
+
+Import and render `WikiPanel` below the main content area (after `ChatExplorer`). Wrap in the same container style as other dashboard sections.
+
+### 6. Write tests
+
+**`server/lib/wiki-manager.test.ts`** (extend existing file from TASK-016):
+- `queryWiki`: mock Ollama, returns answer with citations parsed correctly
+- `queryWiki`: returns error when wiki not initialized
+- `lintWiki`: orphan detection correct
+- `lintWiki`: gap detection (referenced pages that don't exist)
+- `lintWiki`: health score calculation (100 - 5*orphans - 10*stale - 10*gaps, clamped to 0)
+
+**`src/components/WikiPanel.test.tsx`**:
+- Renders empty state when `wikiExists: false`
+- Renders page list when `wikiExists: true`
+- Health badge color correct for each tier
+- Query input submits on Enter
+- Ingest input shows success toast
 
 ## Acceptance Criteria
-- [ ] `server/lib/wiki-manager.ts` created with all 5 exported functions
-- [ ] `server/routes/wiki.ts` with 3 endpoints (ingest, index, pages)
-- [ ] Route registered in `server/index.ts`
-- [ ] `POST /api/wiki/ingest` creates wiki pages when Ollama responds
-- [ ] `POST /api/wiki/ingest` gracefully returns error object when Ollama unavailable
-- [ ] `GET /api/wiki/index` returns `{ wikiExists: false }` when wiki not yet initialized
-- [ ] `VAULT_DIR/Wiki/SCHEMA.md` seeded with correct content on first ingest
-- [ ] `index.md` updated after every ingest
-- [ ] `log.md` appended after every ingest
-- [ ] Obsidian-compatible `[[wikilinks]]` in generated pages
-- [ ] All source paths validated (path traversal protection)
+- [ ] `queryWiki` function added to `wiki-manager.ts`
+- [ ] `lintWiki` function added to `wiki-manager.ts`
+- [ ] `POST /api/wiki/query` endpoint works
+- [ ] `POST /api/wiki/lint` endpoint returns `{ orphans, stale, gaps, healthScore, wikiExists }`
+- [ ] `src/hooks/useWiki.ts` created
+- [ ] `src/components/WikiPanel.tsx` created
+- [ ] WikiPanel renders in `App.tsx`
+- [ ] WikiPanel hidden / empty-state when wiki not initialized
+- [ ] Health badge shows correct color tier
 - [ ] All 232+ existing tests still pass
-- [ ] New tests cover all wiki-manager functions (mock Ollama)
+- [ ] New tests for query, lint, WikiPanel component
 - [ ] `npm run type-check` clean
 
 ## Validation Gates
 - [ ] `npm test` — all tests pass
 - [ ] `npm run type-check` — zero errors
-- [ ] `git add -A && git commit -m "feat(TASK-016): LLM Wiki core — ingest, index, log"`
+- [ ] `git add -A && git commit -m "feat(TASK-017): LLM Wiki query, lint, and WikiPanel"`
 
 ## Constraints
-- Do NOT call real Ollama in tests — mock `ollama-client.ts`
-- Do NOT rewrite `ollama-client.ts` — import and use it as-is
-- Wiki/ directory: only write inside `VAULT_DIR/Wiki/` (primary vault, NOT secondary VAULT_DIRS)
-- Path traversal: source files CAN come from any vault dir or projects dir, but wiki OUTPUT goes only to primary vault
-- Do NOT add any npm packages — use only what's already in `package.json`
+- Do NOT call real Ollama in tests — mock the client
+- Tailwind: use `@import "tailwindcss"` style (v4), NOT `tailwindcss/plugin` patterns
+- Do NOT install new npm packages
 - Do NOT break existing tests
-- Make reasonable assumptions and document them in code comments
+- WikiPanel only renders when `wikiExists` is true — do not show an empty panel to users without a wiki

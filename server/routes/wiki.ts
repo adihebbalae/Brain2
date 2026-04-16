@@ -11,6 +11,8 @@ import {
   readIndex,
   listPages,
   ensureWikiExists,
+  queryWiki,
+  lintWiki,
 } from '../lib/wiki-manager.js';
 
 const router = Router();
@@ -119,6 +121,81 @@ router.get('/pages', async (_req, res) => {
     const pages = await listPages(wikiDir);
 
     res.json({ pages });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/wiki/query
+ * Query the wiki with a question
+ * Body: { question: string }
+ * Returns: QueryResult
+ */
+router.post('/query', async (req, res) => {
+  try {
+    const { question } = req.body;
+
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({ error: 'question is required' });
+    }
+
+    if (question.length > 500) {
+      return res.status(400).json({ error: 'question must be 500 characters or less' });
+    }
+
+    if (question.trim().length === 0) {
+      return res.status(400).json({ error: 'question cannot be empty' });
+    }
+
+    // Get wiki directory
+    const primaryVault = getPrimaryVaultDir();
+    const wikiDir = path.join(primaryVault, 'Wiki');
+
+    // Query the wiki
+    const result = await queryWiki(question, wikiDir);
+
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/wiki/lint
+ * Lint the wiki to check health
+ * Returns: LintResult + { wikiExists: boolean }
+ */
+router.post('/lint', async (_req, res) => {
+  try {
+    const primaryVault = getPrimaryVaultDir();
+    const wikiDir = path.join(primaryVault, 'Wiki');
+
+    // Check if Wiki directory exists
+    let wikiExists = false;
+    try {
+      await fs.access(wikiDir);
+      wikiExists = true;
+    } catch {
+      // Wiki doesn't exist yet
+      return res.json({
+        wikiExists: false,
+        orphans: [],
+        stale: [],
+        gaps: [],
+        healthScore: 100,
+      });
+    }
+
+    // Lint the wiki
+    const result = await lintWiki(wikiDir);
+
+    res.json({
+      ...result,
+      wikiExists,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ error: message });

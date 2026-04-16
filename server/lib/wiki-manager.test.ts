@@ -12,6 +12,8 @@ import {
   readIndex,
   listPages,
   appendLog,
+  queryWiki,
+  lintWiki,
 } from './wiki-manager';
 
 // Mock ollama-client
@@ -638,6 +640,294 @@ last_updated: 2026-04-01
 
       // This should not throw
       await expect(appendLog(wikiDir, 'ingest', 'Test')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('queryWiki', () => {
+    beforeEach(async () => {
+      // Create wiki directory and index
+      await fs.mkdir(wikiDir, { recursive: true });
+      const indexPath = path.join(wikiDir, 'index.md');
+      const indexContent = `# Wiki Index
+
+- [[React]] — JavaScript library for building user interfaces. (sources: 1)
+- [[TypeScript]] — Typed superset of JavaScript. (sources: 1)
+- [[Node.js]] — JavaScript runtime built on Chrome's V8 engine. (sources: 1)
+`;
+      await fs.writeFile(indexPath, indexContent, 'utf-8');
+
+      // Create wiki pages
+      const reactContent = `---
+title: React
+status: developing
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# React
+
+React is a JavaScript library for building user interfaces. It was developed by Facebook.
+
+See also: [[TypeScript]]
+`;
+      await fs.writeFile(path.join(wikiDir, 'React.md'), reactContent, 'utf-8');
+
+      const tsContent = `---
+title: TypeScript
+status: developing
+sources:
+  - source2.md
+last_updated: 2026-04-01
+---
+
+# TypeScript
+
+TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.
+`;
+      await fs.writeFile(path.join(wikiDir, 'TypeScript.md'), tsContent, 'utf-8');
+
+      // Create log.md
+      await fs.writeFile(path.join(wikiDir, 'log.md'), '# Wiki Log\n\n', 'utf-8');
+    });
+
+    it('should return error when wiki not initialized', async () => {
+      const emptyWikiDir = path.join(testDir, 'empty');
+      const result = await queryWiki('What is React?', emptyWikiDir);
+
+      expect(result.error).toBe('Wiki not initialized');
+      expect(result.answer).toBe('');
+      expect(result.citations).toEqual([]);
+    });
+
+    it('should return error when Ollama unavailable', async () => {
+      vi.mocked(getOllamaStatus).mockResolvedValue({
+        available: false,
+        model: 'llama3.1:8b',
+        url: 'http://localhost:11434',
+      });
+
+      const result = await queryWiki('What is React?', wikiDir);
+
+      expect(result.error).toBe('Ollama unavailable');
+      expect(result.answer).toBe('');
+      expect(result.citations).toEqual([]);
+    });
+
+    it('should query with Ollama and parse citations correctly', async () => {
+      vi.mocked(getOllamaStatus).mockResolvedValue({
+        available: true,
+        model: 'llama3.1:8b',
+        url: 'http://localhost:11434',
+      });
+
+      // Mock fetch for Ollama API
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          response: 'React is a JavaScript library by Facebook for building UIs. See [[React]] and [[TypeScript]] for more details.',
+        }),
+      });
+
+      const result = await queryWiki('What is React?', wikiDir);
+
+      expect(result.error).toBeUndefined();
+      expect(result.answer).toContain('React is a JavaScript library');
+      expect(result.citations).toContain('React');
+      expect(result.citations).toContain('TypeScript');
+      expect(result.citations).toHaveLength(2);
+    });
+
+    it('should handle no relevant pages found', async () => {
+      vi.mocked(getOllamaStatus).mockResolvedValue({
+        available: true,
+        model: 'llama3.1:8b',
+        url: 'http://localhost:11434',
+      });
+
+      const result = await queryWiki('xyz', wikiDir);
+
+      expect(result.answer).toBe('No relevant pages found to answer this question.');
+      expect(result.citations).toEqual([]);
+    });
+
+    it('should append to log after successful query', async () => {
+      vi.mocked(getOllamaStatus).mockResolvedValue({
+        available: true,
+        model: 'llama3.1:8b',
+        url: 'http://localhost:11434',
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          response: 'React is a JavaScript library.',
+        }),
+      });
+
+      await queryWiki('What is React?', wikiDir);
+
+      const logPath = path.join(wikiDir, 'log.md');
+      const logContent = await fs.readFile(logPath, 'utf-8');
+      expect(logContent).toContain('query');
+      expect(logContent).toContain('What is React?');
+    });
+  });
+
+  describe('lintWiki', () => {
+    beforeEach(async () => {
+      await fs.mkdir(wikiDir, { recursive: true });
+      await fs.writeFile(path.join(wikiDir, 'log.md'), '# Wiki Log\n\n', 'utf-8');
+    });
+
+    it('should return perfect health score for empty wiki', async () => {
+      const result = await lintWiki(wikiDir);
+
+      expect(result.orphans).toEqual([]);
+      expect(result.stale).toEqual([]);
+      expect(result.gaps).toEqual([]);
+      expect(result.healthScore).toBe(100);
+    });
+
+    it('should detect orphan pages (no inbound links)', async () => {
+      // Create two pages: one that links to nothing, one that's never linked to
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+This page has no inbound links.
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      const page2 = `---
+title: Page2
+status: seedling
+sources:
+  - source2.md
+last_updated: 2026-04-01
+---
+
+# Page2
+
+This page links to [[Page1]] but no one links to Page2.
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page2.md'), page2, 'utf-8');
+
+      const result = await lintWiki(wikiDir);
+
+      expect(result.orphans).toContain('Page2');
+      expect(result.orphans).not.toContain('Page1'); // Page1 is linked by Page2
+    });
+
+    it('should detect gaps (referenced but missing pages)', async () => {
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+This page references [[NonExistentPage]] and [[AnotherMissing]].
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      const result = await lintWiki(wikiDir);
+
+      expect(result.gaps).toContain('NonExistentPage');
+      expect(result.gaps).toContain('AnotherMissing');
+      expect(result.gaps).toHaveLength(2);
+    });
+
+    it('should calculate health score correctly', async () => {
+      // Create 2 orphans (2 * 5 = 10 points), 1 gap (10 points) = 80/100
+      const orphan1 = `---
+title: Orphan1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Orphan1
+
+Content.
+`;
+      await fs.writeFile(path.join(wikiDir, 'Orphan1.md'), orphan1, 'utf-8');
+
+      const orphan2 = `---
+title: Orphan2
+status: seedling
+sources:
+  - source2.md
+last_updated: 2026-04-01
+---
+
+# Orphan2
+
+References [[MissingPage]].
+`;
+      await fs.writeFile(path.join(wikiDir, 'Orphan2.md'), orphan2, 'utf-8');
+
+      const result = await lintWiki(wikiDir);
+
+      expect(result.orphans).toHaveLength(2);
+      expect(result.gaps).toHaveLength(1);
+      expect(result.healthScore).toBe(80); // 100 - (2*5) - (1*10) = 80
+    });
+
+    it('should clamp health score to 0', async () => {
+      // Create many issues to push score below 0
+      for (let i = 0; i < 15; i++) {
+        const orphan = `---
+title: Orphan${i}
+status: seedling
+sources:
+  - source${i}.md
+last_updated: 2026-04-01
+---
+
+# Orphan${i}
+
+References [[Missing${i}]].
+`;
+        await fs.writeFile(path.join(wikiDir, `Orphan${i}.md`), orphan, 'utf-8');
+      }
+
+      const result = await lintWiki(wikiDir);
+
+      expect(result.healthScore).toBe(0); // Should be clamped to 0
+    });
+
+    it('should append to log after lint', async () => {
+      const page1 = `---
+title: Page1
+status: seedling
+sources:
+  - source1.md
+last_updated: 2026-04-01
+---
+
+# Page1
+
+Content.
+`;
+      await fs.writeFile(path.join(wikiDir, 'Page1.md'), page1, 'utf-8');
+
+      await lintWiki(wikiDir);
+
+      const logPath = path.join(wikiDir, 'log.md');
+      const logContent = await fs.readFile(logPath, 'utf-8');
+      expect(logContent).toContain('lint');
+      expect(logContent).toContain('score:');
     });
   });
 });

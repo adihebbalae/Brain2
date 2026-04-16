@@ -25,6 +25,19 @@ export interface IngestResult {
   error?: string;
 }
 
+export interface QueryResult {
+  answer: string;
+  citations: string[];   // page names referenced in the answer
+  error?: string;
+}
+
+export interface LintResult {
+  orphans: string[];        // pages with no inbound [[links]] from other pages
+  stale: string[];          // pages where source file is newer than wiki page mtime
+  gaps: string[];           // [[links]] referenced in pages but no corresponding .md file
+  healthScore: number;      // 0-100: 100 = perfect, -5 per orphan, -10 per stale, -10 per gap
+}
+
 const SCHEMA_CONTENT = `# Cortex Wiki Schema
 
 > Maintained by Cortex + Ollama. Do not edit manually — changes will be overwritten.
@@ -612,4 +625,281 @@ export async function appendLog(
   } catch (error) {
     console.error('Failed to append to log:', error);
   }
+}
+
+/**
+ * Query the wiki using Ollama.
+ * Finds relevant pages based on keyword matching, sends to Ollama, and returns answer with citations.
+ */
+export async function queryWiki(
+  question: string,
+  wikiDir: string
+): Promise<QueryResult> {
+  // Check if wiki exists (index.md must exist)
+  const indexPath = path.join(wikiDir, 'index.md');
+  try {
+    await fs.access(indexPath);
+  } catch {
+    return {
+      answer: '',
+      citations: [],
+      error: 'Wiki not initialized',
+    };
+  }
+
+  // Check if Ollama is available
+  const ollamaStatus = await getOllamaStatus();
+  if (!ollamaStatus.available) {
+    return {
+      answer: '',
+      citations: [],
+      error: 'Ollama unavailable',
+    };
+  }
+
+  // Read index to get page catalog
+  const indexPages = await readIndex(wikiDir);
+
+  // Find relevant pages: keyword match
+  // Split question into words >= 4 chars, strip punctuation
+  const keywords = question
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
+    .split(/\s+/)
+    .filter((word) => word.length >= 4);
+
+  // Score pages based on keyword matches in name or summary
+  const scoredPages = indexPages
+    .map((page) => {
+      const nameText = page.name.toLowerCase();
+      const summaryText = page.summary.toLowerCase();
+      let score = 0;
+
+      for (const keyword of keywords) {
+        if (nameText.includes(keyword)) score += 2;
+        if (summaryText.includes(keyword)) score += 1;
+      }
+
+      return { page, score };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5); // Top 5
+
+  // Read content of relevant pages
+  const relevantPages: Array<{ name: string; content: string }> = [];
+  for (const { page } of scoredPages) {
+    try {
+      const content = await fs.readFile(page.path, 'utf-8');
+      relevantPages.push({ name: page.name, content });
+    } catch (error) {
+      console.error(`Failed to read page ${page.name}:`, error);
+    }
+  }
+
+  if (relevantPages.length === 0) {
+    return {
+      answer: 'No relevant pages found to answer this question.',
+      citations: [],
+    };
+  }
+
+  // Build Ollama prompt
+  const pagesText = relevantPages
+    .map((p) => `[[${p.name}]]:\n${p.content}`)
+    .join('\n\n---\n\n');
+
+  const prompt = `You are answering a question using a personal wiki. Use only the provided wiki pages.
+Cite pages by name using [[PageName]] format.
+
+Wiki pages:
+${pagesText}
+
+---
+
+Question: ${question}
+
+Answer concisely (2-4 sentences) with [[citations]]:`;
+
+  // Call Ollama
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return {
+        answer: '',
+        citations: [],
+        error: `Ollama API error: ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    const answer = data.response?.trim() || '';
+
+    if (!answer) {
+      return {
+        answer: '',
+        citations: [],
+        error: 'Ollama returned empty response',
+      };
+    }
+
+    // Parse [[PageName]] citations from response
+    const citationMatches = answer.matchAll(/\[\[(.+?)\]\]/g);
+    const citationList: string[] = [];
+    for (const match of citationMatches) {
+      if (match[1]) {
+        citationList.push(match[1]);
+      }
+    }
+    const citations = Array.from(new Set(citationList));
+
+    // Append to log
+    const questionPreview = question.slice(0, 50);
+    await appendLog(wikiDir, 'query', questionPreview);
+
+    return {
+      answer,
+      citations,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      answer: '',
+      citations: [],
+      error: `Failed to call Ollama: ${message}`,
+    };
+  }
+}
+
+/**
+ * Lint the wiki to find orphans, stale pages, and gaps.
+ * Returns a health score (0-100).
+ */
+export async function lintWiki(wikiDir: string): Promise<LintResult> {
+  // List all wiki pages
+  const pages = await listPages(wikiDir);
+
+  if (pages.length === 0) {
+    return {
+      orphans: [],
+      stale: [],
+      gaps: [],
+      healthScore: 100,
+    };
+  }
+
+  const orphans: string[] = [];
+  const stale: string[] = [];
+  const gaps: string[] = [];
+
+  // Build inbound link map
+  const inboundLinks = new Map<string, Set<string>>();
+  const allWikiLinks = new Set<string>();
+
+  // Initialize map
+  for (const page of pages) {
+    inboundLinks.set(page.name, new Set());
+  }
+
+  // Read each page's content and extract [[wikilinks]]
+  for (const page of pages) {
+    try {
+      const content = await fs.readFile(page.path, 'utf-8');
+      const linkMatches = content.matchAll(/\[\[(.+?)\]\]/g);
+
+      for (const match of linkMatches) {
+        const linkedPageName = match[1];
+        allWikiLinks.add(linkedPageName);
+
+        // Add to inbound link map
+        if (inboundLinks.has(linkedPageName)) {
+          inboundLinks.get(linkedPageName)!.add(page.name);
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to read page ${page.name} for link analysis:`, error);
+    }
+  }
+
+  // Find orphans: pages with no inbound links (excluding index.md and log.md)
+  for (const page of pages) {
+    if (page.name === 'index' || page.name === 'log') continue;
+
+    const inbound = inboundLinks.get(page.name);
+    if (!inbound || inbound.size === 0) {
+      orphans.push(page.name);
+    }
+  }
+
+  // Find stale pages: source file newer than wiki page
+  for (const page of pages) {
+    try {
+      const pageStats = await fs.stat(page.path);
+      const pageMtime = pageStats.mtime.getTime();
+
+      // Check each source
+      for (const source of page.sources) {
+        // Sources are relative paths - we need to resolve them
+        // For now, we'll skip if we can't find the source
+        // TODO: improve source path resolution
+        try {
+          const sourceStats = await fs.stat(source);
+          const sourceMtime = sourceStats.mtime.getTime();
+
+          if (sourceMtime > pageMtime) {
+            stale.push(page.name);
+            break; // Only add once per page
+          }
+        } catch {
+          // Source file not found or inaccessible - skip
+          continue;
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to check staleness for ${page.name}:`, error);
+    }
+  }
+
+  // Find gaps: [[links]] that don't have corresponding pages
+  const existingPageNames = new Set(pages.map((p) => p.name));
+  for (const link of allWikiLinks) {
+    if (!existingPageNames.has(link) && link !== 'index' && link !== 'log') {
+      gaps.push(link);
+    }
+  }
+
+  // Calculate health score
+  let healthScore = 100;
+  healthScore -= orphans.length * 5;
+  healthScore -= stale.length * 10;
+  healthScore -= gaps.length * 10;
+  healthScore = Math.max(0, healthScore);
+
+  // Append to log
+  const logDetail = `score: ${healthScore}, orphans: ${orphans.length}, stale: ${stale.length}, gaps: ${gaps.length}`;
+  await appendLog(wikiDir, 'lint', logDetail);
+
+  return {
+    orphans,
+    stale,
+    gaps,
+    healthScore,
+  };
 }
