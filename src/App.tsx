@@ -8,6 +8,7 @@ import { DeadlineTimeline } from './components/DeadlineTimeline'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ChatExplorer } from './components/ChatExplorer'
 import { WikiPanel } from './components/WikiPanel'
+import { CalendarPanel } from './components/CalendarPanel'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -114,8 +115,12 @@ function App() {
             )}
           </div>
 
-          {/* Right column: Sidebar (deadline timeline + TODO aggregator) */}
+          {/* Right column: Sidebar (calendar + deadline timeline + TODO aggregator) */}
           <div className="lg:col-span-1 space-y-6">
+            <ErrorBoundary fallbackMessage="Error loading calendar">
+              <CalendarPanel />
+            </ErrorBoundary>
+
             <ErrorBoundary fallbackMessage="Error loading deadlines">
               <DeadlineTimeline compact={false} />
             </ErrorBoundary>

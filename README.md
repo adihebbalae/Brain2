@@ -305,3 +305,48 @@ The Manager will add project-specific MCPs, skills, and instructions based on yo
 - Context7 MCP — auto-configured by `/init-project` based on your stack
 - GitHub CLI (`gh`) — required for GitHub Issues task backlog
 - `syft` or `cdxgen` — required for SBOM generation (installed automatically by `sbom` skill if missing)
+
+## Google Calendar Setup
+
+To enable Google Calendar integration in Cortex:
+
+1. **Create a Google Cloud Project**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+   - Note down your project name
+
+2. **Enable the Calendar API**:
+   - In the Google Cloud Console, navigate to "APIs & Services" > "Library"
+   - Search for "Google Calendar API"
+   - Click on it and press "Enable"
+
+3. **Create OAuth2 Credentials**:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
+   - If prompted, configure the OAuth consent screen:
+     - User Type: "External" (or "Internal" if using Google Workspace)
+     - App name: "Cortex" (or your preferred name)
+     - Add your email as a test user
+   - Application type: "Web application"
+   - Name: "Cortex Calendar Integration"
+   - Authorized redirect URIs: Add `http://localhost:3001/api/calendar/callback`
+   - Click "Create"
+   - Copy the **Client ID** and **Client Secret**
+
+4. **Configure Environment Variables**:
+   - Copy `.env.example` to `.env` if you haven't already
+   - Add your credentials to `.env`:
+     ```
+     GOOGLE_CLIENT_ID=your-client-id-here
+     GOOGLE_CLIENT_SECRET=your-client-secret-here
+     GOOGLE_REDIRECT_URI=http://localhost:3001/api/calendar/callback
+     ```
+
+5. **Connect Your Calendar**:
+   - Start the Cortex server: `npm run dev`
+   - Open the dashboard in your browser: `http://localhost:5173`
+   - In the Calendar panel, click "Connect Google Calendar"
+   - Follow the Google OAuth flow to grant read-only access to your calendar
+   - You'll be redirected back to the dashboard with your calendar connected
+
+**Security Note**: The integration uses read-only access (`calendar.readonly` scope). Cortex cannot modify your calendar events. Calendar tokens are stored locally in `data/calendar-tokens.json` and are never committed to git.
