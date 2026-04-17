@@ -499,7 +499,7 @@
                   "TASK-022":  {
                                    "title":  "Article/bookmark reading tracker",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "priority":  "P3",
                                    "depends_on":  [
@@ -732,12 +732,12 @@
                      "security_between_tasks":  false,
                      "rate_limit_wait_hours":  5
                  },
-    "last_updated":  "2026-04-16T20:50:00.0000000-05:00",
-    "last_updated_by":  "engineer",
+    "last_updated":  "2026-04-16T20:55:10.5675151-05:00",
+    "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-021",
-                         "title":  "YouTube watch history (Google Takeout)",
-                         "status":  "done",
+                         "id":  "TASK-022",
+                         "title":  "Article/bookmark reading tracker",
+                         "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
 }

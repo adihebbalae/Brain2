@@ -10,6 +10,7 @@ import { ChatExplorer } from './components/ChatExplorer'
 import { WikiPanel } from './components/WikiPanel'
 import { CalendarPanel } from './components/CalendarPanel'
 import { MediaPanel } from './components/MediaPanel'
+import { ReadingPanel } from './components/ReadingPanel'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -116,7 +117,7 @@ function App() {
             )}
           </div>
 
-          {/* Right column: Sidebar (calendar + YouTube + deadline timeline + TODO aggregator) */}
+          {/* Right column: Sidebar (calendar + YouTube + reading + deadline timeline + TODO aggregator) */}
           <div className="lg:col-span-1 space-y-6">
             <ErrorBoundary fallbackMessage="Error loading calendar">
               <CalendarPanel />
@@ -124,6 +125,10 @@ function App() {
 
             <ErrorBoundary fallbackMessage="Error loading YouTube history">
               <MediaPanel />
+            </ErrorBoundary>
+
+            <ErrorBoundary fallbackMessage="Error loading reading list">
+              <ReadingPanel />
             </ErrorBoundary>
 
             <ErrorBoundary fallbackMessage="Error loading deadlines">

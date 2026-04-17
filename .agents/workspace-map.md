@@ -50,7 +50,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   │   ├── useChats.ts              # ✓ Data fetching hook for chat exports with debounced search (TASK-014)
 │   │   ├── useWiki.ts               # ✓ Data fetching hook for wiki with query/lint/ingest/analyzeGaps (TASK-017)
 │   │   ├── useCalendar.ts           # ✓ Data fetching hook for Google Calendar with 60s polling (TASK-020)
-│   │   └── useYouTubeHistory.ts     # ✓ Data fetching hook for YouTube history with 60s polling (TASK-021)
+│   │   ├── useYouTubeHistory.ts     # ✓ Data fetching hook for YouTube history with 60s polling (TASK-021)
+│   │   └── useReading.ts            # ✓ Data fetching hook for reading list with 60s polling (TASK-022)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
@@ -67,7 +68,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── WikiPanel.test.tsx       # ✓ WikiPanel component tests (TASK-017)
 │       ├── CalendarPanel.tsx        # ✓ Google Calendar panel with OAuth, events, free gaps, suggestions (TASK-020)
 │       ├── CalendarPanel.test.tsx   # ✓ CalendarPanel component tests (TASK-020)
-│       └── MediaPanel.tsx           # ✓ YouTube watch history panel with setup guide modal (TASK-021)
+│       ├── MediaPanel.tsx           # ✓ YouTube watch history panel with setup guide modal (TASK-021)
+│       └── ReadingPanel.tsx         # ✓ Reading list panel with bookmarks + vault merge, quick add, topic chips (TASK-022)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
@@ -81,7 +83,9 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── wiki.ts                  # ✓ POST /api/wiki/ingest, GET /api/wiki/index, GET /api/wiki/pages, POST /api/wiki/query, POST /api/wiki/lint, POST /api/wiki/gaps (TASK-016, TASK-017, TASK-018)
     │   ├── calendar.ts              # ✓ GET /api/calendar/auth, GET /api/calendar/callback, GET /api/calendar (TASK-020)
     │   ├── calendar.test.ts         # ✓ 7 unit tests for calendar routes (TASK-020)
-    │   └── media.ts                 # ✓ GET /api/youtube-history (TASK-021)
+    │   ├── media.ts                 # ✓ GET /api/youtube-history (TASK-021)
+    │   ├── reading.ts               # ✓ GET /api/reading, POST /api/reading (TASK-022)
+    │   └── reading.test.ts          # ✓ 12 unit tests for reading routes (TASK-022)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -112,6 +116,10 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── calendar-client.test.ts  # ✓ 5 unit tests for calendar-client (TASK-020)
         ├── youtube-history-parser.ts  # ✓ Google Takeout watch-history.json parser: parseYouTubeHistory, getYouTubeStats, getYouTubeHistoryData (TASK-021)
         ├── youtube-history-parser.test.ts  # ✓ 22 unit tests for YouTube history parser (TASK-021)
+        ├── bookmarks-parser.ts      # ✓ Chrome Bookmarks file parser: parseChromebookmarks, getChromeBookmarksPath, recursive tree walk (TASK-022)
+        ├── bookmarks-parser.test.ts # ✓ 9 unit tests for bookmarks parser (TASK-022)
+        ├── reading-log-parser.ts    # ✓ ReadingLog.md parser: parseReadingLog, appendToReadingLog (TASK-022)
+        ├── reading-log-parser.test.ts  # ✓ 12 unit tests for reading-log parser (TASK-022)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 

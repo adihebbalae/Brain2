@@ -10,6 +10,7 @@ import { chatsRouter } from './routes/chats.js'
 import { wikiRouter } from './routes/wiki.js'
 import { calendarRouter } from './routes/calendar.js'
 import { mediaRouter } from './routes/media.js'
+import readingRouter from './routes/reading.js'
 import { startNotificationService } from './lib/notification-service.js'
 
 config()
@@ -36,6 +37,7 @@ app.use('/api/chats', chatsRouter)
 app.use('/api/wiki', wikiRouter)
 app.use('/api/calendar', calendarRouter)
 app.use('/api', mediaRouter)
+app.use('/api/reading', readingRouter)
 
 // Start server
 app.listen(PORT, () => {

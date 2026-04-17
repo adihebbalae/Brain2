@@ -32,3 +32,21 @@ export interface Deadline {
   done: boolean
   urgency: 'red' | 'amber' | 'green' | 'gray'
 }
+
+export interface ReadingItem {
+  id: string
+  title: string
+  url: string
+  read: boolean
+  date?: Date | string
+  source: 'bookmarks' | 'reading-log'
+  tags: string[]
+}
+
+export interface ReadingResponse {
+  total: number
+  unread: number
+  read: number
+  items: ReadingItem[]
+  topTopics: Array<{ topic: string; count: number }>
+}
