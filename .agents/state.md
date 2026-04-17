@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 Complete ✅ + Two P3 tasks complete (TASK-020, TASK-021)
+- **Phase**: P2 Complete ✅ + Three P3 tasks complete (TASK-020, TASK-021, TASK-022)
 - **Current Task**: None
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-022 — Article/bookmark reading tracker (33 new tests: 9 bookmarks parser + 12 reading-log parser + 12 route tests, 414 total passing)
   - TASK-021 — YouTube watch history (Google Takeout) parser and MediaPanel (22 new tests, 381 total passing)
   - TASK-020 — Google Calendar OAuth2 integration (19 new tests: 5 client + 7 routes + 7 component, 359 total passing)
   - TASK-017 — LLM Wiki query + lint + WikiPanel (15 component tests, 41 wiki-manager tests, 341 total passing)
-  - TASK-019 — Multi-account Claude chat sync (9 new tests, 341 total passing)
 
 ## Project Brief
 
@@ -61,7 +61,7 @@
 | TASK-019 | Multi-account Claude chat sync | done | P2 |
 | TASK-020 | Google Calendar OAuth2 integration | done | P3 |
 | TASK-021 | YouTube watch history (Google Takeout) | done | P3 |
-| TASK-022 | Article/bookmark reading tracker | pending | P3 |
+| TASK-022 | Article/bookmark reading tracker | done | P3 |
 | TASK-023 | Full RAG chat interface over all data | pending | P3 |
 | TASK-024 | Knowledge graph visualizer (D3.js wikilinks) | pending | P3 |
 | TASK-025 | Weekly review generator + daily context | pending | P3 |
