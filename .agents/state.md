@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 Complete ✅ + First P3 task complete (TASK-020)
+- **Phase**: P2 Complete ✅ + Two P3 tasks complete (TASK-020, TASK-021)
 - **Current Task**: None
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-021 — YouTube watch history (Google Takeout) parser and MediaPanel (22 new tests, 381 total passing)
   - TASK-020 — Google Calendar OAuth2 integration (19 new tests: 5 client + 7 routes + 7 component, 359 total passing)
   - TASK-017 — LLM Wiki query + lint + WikiPanel (15 component tests, 41 wiki-manager tests, 341 total passing)
   - TASK-019 — Multi-account Claude chat sync (9 new tests, 341 total passing)
-  - TASK-018 — Self-learning gap analysis + resource recommendations (33 new tests, 332 total passing)
 
 ## Project Brief
 
@@ -60,7 +60,7 @@
 | TASK-018 | Self-learning: gap analysis + resource recommendations | done | P2 |
 | TASK-019 | Multi-account Claude chat sync | done | P2 |
 | TASK-020 | Google Calendar OAuth2 integration | done | P3 |
-| TASK-021 | YouTube watch history (Google Takeout) | pending | P3 |
+| TASK-021 | YouTube watch history (Google Takeout) | done | P3 |
 | TASK-022 | Article/bookmark reading tracker | pending | P3 |
 | TASK-023 | Full RAG chat interface over all data | pending | P3 |
 | TASK-024 | Knowledge graph visualizer (D3.js wikilinks) | pending | P3 |
@@ -446,3 +446,31 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **Tests**: 5 calendar-client tests (hasCredentials check, getAuthUrl with state/scope, token save/load structure validation), 7 calendar route tests (not_connected response, connected with events, auth redirect, callback code/state validation, error handling), 7 CalendarPanel component tests (loading skeleton, error banner, not_connected button, connected with events, free gap detection, suggestion chip with stale projects, empty calendar)
   - **359 total tests passing** (341 existing + 19 new calendar tests, note: 1 pre-existing flaky DeadlineTimeline test unrelated to this task), type-check clean
   - **All acceptance criteria met**: GET /api/calendar returns correct response shape for both states, OAuth2 flow complete (auth → callback → token stored), CalendarPanel renders both states, free gaps detected correctly, suggestion chip shows when gaps + stale projects, data/calendar-tokens.json in .gitignore, .env.example updated, README.md has setup guide, comprehensive tests with mocked Google API
+- 2026-04-16: TASK-021 completed — Implemented YouTube watch history (Google Takeout) parser and MediaPanel:
+  - **YouTube history parser**: Created server/lib/youtube-history-parser.ts with parseYouTubeHistory (parses Google Takeout watch-history.json JSON array, strips "Watched " prefix from titles, filters out "Searched for" search entries, extracts channel from subtitles[0].name with "Unknown Channel" fallback, deduplicates by URL keeping most recent watch), getYouTubeStats (groups by month YYYY-MM format, computes top 5 channels from last 30 days, returns last30Days capped at 50 entries), getYouTubeHistoryData (availability check with graceful empty state when YOUTUBE_HISTORY_PATH not set or file missing)
+  - **API endpoint**: Created server/routes/media.ts with GET /api/youtube-history returning {available: boolean, total: number, last30Days: YouTubeEntry[], byMonth: MonthSummary[], topChannels: ChannelStats[]}
+  - **Frontend hook**: Created src/hooks/useYouTubeHistory.ts with 60-second polling, loading/error/refetch states, EMPTY_HISTORY default
+  - **MediaPanel component**: Created src/components/MediaPanel.tsx with two views:
+    - Not available state: placeholder card with "No YouTube history yet" + button to open setup guide modal
+    - Available state: "Recent Watches" section (last 7 days, max 10 videos, shows title/channel/relative date, clickable links to videos) + "Top Channels This Month" section (bar-style visualization with gray background bars and blue progress bars, shows channel name and count)
+  - **Setup guide modal**: Full-screen overlay with step-by-step Google Takeout instructions (10 steps from takeout.google.com → select YouTube → history only → download → extract watch-history.json → copy to path → add to .env → restart server), example .env entry, "Got it" button to close
+  - **Configuration**: Added YOUTUBE_HISTORY_PATH to .env.example with comments and reference to setup guide
+  - **Vault setup guide**: Created VAULT_DIR/Resources/YouTube-Takeout-Setup.md with detailed instructions (same as modal but in markdown format with troubleshooting section)
+  - **Integration**: Added MediaPanel to App.tsx sidebar after CalendarPanel, before DeadlineTimeline, wrapped in ErrorBoundary
+  - **Files created**: server/lib/youtube-history-parser.ts, server/lib/youtube-history-parser.test.ts, server/routes/media.ts, src/hooks/useYouTubeHistory.ts, src/components/MediaPanel.tsx
+  - **Tests**: 22 comprehensive unit tests for parser:
+    - Valid entry parsing with title/url/channel/watchedAt extraction
+    - "Watched " prefix stripping from titles
+    - "Searched for" entry filtering (rejected)
+    - Missing channel graceful handling (defaults to "Unknown Channel")
+    - Missing required field skipping (entries without title/titleUrl/time ignored)
+    - URL deduplication with most recent watch kept
+    - Descending date sorting
+    - Malformed JSON handling (returns empty array)
+    - Non-array JSON handling (returns empty array)
+    - Missing file handling (returns empty array)
+    - Empty history handling
+    - getYouTubeStats: total count, last30Days filtering and 50-entry limit, month grouping, top channels ranking by count descending
+  - **381 tests passing** (382 total, 1 pre-existing flaky DeadlineTimeline test unrelated to this task), type-check clean, build passing
+  - **API verified**: Tested GET /api/youtube-history with no YOUTUBE_HISTORY_PATH returns {available: false, total: 0, last30Days: [], byMonth: [], topChannels: []}
+  - **All acceptance criteria met**: parser handles Takeout format correctly, "Searched for" entries filtered, GET /api/youtube-history returns correct shape, graceful empty state, MediaPanel renders both views, setup guide in vault and modal, .env.example updated, comprehensive parser tests

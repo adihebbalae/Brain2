@@ -49,7 +49,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   │   ├── useDeadlines.test.ts     # ✓ useDeadlines hook tests (TASK-009)
 │   │   ├── useChats.ts              # ✓ Data fetching hook for chat exports with debounced search (TASK-014)
 │   │   ├── useWiki.ts               # ✓ Data fetching hook for wiki with query/lint/ingest/analyzeGaps (TASK-017)
-│   │   └── useCalendar.ts           # ✓ Data fetching hook for Google Calendar with 60s polling (TASK-020)
+│   │   ├── useCalendar.ts           # ✓ Data fetching hook for Google Calendar with 60s polling (TASK-020)
+│   │   └── useYouTubeHistory.ts     # ✓ Data fetching hook for YouTube history with 60s polling (TASK-021)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
@@ -65,7 +66,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── WikiPanel.tsx            # ✓ Wiki panel with query/lint/ingest/gaps UI (TASK-017)
 │       ├── WikiPanel.test.tsx       # ✓ WikiPanel component tests (TASK-017)
 │       ├── CalendarPanel.tsx        # ✓ Google Calendar panel with OAuth, events, free gaps, suggestions (TASK-020)
-│       └── CalendarPanel.test.tsx   # ✓ CalendarPanel component tests (TASK-020)
+│       ├── CalendarPanel.test.tsx   # ✓ CalendarPanel component tests (TASK-020)
+│       └── MediaPanel.tsx           # ✓ YouTube watch history panel with setup guide modal (TASK-021)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
@@ -78,7 +80,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── chats.ts                 # ✓ GET /api/chats, GET /api/chats/search, GET /api/chats/:uuid, PATCH /api/chats/:uuid/tags (TASK-014)
     │   ├── wiki.ts                  # ✓ POST /api/wiki/ingest, GET /api/wiki/index, GET /api/wiki/pages, POST /api/wiki/query, POST /api/wiki/lint, POST /api/wiki/gaps (TASK-016, TASK-017, TASK-018)
     │   ├── calendar.ts              # ✓ GET /api/calendar/auth, GET /api/calendar/callback, GET /api/calendar (TASK-020)
-    │   └── calendar.test.ts         # ✓ 7 unit tests for calendar routes (TASK-020)
+    │   ├── calendar.test.ts         # ✓ 7 unit tests for calendar routes (TASK-020)
+    │   └── media.ts                 # ✓ GET /api/youtube-history (TASK-021)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -107,6 +110,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── wiki-manager.test.ts     # ✓ 41 unit tests for wiki-manager (TASK-016, TASK-017, TASK-018)
         ├── calendar-client.ts       # ✓ Google Calendar OAuth2 client: getAuthUrl, exchangeCodeForTokens, saveTokens, loadTokens, getCalendarEvents, auto-refresh (TASK-020)
         ├── calendar-client.test.ts  # ✓ 5 unit tests for calendar-client (TASK-020)
+        ├── youtube-history-parser.ts  # ✓ Google Takeout watch-history.json parser: parseYouTubeHistory, getYouTubeStats, getYouTubeHistoryData (TASK-021)
+        ├── youtube-history-parser.test.ts  # ✓ 22 unit tests for YouTube history parser (TASK-021)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -122,6 +127,7 @@ C:\Users\boomb\Documents\SecondBrain\        ← [planned] Obsidian vault
 ├── Projects/                                ← Symlinks to _Projects/* subfolders
 ├── Areas/
 ├── Resources/
+│   └── YouTube-Takeout-Setup.md             ← Setup guide for YouTube watch history (TASK-021)
 ├── Archive/
 ├── ChatExports/
 ├── Deadlines/
