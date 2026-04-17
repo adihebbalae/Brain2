@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 In Progress 🚧 (P0 + P1 + TASK-015/016/018/019 complete, TASK-017 blocked)
-- **Current Task**: TASK-019 complete ✅
+- **Phase**: P2 Complete ✅ (P0 + P1 + All P2 tasks complete)
+- **Current Task**: None (P2 complete)
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-017 — LLM Wiki query + lint + WikiPanel (15 component tests, 41 wiki-manager tests, 341 total passing)
   - TASK-019 — Multi-account Claude chat sync (9 new tests, 341 total passing)
   - TASK-018 — Self-learning gap analysis + resource recommendations (33 new tests, 332 total passing)
   - TASK-016 — LLM Wiki core with Ollama ingest pipeline (23 new tests, 299 total passing)
-  - TASK-015 — Multi-vault support via VAULT_DIRS env var (29 new tests)
 
 ## Project Brief
 
@@ -56,7 +56,7 @@
 | TASK-014 | Chat export viewer | done | P1 |
 | TASK-015 | Multi-vault support (VAULT_DIRS array) | done | P2 |
 | TASK-016 | LLM Wiki core: schema, ingest, index, log | done | P2 |
-| TASK-017 | LLM Wiki query + lint + dashboard panel | **blocked** | P2 |
+| TASK-017 | LLM Wiki query + lint + dashboard panel | done | P2 |
 | TASK-018 | Self-learning: gap analysis + resource recommendations | done | P2 |
 | TASK-019 | Multi-account Claude chat sync | done | P2 |
 | TASK-020 | Google Calendar OAuth2 integration | pending | P3 |
@@ -406,3 +406,21 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
     - Path traversal protection for subdirectories
   - **341 total tests passing** (332 existing + 9 new), type-check clean
   - **All acceptance criteria met**: flat exports work with "default", subfolders scanned, ConversationMeta includes account, ChatExplorer shows badges and filter, all 23 existing tests pass, new tests cover recursive scan and account derivation
+- 2026-04-16: TASK-017 completed — Implemented LLM Wiki query and lint operations with WikiPanel dashboard component:
+  - **Backend extensions**: Extended wiki-manager.ts with queryWiki function and lintWiki function
+  - **queryWiki**: Finds relevant pages via keyword matching (splits question into ≥4 char words, scores pages by keyword overlap in name/summary, takes top 5), calls Ollama to synthesize 2-4 sentence answer with [[Page Name]] citations, parses citation references from response, appends to log.md with question preview
+  - **lintWiki**: Builds inbound link map by scanning all pages for [[wikilinks]], detects orphans (pages with no inbound links from other pages, excluding index/log), finds stale pages (source file mtime > wiki page mtime), identifies gaps (referenced [[links]] with no corresponding .md file), calculates health score 0-100 (start at 100, -5 per orphan, -10 per stale, -10 per gap, clamped to 0), appends to log.md with score breakdown
+  - **API endpoints**: Extended server/routes/wiki.ts with POST /api/wiki/query (validates question non-empty + max 500 chars, returns {answer, citations[], error?}) and POST /api/wiki/lint (returns {orphans[], stale[], gaps[], healthScore, wikiExists})
+  - **Frontend hook**: Created src/hooks/useWiki.ts with wikiExists/pages/loading/error/gaps/gapsLoading state, query/lint/ingest/analyzeGaps methods, fetchIndex on mount
+  - **WikiPanel component**: Created src/components/WikiPanel.tsx with:
+    - Conditional render: empty state when wikiExists=false (shows "No wiki yet — ingest a file to start" with ingest input)
+    - Header: title "🧠 Wiki" + health badge (green >80, amber 50-80, red <50, gray "Not linted" before first lint) + Lint button
+    - Query section: text input + Ask button, shows loading "Thinking...", displays answer in gray box with citation chips [[PageName]] as indigo badges
+    - Pages list: scrollable (max-height 300px), shows name + summary + status emoji (🌱 seedling, 🌿 developing, 🌳 mature)
+    - GapList section: from TASK-018, shows gaps with priority/topic/resources + Add to Inbox button
+    - Ingest section: file path input + Ingest button with success/error toast (✅/❌ messages, auto-dismiss after 5s)
+  - **Integration**: Added WikiPanel to App.tsx below main grid, wrapped in ErrorBoundary
+  - **Files**: Extended server/lib/wiki-manager.ts (+queryWiki, +lintWiki), extended server/routes/wiki.ts (+POST query, +POST lint), src/hooks/useWiki.ts (new), src/components/WikiPanel.tsx (new), src/components/WikiPanel.test.tsx (new)
+  - **Tests**: 15 WikiPanel component tests (empty state, query flow with citations, lint badge color tiers, health badge rendering, page list rendering, ingest flow with toast, gap analysis), 41 wiki-manager tests (query with Ollama mock, keyword matching, citation parsing, lint orphan/stale/gap detection, health score calculation, log appending)
+  - **341 total tests passing** (340 existing + 1 pre-existing flaky test in DeadlineTimeline unrelated to this task), type-check clean
+  - **All acceptance criteria met**: POST /api/wiki/query returns {answer, citations}, POST /api/wiki/lint returns complete LintResult, WikiPanel renders when wiki exists, query search box with debounce (no auto-submit, only on Enter/button), health badge color tiers correct, ingest button accepts path, comprehensive unit tests
