@@ -395,22 +395,44 @@ for ($i = 0; $i -lt $pendingTasks.Count; $i++) {
 
     # ── Handle failure ──
     if (-not $success) {
-        Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "failed" -Current $taskNum -Total $totalTasks
-        Write-Banner "TASK FAILED  $([char]0x2014)  $taskId" Red
-        Write-Host "    Failed after $MaxRetries attempts. Halting." -ForegroundColor Red
-        Write-Host ""
-        Write-Host "    To resume after fixing:" -ForegroundColor Yellow
-        Write-Host "      .\.github\scripts\auto-run.ps1" -ForegroundColor White
-        Write-Host "    (completed tasks are skipped automatically)" -ForegroundColor Gray
+        # Check if the last failure was a usage/rate limit (claude hit its cap mid-retry)
+        $lastOutputWasUsageLimit = Test-RateLimited -Output $result.Output -ExitCode $result.ExitCode
 
-        [void]$failed.Add($taskId)
+        if ($lastOutputWasUsageLimit) {
+            # Usage limit hit - task was never actually attempted successfully.
+            # Reset to pending so auto-run can resume it next time without manual intervention.
+            Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "rate-limited" -Current $taskNum -Total $totalTasks
+            Write-Banner "USAGE LIMIT  -  $taskId" Yellow
+            Write-Host "    Claude hit its usage/rate limit. Task reset to 'pending'." -ForegroundColor Yellow
+            Write-Host "    Re-run the script once the limit resets to resume." -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "      .\.github\scripts\auto-run.ps1" -ForegroundColor White
 
-        $state = Read-StateFile
-        $state.tasks.$taskId.status = "blocked"
-        $state.context.blocked_on   = "$taskId failed after $MaxRetries attempts"
-        $state.last_updated         = (Get-Date -Format "o")
-        $state.last_updated_by      = "auto-run"
-        Save-StateFile -State $state
+            $state = Read-StateFile
+            $state.tasks.$taskId.status = "pending"
+            $state.context.blocked_on   = "$taskId paused - Claude usage limit reached (not a code failure). Re-run script to resume."
+            $state.last_updated         = (Get-Date -Format "o")
+            $state.last_updated_by      = "auto-run"
+            Save-StateFile -State $state
+        }
+        else {
+            Write-TaskLine -TaskId $taskId -Title $taskTitle -Status "failed" -Current $taskNum -Total $totalTasks
+            Write-Banner "TASK FAILED  $([char]0x2014)  $taskId" Red
+            Write-Host "    Failed after $MaxRetries attempts. Halting." -ForegroundColor Red
+            Write-Host ""
+            Write-Host "    To resume after fixing:" -ForegroundColor Yellow
+            Write-Host "      .\.github\scripts\auto-run.ps1" -ForegroundColor White
+            Write-Host "    (completed tasks are skipped automatically)" -ForegroundColor Gray
+
+            [void]$failed.Add($taskId)
+
+            $state = Read-StateFile
+            $state.tasks.$taskId.status = "blocked"
+            $state.context.blocked_on   = "$taskId failed after $MaxRetries attempts"
+            $state.last_updated         = (Get-Date -Format "o")
+            $state.last_updated_by      = "auto-run"
+            Save-StateFile -State $state
+        }
 
         $halted = $true
         break

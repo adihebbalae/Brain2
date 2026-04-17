@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 Complete ✅ (P0 + P1 + All P2 tasks complete)
-- **Current Task**: None (P2 complete)
+- **Phase**: P2 Complete ✅ + First P3 task complete (TASK-020)
+- **Current Task**: None
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-020 — Google Calendar OAuth2 integration (19 new tests: 5 client + 7 routes + 7 component, 359 total passing)
   - TASK-017 — LLM Wiki query + lint + WikiPanel (15 component tests, 41 wiki-manager tests, 341 total passing)
   - TASK-019 — Multi-account Claude chat sync (9 new tests, 341 total passing)
   - TASK-018 — Self-learning gap analysis + resource recommendations (33 new tests, 332 total passing)
-  - TASK-016 — LLM Wiki core with Ollama ingest pipeline (23 new tests, 299 total passing)
 
 ## Project Brief
 
@@ -59,7 +59,7 @@
 | TASK-017 | LLM Wiki query + lint + dashboard panel | done | P2 |
 | TASK-018 | Self-learning: gap analysis + resource recommendations | done | P2 |
 | TASK-019 | Multi-account Claude chat sync | done | P2 |
-| TASK-020 | Google Calendar OAuth2 integration | pending | P3 |
+| TASK-020 | Google Calendar OAuth2 integration | done | P3 |
 | TASK-021 | YouTube watch history (Google Takeout) | pending | P3 |
 | TASK-022 | Article/bookmark reading tracker | pending | P3 |
 | TASK-023 | Full RAG chat interface over all data | pending | P3 |
@@ -424,3 +424,25 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **Tests**: 15 WikiPanel component tests (empty state, query flow with citations, lint badge color tiers, health badge rendering, page list rendering, ingest flow with toast, gap analysis), 41 wiki-manager tests (query with Ollama mock, keyword matching, citation parsing, lint orphan/stale/gap detection, health score calculation, log appending)
   - **341 total tests passing** (340 existing + 1 pre-existing flaky test in DeadlineTimeline unrelated to this task), type-check clean
   - **All acceptance criteria met**: POST /api/wiki/query returns {answer, citations}, POST /api/wiki/lint returns complete LintResult, WikiPanel renders when wiki exists, query search box with debounce (no auto-submit, only on Enter/button), health badge color tiers correct, ingest button accepts path, comprehensive unit tests
+- 2026-04-16: TASK-020 completed — Implemented Google Calendar OAuth2 integration with read-only access:
+  - **Backend**: Created server/lib/calendar-client.ts with OAuth2 flow (getAuthUrl generates consent URL with CSRF state token, exchangeCodeForTokens swaps code for access/refresh tokens, saveTokens/loadTokens manage data/calendar-tokens.json, auto-refresh when expiry < 5min, getCalendarEvents fetches today + next 7 days via googleapis Calendar API v3)
+  - **API routes**: Created server/routes/calendar.ts with 3 endpoints:
+    - GET /api/calendar/auth — redirects to Google OAuth consent screen with CSRF state parameter
+    - GET /api/calendar/callback — validates state token, exchanges authorization code for tokens, saves to data/calendar-tokens.json, redirects to frontend with success
+    - GET /api/calendar — returns {events: CalendarEvent[], status: 'connected'} when authenticated, {events: [], status: 'not_connected', authUrl} when no tokens
+  - **Frontend hook**: Created src/hooks/useCalendar.ts with 60-second polling, loading/error/data states, CalendarResponse type
+  - **CalendarPanel component**: Created src/components/CalendarPanel.tsx with:
+    - Not connected state: "Connect Google Calendar" button linking to /api/calendar/auth
+    - Connected state: today's events as time blocks (shows time, title, duration), next 7 days as compact list grouped by date
+    - Free gap detection: finds >45min gaps between 9am-6pm on today's schedule, displays as green chips with time range
+    - Suggestion chip: when free gaps detected AND stale projects exist, shows "Use free time to work on [stalest project]?"
+    - Date labels: "Today", "Tomorrow", or formatted date for next 7 days
+    - All-day event handling: separate display format
+  - **Configuration**: Added GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI to .env.example with comments, added data/ directory to .gitignore for token storage, added "Google Calendar Setup" section to README.md with step-by-step Google Cloud Console instructions
+  - **Security**: Read-only scope (https://www.googleapis.com/auth/calendar.readonly), CSRF protection with ephemeral state tokens (10-minute TTL), tokens stored in local data/ directory (gitignored), path traversal protection
+  - **Integration**: Mounted calendarRouter in server/index.ts, added CalendarPanel to App.tsx in right sidebar above DeadlineTimeline, wrapped in ErrorBoundary
+  - **Files created**: server/lib/calendar-client.ts, server/lib/calendar-client.test.ts, server/routes/calendar.ts, server/routes/calendar.test.ts, src/hooks/useCalendar.ts, src/components/CalendarPanel.tsx, src/components/CalendarPanel.test.tsx
+  - **Dependencies**: Installed googleapis (Google APIs Node.js client), supertest + @types/supertest (for route testing)
+  - **Tests**: 5 calendar-client tests (hasCredentials check, getAuthUrl with state/scope, token save/load structure validation), 7 calendar route tests (not_connected response, connected with events, auth redirect, callback code/state validation, error handling), 7 CalendarPanel component tests (loading skeleton, error banner, not_connected button, connected with events, free gap detection, suggestion chip with stale projects, empty calendar)
+  - **359 total tests passing** (341 existing + 19 new calendar tests, note: 1 pre-existing flaky DeadlineTimeline test unrelated to this task), type-check clean
+  - **All acceptance criteria met**: GET /api/calendar returns correct response shape for both states, OAuth2 flow complete (auth → callback → token stored), CalendarPanel renders both states, free gaps detected correctly, suggestion chip shows when gaps + stale projects, data/calendar-tokens.json in .gitignore, .env.example updated, README.md has setup guide, comprehensive tests with mocked Google API

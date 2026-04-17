@@ -1,199 +1,103 @@
-# Handoff: Multi-account Claude chat sync
-**Task ID**: TASK-019
-**Mode**: autonomous (no user interaction available)
+╔══════════════════════════════════════════════════════════════╗
+║  🔀 SWITCH TO:  @engineer   |   MODEL:  Sonnet             ║
+╚══════════════════════════════════════════════════════════════╝
+
+# Handoff: YouTube Watch History (Google Takeout)
+**From**: Manager → **To**: Engineer | **Model**: claude-sonnet-4-5
+**Date**: 2026-04-16 | **Task ID**: TASK-021
 
 ## Context
+Cortex is a local-only personal command center running on localhost. Backend: Express.js TypeScript on `:3001`. Frontend: React + Vite + TypeScript + Tailwind CSS on `:5173`. No database — all data read from local files.
 
-**Project**: Cortex — local-only personal command center. Express.js backend on :3001, React frontend on :5173.
+WHY this matters: YouTube watch history reveals what the user is actually learning and consuming. Surfacing it in the dashboard closes the loop between "what I'm studying" and "what's on my project list." It feeds the weekly review (TASK-025).
 
-**Stack**: React + Vite + TypeScript, Express.js (TypeScript), Tailwind CSS v4, Vitest.
-**Package manager**: npm (NOT pnpm).
-**Run tests**: `npm test`. `npm run type-check` must be clean.
+The user does NOT yet have their YouTube Takeout export — part of this task is writing the setup guide so they know how to get it. The parser must gracefully handle absence of the file.
 
-**This task builds on TASK-014**. Read the files created in that task before starting. Check `git log` for recent changes.
-
-**This task is INDEPENDENT of TASK-015 through TASK-018** — it can run concurrently or after them. It only touches the chat export system.
-
-### What already exists (from TASK-014)
-- `server/lib/chat-export-parser.ts` — `listConversations`, `searchConversations`, `getConversation`, `setConversationTags`
-- `server/routes/chats.ts` — `GET /api/chats`, `GET /api/chats/search`, `GET /api/chats/:uuid`, `PATCH /api/chats/:uuid/tags`
-- `src/hooks/useChats.ts` — data fetching hook with debounced search
-- `src/components/ChatExplorer.tsx` — conversation list with search, tag editing, inline message expansion
-- `VAULT_DIR/ChatExports/` — flat directory of Claude JSON exports  
-- `VAULT_DIR/ChatExports/.tags.json` — sidecar file for tag storage
-
-### 23 existing tests in `chat-export-parser.test.ts` — ALL must still pass.
-
-### Current behavior (flat scan)
-`chat-export-parser.ts` currently scans `ChatExports/*.json` — only top-level JSON files.
-
-### What this task changes
-
-**Make the scan recursive**: `ChatExports/**/*.json` — scan all subdirectories.
-
-**Subfolder = account label**: If a JSON file is at `ChatExports/Personal/export.json`, the account is `"Personal"`. If at `ChatExports/export.json` (top-level), the account is `"default"`.
-
-```
-ChatExports/
-  conversation-123.json        → account: "default" (backward compatible)
-  Personal/
-    conversation-456.json      → account: "Personal"
-  Work/
-    conversation-789.json      → account: "Work"
-```
-
-## Files to Read First
-- `.agents/workspace-map.md` — full project structure
-- `server/lib/chat-export-parser.ts` — all current logic (MUST understand before modifying)
-- `server/lib/chat-export-parser.test.ts` — all 23 existing tests (must not break)
-- `src/hooks/useChats.ts` — data hook (extend)
-- `src/components/ChatExplorer.tsx` — extend with account badge and filter
+**Package manager**: npm (NOT pnpm)
+**Test framework**: Vitest
 
 ## Task
 
-### 1. Update TypeScript types
-
-In `server/lib/chat-export-parser.ts` (or `src/types.ts` — follow existing pattern), add `account` field:
-
-```ts
-export interface ConversationMeta {
-  uuid: string
-  title: string
-  createdAt: string
-  updatedAt: string
-  messageCount: number
-  preview: string
-  tags: string[]
-  account: string  // ← ADD THIS. "default" for top-level files, subfolder name otherwise
+### 1. Google Takeout parser (`server/lib/youtube-history-parser.ts`)
+Google Takeout `watch-history.json` is a JSON array. Each entry looks like:
+```json
+{
+  "header": "YouTube",
+  "title": "Watched Video Title Here",
+  "titleUrl": "https://www.youtube.com/watch?v=xxx",
+  "subtitles": [{"name": "Channel Name", "url": "https://www.youtube.com/channel/..."}],
+  "time": "2026-03-15T14:23:45.000Z",
+  "products": ["YouTube"],
+  "activityControls": ["YouTube watch history"]
 }
 ```
 
-### 2. Update `listConversations` in `chat-export-parser.ts`
+Parser should:
+- Read the JSON array from `YOUTUBE_HISTORY_PATH` (env var, no default — just return empty if not set)
+- Extract: `title` (strip "Watched " prefix), `titleUrl`, `channel` (from `subtitles[0].name`), `watchedAt` (parse `time` field)
+- Filter out non-watch entries (some entries have title starting with "Searched for")
+- Group by month: `{ month: "2026-03", videos: [...] }`
+- Also compute: top 5 channels by watch count over last 30 days
+- Deduplicate by titleUrl (keep most recent watch date if duplicate)
+- Export: `parseYouTubeHistory(filePath: string)` and `getYouTubeStats(history)` functions
 
-Currently scans flat directory. Change to recursive with account derivation:
-
-```ts
-// Pseudocode for new scan logic:
-function scanChatExports(exportDir: string): Array<{ filePath: string; account: string }> {
-  const results = []
-  
-  // Top-level JSON files → account: "default"
-  for (const file of fs.readdirSync(exportDir)) {
-    if (file.endsWith('.json') && file !== '.tags.json') {
-      results.push({ filePath: path.join(exportDir, file), account: 'default' })
-    }
-  }
-  
-  // One level of subdirectories → account: subfolder name
-  for (const entry of fs.readdirSync(exportDir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      const accountName = entry.name
-      const subDir = path.join(exportDir, accountName)
-      for (const file of fs.readdirSync(subDir)) {
-        if (file.endsWith('.json') && file !== '.tags.json') {
-          results.push({ filePath: path.join(subDir, file), account: accountName })
-        }
-      }
-    }
-  }
-  
-  return results
+### 2. Route (`server/routes/media.ts`)
+`GET /api/youtube-history` — returns:
+```typescript
+{
+  available: boolean,
+  total: number,
+  last30Days: YouTubeEntry[],  // most recent first, max 50
+  byMonth: { month: string, count: number, topChannels: string[] }[],
+  topChannels: { name: string, count: number }[]
 }
 ```
+If `YOUTUBE_HISTORY_PATH` not set or file not found: return `{ available: false, total: 0, last30Days: [], byMonth: [], topChannels: [] }`
 
-**IMPORTANT**: Only go ONE level deep (direct subdirectories only). Do NOT recurse further.
+### 3. Frontend `MediaPanel` component (`src/components/MediaPanel.tsx`)
+- If `available: false`: show placeholder card "No YouTube history yet — click to see setup guide" linking to a modal with the setup steps
+- If available: show two sections:
+  - **Recent watches** (last 7 days, compact list with channel + title + date)
+  - **Top channels** this month (bar-style list: channel name + count as gray bar)
+- Keep component compact (same visual weight as other dashboard panels)
 
-Apply path traversal protection: each resolved file path must start with the resolved `ChatExports/` dir.
+### 4. Setup guide
+Write `VAULT_DIR/Resources/YouTube-Takeout-Setup.md` with these exact steps:
+1. Go to [takeout.google.com](https://takeout.google.com)
+2. Click "Deselect all"
+3. Scroll to "YouTube and YouTube Music" and check it
+4. Click "All YouTube data included" → deselect all → select "history" only
+5. Click "Next step" → "Export once" → "JSON format" → "Create export"
+6. Wait for email → download zip → extract `watch-history.json`
+7. Copy `watch-history.json` to the path in your `.env` as `YOUTUBE_HISTORY_PATH`
 
-Update `listConversations` to call this, add `account` field to each `ConversationMeta`.
-
-### 3. Update `searchConversations` in `chat-export-parser.ts`
-
-- Include `account` field in all returned `ConversationMeta` objects
-- Optionally accept an `account` filter: `searchConversations(query, exportDir, account?: string)` — if `account` provided, only include conversations from that account
-
-### 4. Update `setConversationTags` / tags sidecar
-
-Tags are stored in `.tags.json`. Currently keyed by UUID. No change needed — UUIDs are still unique across accounts, so tag storage is already correct.
-
-### 5. Update `server/routes/chats.ts`
-
-**`GET /api/chats`**: accepts optional query param `?account=Personal` — passes to `listConversations`. If omitted: return all accounts.
-
-**`GET /api/chats/search`**: accepts optional `?account=Personal` alongside existing `?q=` param.
-
-No other endpoint changes needed.
-
-### 6. Update `src/hooks/useChats.ts`
-
-Add `accounts` to the hook state:
-
-```ts
-interface ChatsState {
-  conversations: ConversationMeta[]
-  loading: boolean
-  error: string | null
-  accounts: string[]     // ← ADD: derived unique list from loaded conversations
-  activeAccount: string | null  // ← ADD: currently selected filter (null = all)
-  setActiveAccount: (account: string | null) => void
-}
-```
-
-- `accounts`: derived from unique `conversation.account` values in the loaded list
-- `setActiveAccount`: updates filter; triggers refetch with `?account=` param if non-null
-
-### 7. Update `src/components/ChatExplorer.tsx`
-
-**Account badge on each conversation**:
-- If account is `"default"` OR if only one account exists: **don't show the badge** (backward-compatible UX)
-- Otherwise: show a small badge on each conversation item: `bg-indigo-100 text-indigo-700 text-xs` with account name
-
-**Account filter dropdown** (only show when 2+ accounts exist):
-- Dropdown above the conversation list: `All accounts | Personal | Work | ...`
-- Changing selection calls `setActiveAccount`
-- Selection shown as active state on the dropdown option
-
-### 8. Update tests in `chat-export-parser.test.ts`
-
-**All 23 existing tests must still pass** — do not change their behavior.
-
-Add new tests:
-- `scanChatExports` with flat files only → all `account: "default"`
-- `scanChatExports` with subfolder `Personal/export.json` → `account: "Personal"`
-- `scanChatExports` with mixed flat + subfolder → correct account derivation
-- `listConversations` returns `account` field in all results
-- `searchConversations` with `account` filter returns only matching
-- Path traversal: file in `ChatExports/../evil.json` → rejected
-- Does NOT recurse 2+ levels deep
-
-**`src/components/ChatExplorer.test.tsx`** (new or extend):
-- Account badge hidden when all conversations have `account: "default"`
-- Account badge shown when multiple accounts present
-- Filter dropdown hidden when only 1 account
-- Filter dropdown shown and functional when 2+ accounts
+### 5. New `.env` var
+Add to `.env.example`: `YOUTUBE_HISTORY_PATH=` (empty default, path to Takeout watch-history.json)
 
 ## Acceptance Criteria
-- [ ] Flat exports (`ChatExports/*.json`) still loaded as `account: "default"` (backward compatible)
-- [ ] Subfolder exports (`ChatExports/AccountName/*.json`) loaded with correct account name
-- [ ] Only ONE level of subdirectories supported (no deeper recursion)
-- [ ] `ConversationMeta` type includes `account: string`
-- [ ] `GET /api/chats?account=X` filters by account
-- [ ] ChatExplorer shows account badge when 2+ accounts present
-- [ ] ChatExplorer shows account filter dropdown when 2+ accounts
-- [ ] Account badge hidden for single-account users (clean UX for existing users)
-- [ ] All 23 existing TASK-014 tests still pass
-- [ ] New tests for recursive scan, account derivation, and filter
-- [ ] `npm run type-check` clean
+- [ ] `parseYouTubeHistory()` correctly parses the Takeout JSON format
+- [ ] "Searched for" entries are filtered out
+- [ ] `GET /api/youtube-history` returns correct shape
+- [ ] Graceful empty state when file missing
+- [ ] `MediaPanel` renders with recent/top-channels sections
+- [ ] Setup guide written to `VAULT_DIR/Resources/YouTube-Takeout-Setup.md`
+- [ ] `.env.example` has `YOUTUBE_HISTORY_PATH` entry
+- [ ] Tests for parser (use a fixture JSON with 5+ sample entries)
+- [ ] All existing tests still pass
 
 ## Validation Gates
-- [ ] `npm test` — all tests pass (including all 23 existing chat tests)
-- [ ] `npm run type-check` — zero errors
-- [ ] `git add -A && git commit -m "feat(TASK-019): multi-account Claude chat sync"`
+- [ ] `npm test` — all tests pass
+- [ ] `npm run build` — no TypeScript errors
+- [ ] `GET /api/youtube-history` with no env var returns `{ available: false }`
+
+## Files to Read First
+- `server/routes/ai.ts` or `server/routes/chats.ts` — see route registration pattern
+- `server/lib/chat-export-parser.ts` — see how file parsers are structured
+- `src/App.tsx` — see how to add new panel import
+- `.env.example` — format for new env var
 
 ## Constraints
-- Do NOT break any of the 23 existing chat-export-parser tests
-- Do NOT go more than ONE level deep into subdirectories
-- Path traversal: all file reads must stay inside `ChatExports/`
-- Account name comes from directory name only — do NOT read any metadata from the export JSON to determine account
-- Do NOT change the tags storage format in `.tags.json`
-- Do NOT add npm packages
+- No YouTube Data API v3 — local file parse ONLY
+- Do NOT attempt to download history programmatically
+- Subtitles array may be empty for some entries — handle gracefully
+- File could be very large (10k+ entries) — parse efficiently, don't load full file into memory multiple times

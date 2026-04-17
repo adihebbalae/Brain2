@@ -6,7 +6,7 @@ Cortex is a local-only personal command center dashboard. It aggregates projects
 ## Tech Stack
 - **Frontend**: React + Vite + TypeScript, Tailwind CSS
 - **Backend**: Express.js (TypeScript)
-- **Package manager**: pnpm
+- **Package manager**: npm (NOT pnpm — state.json says pnpm but npm is actually used. Always run `npm install`, `npm test`, `npm run dev`.)
 - **No database** — all data read from filesystem (markdown files)
 - **AI**: Claude API (optional, for summarization)
 - **Test framework**: Vitest (unit + integration)
@@ -19,7 +19,7 @@ Cortex is a local-only personal command center dashboard. It aggregates projects
 ## Architecture
 - Frontend on `:5173` (Vite dev server)
 - Backend on `:3001` (Express)
-- `concurrently` runs both via `pnpm dev`
+- `concurrently` runs both via `npm run dev`
 - Backend reads filesystem directly — no DB layer
 - Frontend fetches from `http://localhost:3001/api/*`
 
@@ -97,6 +97,27 @@ When work needs to transfer between agents:
 - Never commit secrets, API keys, or credentials
 - Run tests before declaring work complete
 - Run the `quality-gate` skill before every push (lint → type-check → tests → security scan). Do not push with any stage failing.
+
+## PowerShell Script Rules
+- **No Unicode/fancy characters in string literals**: Do NOT use em dashes (—), curly quotes, or any non-ASCII character directly in `.ps1` string literals. They cause encoding parse errors at runtime. Use plain ASCII hyphens (`-`) instead of em dashes, straight quotes only.
+- **No `[char]0xXXXX` for decorative output that appears inside computed strings**: Using `$([char]0x2014)` inside a double-quoted string is fine, but writing the literal Unicode character is not.
+- **Keep banner/status strings ASCII-safe**: `Write-Banner`, `Write-Host`, and `blocked_on` string assignments must all use ASCII only.
+- **Verify encoding after edits**: If a `.ps1` file is edited by a tool that may inject Unicode, run `[System.Management.Automation.Language.Parser]::ParseFile(...)` to confirm no parse errors before running.
+
+## auto-run.ps1 Task Status Rules
+- **Usage/rate limit failures**: If Claude CLI exits with a usage limit error, set task status back to `pending` (not `blocked`). `blocked` is reserved for genuine code/logic failures. Re-running the script resumes from the pending task automatically.
+- **`context.blocked_on` hygiene**: Always clear `blocked_on` to `null` after a blocker is resolved. Stale blocker messages from previous runs must not persist into new sessions.
+- **`security_between_tasks` flag**: The `auto_run.security_between_tasks` boolean in state.json controls whether security scans run after each task (not just at end). This is implemented in `.github/scripts/auto-run.ps1` via `$SecurityBetweenTasks`.
+
+## Allowed File Write-back Operations
+Beyond the default read-only policy, these explicit write operations are permitted:
+- `VAULT_DIR/Resources/inbox.md` — append only (quick capture)
+- `VAULT_DIR/Resources/ReadingLog.md` — append only (reading tracker POST)
+- `VAULT_DIR/Resources/review-log.json` — mark-reviewed updates only
+- `VAULT_DIR/DailyNotes/YYYY-WXX-weekly-review.md` — weekly review generation
+- `VAULT_DIR/**/*.canvas` — add-node only (Canvas MCP write-back)
+- TODO checkbox toggling in any project file (in-place `[ ]` → `[x]` flip only)
+- `data/calendar-tokens.json` — OAuth2 token storage (project root, gitignored)
 
 ## Communication Principles
 - **Always include WHY**: When making a decision, choosing a priority, or recommending an approach, explain the reasoning. "Do X because Y" not just "Do X."

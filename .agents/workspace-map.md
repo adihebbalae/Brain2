@@ -47,7 +47,9 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   │   ├── useTodos.test.ts         # ✓ useTodos hook tests (TASK-008)
 │   │   ├── useDeadlines.ts          # ✓ Data fetching hook for deadlines (TASK-009)
 │   │   ├── useDeadlines.test.ts     # ✓ useDeadlines hook tests (TASK-009)
-│   │   └── useChats.ts              # ✓ Data fetching hook for chat exports with debounced search (TASK-014)
+│   │   ├── useChats.ts              # ✓ Data fetching hook for chat exports with debounced search (TASK-014)
+│   │   ├── useWiki.ts               # ✓ Data fetching hook for wiki with query/lint/ingest/analyzeGaps (TASK-017)
+│   │   └── useCalendar.ts           # ✓ Data fetching hook for Google Calendar with 60s polling (TASK-020)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
@@ -59,7 +61,11 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── QuickCapture.tsx         # ✓ Quick capture input bar component (TASK-010)
 │       ├── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
 │       ├── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
-│       └── ChatExplorer.tsx         # ✓ Chat export viewer with inline message expansion and tagging (TASK-014)
+│       ├── ChatExplorer.tsx         # ✓ Chat export viewer with inline message expansion and tagging (TASK-014)
+│       ├── WikiPanel.tsx            # ✓ Wiki panel with query/lint/ingest/gaps UI (TASK-017)
+│       ├── WikiPanel.test.tsx       # ✓ WikiPanel component tests (TASK-017)
+│       ├── CalendarPanel.tsx        # ✓ Google Calendar panel with OAuth, events, free gaps, suggestions (TASK-020)
+│       └── CalendarPanel.test.tsx   # ✓ CalendarPanel component tests (TASK-020)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
@@ -70,7 +76,9 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
     │   ├── ai.ts                    # ✓ GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all (TASK-013)
     │   ├── chats.ts                 # ✓ GET /api/chats, GET /api/chats/search, GET /api/chats/:uuid, PATCH /api/chats/:uuid/tags (TASK-014)
-    │   └── wiki.ts                  # ✓ POST /api/wiki/ingest, GET /api/wiki/index, GET /api/wiki/pages (TASK-016)
+    │   ├── wiki.ts                  # ✓ POST /api/wiki/ingest, GET /api/wiki/index, GET /api/wiki/pages, POST /api/wiki/query, POST /api/wiki/lint, POST /api/wiki/gaps (TASK-016, TASK-017, TASK-018)
+    │   ├── calendar.ts              # ✓ GET /api/calendar/auth, GET /api/calendar/callback, GET /api/calendar (TASK-020)
+    │   └── calendar.test.ts         # ✓ 7 unit tests for calendar routes (TASK-020)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -95,8 +103,10 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── vault-config.test.ts     # ✓ 17 unit tests for vault-config (TASK-015)
         ├── vault-dirs.ts            # ✓ Core vault directory resolution logic (TASK-015)
         ├── multi-vault.test.ts      # ✓ 12 unit tests for multi-vault todo/deadline extraction (TASK-015)
-        ├── wiki-manager.ts          # ✓ LLM Wiki core: ensureWikiExists, ingestSource, readIndex, listPages, appendLog (TASK-016)
-        ├── wiki-manager.test.ts     # ✓ 23 unit tests for wiki-manager (TASK-016)
+        ├── wiki-manager.ts          # ✓ LLM Wiki core: ensureWikiExists, ingestSource, readIndex, listPages, appendLog, queryWiki, lintWiki, analyzeGaps (TASK-016, TASK-017, TASK-018)
+        ├── wiki-manager.test.ts     # ✓ 41 unit tests for wiki-manager (TASK-016, TASK-017, TASK-018)
+        ├── calendar-client.ts       # ✓ Google Calendar OAuth2 client: getAuthUrl, exchangeCodeForTokens, saveTokens, loadTokens, getCalendarEvents, auto-refresh (TASK-020)
+        ├── calendar-client.test.ts  # ✓ 5 unit tests for calendar-client (TASK-020)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
