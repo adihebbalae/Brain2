@@ -25,7 +25,21 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+
+    // Allow localhost:5173 (frontend dev server)
+    if (origin === 'http://localhost:5173') return callback(null, true);
+
+    // Allow chrome-extension:// origins
+    if (origin.startsWith('chrome-extension://')) return callback(null, true);
+
+    // Reject all other origins
+    callback(new Error('Not allowed by CORS'));
+  }
+}))
 app.use(express.json())
 
 // Health check
