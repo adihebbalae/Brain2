@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 Complete ✅ + Four P3 tasks complete (TASK-020, TASK-021, TASK-022, TASK-027)
+- **Phase**: P2 Complete ✅ + Five P3 tasks complete (TASK-020, TASK-021, TASK-022, TASK-027, TASK-028)
 - **Current Task**: None
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-028 — Spaced repetition note resurfacing (45 new tests: 16 review-log + 17 review-queue + 12 routes, 520 total passing)
   - TASK-027 — Obsidian Canvas reader (35 new tests: 19 parser + 16 routes, 475 total passing)
   - TASK-022 — Article/bookmark reading tracker (33 new tests: 9 bookmarks parser + 12 reading-log parser + 12 route tests, 414 total passing)
   - TASK-021 — YouTube watch history (Google Takeout) parser and MediaPanel (22 new tests, 381 total passing)
-  - TASK-020 — Google Calendar OAuth2 integration (19 new tests: 5 client + 7 routes + 7 component, 359 total passing)
 
 ## Project Brief
 
@@ -67,7 +67,7 @@
 | TASK-025 | Weekly review generator + daily context | pending | P3 |
 | TASK-026 | Git activity log across all projects | in_progress | P3 |
 | TASK-027 | Obsidian Canvas reader | done | P3 |
-| TASK-028 | Spaced repetition note resurfacing | pending | P3 |
+| TASK-028 | Spaced repetition note resurfacing | done | P3 |
 | TASK-029 | Browser web clipper Chrome extension | pending | P3 |
 
 ## P3 Architecture Decisions
