@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 Complete ✅ + Five P3 tasks complete (TASK-020, TASK-021, TASK-022, TASK-027, TASK-028)
+- **Phase**: P2 Complete ✅ + Seven P3 tasks complete (TASK-020, TASK-021, TASK-022, TASK-025, TASK-027, TASK-028, TASK-029)
 - **Current Task**: None
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-025 — Weekly review generator + daily context (22 new tests: 8 daily + 14 weekly, 542 total passing)
+  - TASK-029 — Browser web clipper Chrome extension (Manifest V3 extension in src/extension/, CORS updated, 520 tests passing)
   - TASK-028 — Spaced repetition note resurfacing (45 new tests: 16 review-log + 17 review-queue + 12 routes, 520 total passing)
   - TASK-027 — Obsidian Canvas reader (35 new tests: 19 parser + 16 routes, 475 total passing)
-  - TASK-022 — Article/bookmark reading tracker (33 new tests: 9 bookmarks parser + 12 reading-log parser + 12 route tests, 414 total passing)
-  - TASK-021 — YouTube watch history (Google Takeout) parser and MediaPanel (22 new tests, 381 total passing)
 
 ## Project Brief
 
@@ -64,11 +64,11 @@
 | TASK-022 | Article/bookmark reading tracker | done | P3 |
 | TASK-023 | Full RAG chat interface over all data | pending | P3 |
 | TASK-024 | Knowledge graph visualizer (D3.js wikilinks) | in_progress | P3 |
-| TASK-025 | Weekly review generator + daily context | pending | P3 |
+| TASK-025 | Weekly review generator + daily context | done | P3 |
 | TASK-026 | Git activity log across all projects | in_progress | P3 |
 | TASK-027 | Obsidian Canvas reader | done | P3 |
 | TASK-028 | Spaced repetition note resurfacing | done | P3 |
-| TASK-029 | Browser web clipper Chrome extension | pending | P3 |
+| TASK-029 | Browser web clipper Chrome extension | done | P3 |
 
 ## P3 Architecture Decisions
 - **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
@@ -485,3 +485,27 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **Features**: MCP-ready POST endpoint (Claude can add nodes as action), vault write-back enabled for .canvas files only, path validation prevents traversal attacks, cache fixes test isolation
   - **475 total tests passing** (added 35 new tests: 19 parser + 16 routes), type-check clean (pre-existing KnowledgeGraph errors unrelated)
   - **All acceptance criteria met**: GET /api/canvases returns canvas metadata, JSON Canvas spec correctly parsed, CanvasPanel renders cards with preview, POST add-node appends node correctly, path traversal check on :filename param, comprehensive tests
+- 2026-04-18: TASK-028 completed — Implemented spaced repetition note resurfacing:
+  - **Review log management**: Created server/lib/review-log.ts with loadReviewLog/saveReviewLog/markReviewed/syncNewNotes functions, manages VAULT_DIR/Resources/review-log.json tracking {[filepath]: lastReviewedISO|null}, syncNewNotes scans vault *.md excluding DailyNotes/Resources, paths normalized to forward slashes
+  - **Review queue logic**: Created server/lib/review-queue.ts with getReviewQueue (returns up to 10 notes sorted by priority: never_reviewed → overdue_90d → overdue_60d → overdue_30d), getRandomNote for Surprise Me feature, calculateStatus/daysSince logic, readPreview strips YAML frontmatter and markdown formatting
+  - **API routes**: Created server/routes/review.ts with 3 endpoints: GET /api/review/queue (returns {queue, totalDue, neverReviewed}), POST /api/review-log (marks reviewed with path traversal protection, rejects absolute paths and ../ escapes), GET /api/review/queue/random
+  - **Server integration**: Updated server/index.ts to mount review router at /api/review, calls syncNewNotes on startup (non-blocking), installed glob package for vault scanning
+  - **Frontend hook**: Created src/hooks/useReviewQueue.ts with 60-second polling, markReviewed/getRandomNote functions
+  - **ReviewPanel component**: Created src/components/ReviewPanel.tsx with progress ring showing % reviewed in last 30 days (CSS-only SVG circle with stroke-dasharray), current note display with title/status badge/preview/Open in Obsidian link, Mark Reviewed (green) and Skip (gray) buttons, queue summary stats, Surprise Me button with modal overlay, empty state "All caught up! 🎉" when no overdue notes
+  - **Integration**: Added ReviewPanel to App.tsx right sidebar after ReadingPanel, wrapped in ErrorBoundary
+  - **Files created**: server/lib/review-log.ts + review-log.test.ts (16 tests), server/lib/review-queue.ts + review-queue.test.ts (17 tests), server/routes/review.ts + review.test.ts (12 tests), src/hooks/useReviewQueue.ts, src/components/ReviewPanel.tsx
+  - **520 total tests passing** (added 45 new tests: 16 review-log + 17 review-queue + 12 routes), type-check clean (pre-existing KnowledgeGraph errors unrelated)
+  - **All acceptance criteria met**: GET /api/review/queue returns sorted overdue notes, POST /api/review-log correctly updates review-log.json, ReviewPanel renders with mark/skip buttons, path traversal check for filePath, review-log.json initialized on first run, comprehensive tests for overdue scoring logic
+- 2026-04-18: TASK-029 completed — Implemented browser web clipper Chrome extension:
+  - **Extension structure**: Created src/extension/ directory with Manifest V3 Chrome extension
+  - **manifest.json**: Valid Manifest V3 with name "Cortex Clipper", version 1.0.0, activeTab permission (minimal invasive permission, only needs current tab when popup open), action with popup and 3 icon sizes
+  - **popup.html**: Dark theme matching Cortex aesthetic (#1f2937 bg, #f9fafb text), 320px width, shows URL (readonly), Title (editable), Note textarea (optional), Clip button, status div for success/error messages
+  - **popup.js**: Auto-fills current tab URL and title on load using chrome.tabs.query, POSTs to http://localhost:3001/api/capture with markdown link format `[title](url) — note`, disables button during submission, shows success message and auto-closes popup after 1.2s, shows error message with helpful "Is Cortex running?" prompt when server unreachable
+  - **SVG icons**: Created 3 icons (icon16.svg, icon48.svg, icon128.svg) with blue rounded rectangle (#3b82f6) and arrow design, same SVG content with different width/height attributes
+  - **README.md**: Developer mode install instructions (chrome://extensions → Developer mode → Load unpacked → select src/extension/), usage guide, requirements (Cortex must be running on port 3001)
+  - **CORS update**: Updated server/index.ts CORS configuration from single origin string `'http://localhost:5173'` to origin function that checks: (1) no origin (Postman/mobile apps), (2) http://localhost:5173 (frontend dev server), (3) chrome-extension:// prefix (extension), rejects all other origins
+  - **Error handling**: Extension shows user-friendly message when Cortex not running, popup doesn't freeze or crash, button re-enables after error
+  - **Security**: No external network calls from extension (only localhost:3001), no host_permissions (activeTab is sufficient), no background service worker (not needed for this feature)
+  - **Files created**: src/extension/manifest.json, popup.html, popup.js, README.md, icons/icon16.svg, icons/icon48.svg, icons/icon128.svg
+  - **Validation**: manifest.json validated as valid JSON, all 520 existing tests still pass (CORS change didn't break anything), type-check passes (pre-existing KnowledgeGraph errors unrelated to this task)
+  - **All acceptance criteria met**: Manifest V3 valid, popup shows URL/title auto-filled, POST to /api/capture succeeds from extension (with CORS change), server CORS allows chrome-extension:// origins, README explains install, no external network calls

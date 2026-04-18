@@ -35,7 +35,16 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 ├── tailwind.config.js               # Tailwind CSS config
 ├── postcss.config.js                # PostCSS config for Tailwind
 ├── index.html                       # HTML entry point
-├── src/                             # React frontend
+├── src/                             # React frontend + Chrome extension
+│   ├── extension/                   # ✓ Chrome extension (TASK-029)
+│   │   ├── manifest.json            # ✓ Manifest V3 config (TASK-029)
+│   │   ├── popup.html               # ✓ Extension popup UI (TASK-029)
+│   │   ├── popup.js                 # ✓ Extension logic (TASK-029)
+│   │   ├── README.md                # ✓ Install instructions (TASK-029)
+│   │   └── icons/
+│   │       ├── icon16.svg           # ✓ 16px icon (TASK-029)
+│   │       ├── icon48.svg           # ✓ 48px icon (TASK-029)
+│   │       └── icon128.svg          # ✓ 128px icon (TASK-029)
 │   ├── App.tsx                      # ✓ Main dashboard layout (TASK-007)
 │   ├── App.test.tsx                 # ✓ App component tests (TASK-007)
 │   ├── main.tsx                     # React entry point
@@ -72,6 +81,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── CalendarPanel.test.tsx   # ✓ CalendarPanel component tests (TASK-020)
 │       ├── MediaPanel.tsx           # ✓ YouTube watch history panel with setup guide modal (TASK-021)
 │       ├── ReadingPanel.tsx         # ✓ Reading list panel with bookmarks + vault merge, quick add, topic chips (TASK-022)
+│       ├── DailyPanel.tsx           # ✓ Daily context panel with today's date, calendar, deadlines, stale projects, random notes, git activity (TASK-025)
 │       ├── CanvasPanel.tsx          # ✓ Obsidian Canvas panel with grid cards, Open in Obsidian, add-node form (TASK-027)
 │       └── ReviewPanel.tsx          # ✓ Review queue panel with progress ring, mark/skip buttons, Surprise Me modal (TASK-028)
 └── server/                          # Express.js backend
@@ -93,7 +103,11 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── canvases.ts              # ✓ GET /api/canvases, POST /api/canvases/:filename/add-node (TASK-027)
     │   ├── canvases.test.ts         # ✓ 16 unit tests for canvases routes (TASK-027)
     │   ├── review.ts                # ✓ GET /api/review/queue, POST /api/review-log, GET /api/review/queue/random (TASK-028)
-    │   └── review.test.ts           # ✓ 12 unit tests for review routes (TASK-028)
+    │   ├── review.test.ts           # ✓ 12 unit tests for review routes (TASK-028)
+    │   ├── daily.ts                 # ✓ GET /api/daily-context (TASK-025)
+    │   ├── daily.test.ts            # ✓ 8 unit tests for daily context route (TASK-025)
+    │   ├── weekly.ts                # ✓ POST /api/weekly-review, GET /api/weekly-review/status, autoTriggerWeeklyReview (TASK-025)
+    │   └── weekly.test.ts           # ✓ 14 unit tests for weekly review routes (TASK-025)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
