@@ -15,6 +15,8 @@ import graphRouter from './routes/graph.js'
 import { activityRouter } from './routes/activity.js'
 import { canvasesRouter } from './routes/canvases.js'
 import { reviewRouter } from './routes/review.js'
+import { dailyRouter } from './routes/daily.js'
+import { weeklyRouter, autoTriggerWeeklyReview } from './routes/weekly.js'
 import { startNotificationService } from './lib/notification-service.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
@@ -62,6 +64,8 @@ app.use('/api', graphRouter)
 app.use('/api', activityRouter)
 app.use('/api/canvases', canvasesRouter)
 app.use('/api/review', reviewRouter)
+app.use('/api', dailyRouter)
+app.use('/api', weeklyRouter)
 
 // Start server
 app.listen(PORT, () => {
@@ -79,6 +83,15 @@ try {
   })
 } catch (err) {
   console.error('[startup] Failed to get vault dir for review log sync:', err)
+}
+
+// Auto-trigger weekly review on Sunday (non-blocking, 5-second delay)
+if (process.env.NODE_ENV !== 'test') {
+  setTimeout(() => {
+    autoTriggerWeeklyReview().catch(err => {
+      console.error('[startup] Failed to auto-trigger weekly review:', err)
+    })
+  }, 5000)
 }
 
 export default app

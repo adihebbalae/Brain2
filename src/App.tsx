@@ -15,6 +15,7 @@ import { KnowledgeGraph } from './components/KnowledgeGraph'
 import { GitActivityPanel } from './components/GitActivityPanel'
 import { CanvasPanel } from './components/CanvasPanel'
 import { ReviewPanel } from './components/ReviewPanel'
+import { DailyPanel } from './components/DailyPanel'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -121,8 +122,12 @@ function App() {
             )}
           </div>
 
-          {/* Right column: Sidebar (calendar + YouTube + reading + deadline timeline + TODO aggregator) */}
+          {/* Right column: Sidebar (daily context + calendar + YouTube + reading + deadline timeline + TODO aggregator) */}
           <div className="lg:col-span-1 space-y-6">
+            <ErrorBoundary fallbackMessage="Error loading daily context">
+              <DailyPanel />
+            </ErrorBoundary>
+
             <ErrorBoundary fallbackMessage="Error loading calendar">
               <CalendarPanel />
             </ErrorBoundary>
