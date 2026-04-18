@@ -14,7 +14,10 @@ import readingRouter from './routes/reading.js'
 import graphRouter from './routes/graph.js'
 import { activityRouter } from './routes/activity.js'
 import { canvasesRouter } from './routes/canvases.js'
+import { reviewRouter } from './routes/review.js'
 import { startNotificationService } from './lib/notification-service.js'
+import { syncNewNotes } from './lib/review-log.js'
+import { getPrimaryVaultDir } from './lib/vault-config.js'
 
 config()
 
@@ -44,6 +47,7 @@ app.use('/api/reading', readingRouter)
 app.use('/api', graphRouter)
 app.use('/api', activityRouter)
 app.use('/api/canvases', canvasesRouter)
+app.use('/api/review', reviewRouter)
 
 // Start server
 app.listen(PORT, () => {
@@ -52,5 +56,15 @@ app.listen(PORT, () => {
 
 // Start notification service (after routes)
 startNotificationService()
+
+// Sync review log with vault notes (non-blocking)
+try {
+  const vaultDir = getPrimaryVaultDir()
+  syncNewNotes(vaultDir).catch(err => {
+    console.error('[startup] Failed to sync review log:', err)
+  })
+} catch (err) {
+  console.error('[startup] Failed to get vault dir for review log sync:', err)
+}
 
 export default app

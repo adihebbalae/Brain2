@@ -14,6 +14,7 @@ import { ReadingPanel } from './components/ReadingPanel'
 import { KnowledgeGraph } from './components/KnowledgeGraph'
 import { GitActivityPanel } from './components/GitActivityPanel'
 import { CanvasPanel } from './components/CanvasPanel'
+import { ReviewPanel } from './components/ReviewPanel'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -132,6 +133,10 @@ function App() {
 
             <ErrorBoundary fallbackMessage="Error loading reading list">
               <ReadingPanel />
+            </ErrorBoundary>
+
+            <ErrorBoundary fallbackMessage="Error loading review queue">
+              <ReviewPanel />
             </ErrorBoundary>
 
             <ErrorBoundary fallbackMessage="Error loading deadlines">
