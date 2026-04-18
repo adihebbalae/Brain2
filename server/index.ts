@@ -17,6 +17,7 @@ import { canvasesRouter } from './routes/canvases.js'
 import { reviewRouter } from './routes/review.js'
 import { dailyRouter } from './routes/daily.js'
 import { weeklyRouter, autoTriggerWeeklyReview } from './routes/weekly.js'
+import chatQueryRouter from './routes/chat-query.js'
 import { startNotificationService } from './lib/notification-service.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
@@ -66,6 +67,7 @@ app.use('/api/canvases', canvasesRouter)
 app.use('/api/review', reviewRouter)
 app.use('/api', dailyRouter)
 app.use('/api', weeklyRouter)
+app.use('/api/chat', chatQueryRouter)
 
 // Start server
 app.listen(PORT, () => {
