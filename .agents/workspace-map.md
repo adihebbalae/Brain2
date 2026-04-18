@@ -83,7 +83,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── ReadingPanel.tsx         # ✓ Reading list panel with bookmarks + vault merge, quick add, topic chips (TASK-022)
 │       ├── DailyPanel.tsx           # ✓ Daily context panel with today's date, calendar, deadlines, stale projects, random notes, git activity (TASK-025)
 │       ├── CanvasPanel.tsx          # ✓ Obsidian Canvas panel with grid cards, Open in Obsidian, add-node form (TASK-027)
-│       └── ReviewPanel.tsx          # ✓ Review queue panel with progress ring, mark/skip buttons, Surprise Me modal (TASK-028)
+│       ├── ReviewPanel.tsx          # ✓ Review queue panel with progress ring, mark/skip buttons, Surprise Me modal (TASK-028)
+│       └── BrainChat.tsx            # ✓ Full-panel RAG chat overlay with SSE streaming, source chips, session history (TASK-023)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
@@ -107,7 +108,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── daily.ts                 # ✓ GET /api/daily-context (TASK-025)
     │   ├── daily.test.ts            # ✓ 8 unit tests for daily context route (TASK-025)
     │   ├── weekly.ts                # ✓ POST /api/weekly-review, GET /api/weekly-review/status, autoTriggerWeeklyReview (TASK-025)
-    │   └── weekly.test.ts           # ✓ 14 unit tests for weekly review routes (TASK-025)
+    │   ├── weekly.test.ts           # ✓ 14 unit tests for weekly review routes (TASK-025)
+    │   └── chat-query.ts            # ✓ POST /api/chat/query with RAG context assembly and SSE streaming (TASK-023)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -150,6 +152,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── review-log.test.ts       # ✓ 16 unit tests for review-log (TASK-028)
         ├── review-queue.ts          # ✓ Review queue logic: getReviewQueue, getRandomNote with priority sorting (TASK-028)
         ├── review-queue.test.ts     # ✓ 17 unit tests for review-queue (TASK-028)
+        ├── rag-engine.ts            # ✓ RAG context assembly: keyword extraction, chunk scoring, context building from 5 sources (TASK-023)
+        ├── rag-engine.test.ts       # ✓ 21 unit tests for RAG engine (TASK-023)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
