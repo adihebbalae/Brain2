@@ -11,6 +11,9 @@ import { WikiPanel } from './components/WikiPanel'
 import { CalendarPanel } from './components/CalendarPanel'
 import { MediaPanel } from './components/MediaPanel'
 import { ReadingPanel } from './components/ReadingPanel'
+import { KnowledgeGraph } from './components/KnowledgeGraph'
+import { GitActivityPanel } from './components/GitActivityPanel'
+import { CanvasPanel } from './components/CanvasPanel'
 
 function App() {
   const { projects, loading, error, refetch } = useProjects()
@@ -148,10 +151,31 @@ function App() {
           </ErrorBoundary>
         </div>
 
+        {/* Git Activity Panel */}
+        <div className="mt-8">
+          <ErrorBoundary fallbackMessage="Error loading git activity">
+            <GitActivityPanel />
+          </ErrorBoundary>
+        </div>
+
+        {/* Canvas Panel */}
+        <div className="mt-8">
+          <ErrorBoundary fallbackMessage="Error loading canvases">
+            <CanvasPanel />
+          </ErrorBoundary>
+        </div>
+
         {/* Chat Exports section (below main grid) */}
         <div className="mt-8">
           <ErrorBoundary fallbackMessage="Error loading chat exports">
             <ChatExplorer projectNames={projectNames} />
+          </ErrorBoundary>
+        </div>
+
+        {/* Knowledge Graph section */}
+        <div className="mt-8">
+          <ErrorBoundary fallbackMessage="Error loading knowledge graph">
+            <KnowledgeGraph />
           </ErrorBoundary>
         </div>
       </main>

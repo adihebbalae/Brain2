@@ -11,6 +11,9 @@ import { wikiRouter } from './routes/wiki.js'
 import { calendarRouter } from './routes/calendar.js'
 import { mediaRouter } from './routes/media.js'
 import readingRouter from './routes/reading.js'
+import graphRouter from './routes/graph.js'
+import { activityRouter } from './routes/activity.js'
+import { canvasesRouter } from './routes/canvases.js'
 import { startNotificationService } from './lib/notification-service.js'
 
 config()
@@ -38,6 +41,9 @@ app.use('/api/wiki', wikiRouter)
 app.use('/api/calendar', calendarRouter)
 app.use('/api', mediaRouter)
 app.use('/api/reading', readingRouter)
+app.use('/api', graphRouter)
+app.use('/api', activityRouter)
+app.use('/api/canvases', canvasesRouter)
 
 // Start server
 app.listen(PORT, () => {
