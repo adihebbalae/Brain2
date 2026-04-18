@@ -4,15 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P2 Complete ✅ + Three P3 tasks complete (TASK-020, TASK-021, TASK-022)
+- **Phase**: P2 Complete ✅ + Four P3 tasks complete (TASK-020, TASK-021, TASK-022, TASK-027)
 - **Current Task**: None
 - **Blocked On**: None
 - **Security**: Cleared for push ✅
 - **Recent Completions**: 
+  - TASK-027 — Obsidian Canvas reader (35 new tests: 19 parser + 16 routes, 475 total passing)
   - TASK-022 — Article/bookmark reading tracker (33 new tests: 9 bookmarks parser + 12 reading-log parser + 12 route tests, 414 total passing)
   - TASK-021 — YouTube watch history (Google Takeout) parser and MediaPanel (22 new tests, 381 total passing)
   - TASK-020 — Google Calendar OAuth2 integration (19 new tests: 5 client + 7 routes + 7 component, 359 total passing)
-  - TASK-017 — LLM Wiki query + lint + WikiPanel (15 component tests, 41 wiki-manager tests, 341 total passing)
 
 ## Project Brief
 
@@ -63,10 +63,10 @@
 | TASK-021 | YouTube watch history (Google Takeout) | done | P3 |
 | TASK-022 | Article/bookmark reading tracker | done | P3 |
 | TASK-023 | Full RAG chat interface over all data | pending | P3 |
-| TASK-024 | Knowledge graph visualizer (D3.js wikilinks) | pending | P3 |
+| TASK-024 | Knowledge graph visualizer (D3.js wikilinks) | in_progress | P3 |
 | TASK-025 | Weekly review generator + daily context | pending | P3 |
-| TASK-026 | Git activity log across all projects | pending | P3 |
-| TASK-027 | Obsidian Canvas reader | pending | P3 |
+| TASK-026 | Git activity log across all projects | in_progress | P3 |
+| TASK-027 | Obsidian Canvas reader | done | P3 |
 | TASK-028 | Spaced repetition note resurfacing | pending | P3 |
 | TASK-029 | Browser web clipper Chrome extension | pending | P3 |
 
@@ -474,3 +474,14 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **381 tests passing** (382 total, 1 pre-existing flaky DeadlineTimeline test unrelated to this task), type-check clean, build passing
   - **API verified**: Tested GET /api/youtube-history with no YOUTUBE_HISTORY_PATH returns {available: false, total: 0, last30Days: [], byMonth: [], topChannels: []}
   - **All acceptance criteria met**: parser handles Takeout format correctly, "Searched for" entries filtered, GET /api/youtube-history returns correct shape, graceful empty state, MediaPanel renders both views, setup guide in vault and modal, .env.example updated, comprehensive parser tests
+- 2026-04-18: TASK-027 completed — Implemented Obsidian Canvas reader with GET/POST endpoints and frontend panel:
+  - **Canvas parser**: Created server/lib/canvas-parser.ts with parseCanvas (parses JSON Canvas spec {nodes, edges}, returns CanvasData with filename/nodeCount/edgeCount/textPreview [first 3 text nodes, 80 chars each]/fileNodes/lastModified, handles all node types [text/file/link/group], gracefully skips malformed JSON) and addNodeToCanvas (writes new text node with random 8-char hex ID, positions at maxY+100, supports color codes 1-6)
+  - **API routes**: Created server/routes/canvases.ts with GET /api/canvases (recursive scan for *.canvas, returns sorted by lastModified desc, 3-minute cache, clearCanvasCache export for testing) and POST /api/canvases/:filename/add-node (validates text non-empty, validates color 1-6 if provided, finds file recursively, strict path traversal protection via vault-config.isPathInVault, invalidates cache)
+  - **Integration**: Registered route in server/index.ts
+  - **Frontend hook**: Created src/hooks/useCanvases.ts with 60-second polling, addNode function
+  - **CanvasPanel component**: Created src/components/CanvasPanel.tsx with 2-column grid, cards show filename/N nodes·N edges stats/text preview chips [first 40 chars]/file node chips/Open in Obsidian button [obsidian://open deep link]/inline add-node form with text input+Add button+success/error toast
+  - **Integration**: Added CanvasPanel to App.tsx after GitActivityPanel, wrapped in ErrorBoundary
+  - **Files created**: server/lib/canvas-parser.ts + canvas-parser.test.ts (19 tests), server/routes/canvases.ts + canvases.test.ts (16 tests), src/hooks/useCanvases.ts, src/components/CanvasPanel.tsx
+  - **Features**: MCP-ready POST endpoint (Claude can add nodes as action), vault write-back enabled for .canvas files only, path validation prevents traversal attacks, cache fixes test isolation
+  - **475 total tests passing** (added 35 new tests: 19 parser + 16 routes), type-check clean (pre-existing KnowledgeGraph errors unrelated)
+  - **All acceptance criteria met**: GET /api/canvases returns canvas metadata, JSON Canvas spec correctly parsed, CanvasPanel renders cards with preview, POST add-node appends node correctly, path traversal check on :filename param, comprehensive tests

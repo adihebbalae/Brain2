@@ -51,7 +51,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   │   ├── useWiki.ts               # ✓ Data fetching hook for wiki with query/lint/ingest/analyzeGaps (TASK-017)
 │   │   ├── useCalendar.ts           # ✓ Data fetching hook for Google Calendar with 60s polling (TASK-020)
 │   │   ├── useYouTubeHistory.ts     # ✓ Data fetching hook for YouTube history with 60s polling (TASK-021)
-│   │   └── useReading.ts            # ✓ Data fetching hook for reading list with 60s polling (TASK-022)
+│   │   ├── useReading.ts            # ✓ Data fetching hook for reading list with 60s polling (TASK-022)
+│   │   └── useCanvases.ts           # ✓ Data fetching hook for canvases with 60s polling, addNode function (TASK-027)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
@@ -69,7 +70,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── CalendarPanel.tsx        # ✓ Google Calendar panel with OAuth, events, free gaps, suggestions (TASK-020)
 │       ├── CalendarPanel.test.tsx   # ✓ CalendarPanel component tests (TASK-020)
 │       ├── MediaPanel.tsx           # ✓ YouTube watch history panel with setup guide modal (TASK-021)
-│       └── ReadingPanel.tsx         # ✓ Reading list panel with bookmarks + vault merge, quick add, topic chips (TASK-022)
+│       ├── ReadingPanel.tsx         # ✓ Reading list panel with bookmarks + vault merge, quick add, topic chips (TASK-022)
+│       └── CanvasPanel.tsx          # ✓ Obsidian Canvas panel with grid cards, Open in Obsidian, add-node form (TASK-027)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
@@ -85,7 +87,9 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── calendar.test.ts         # ✓ 7 unit tests for calendar routes (TASK-020)
     │   ├── media.ts                 # ✓ GET /api/youtube-history (TASK-021)
     │   ├── reading.ts               # ✓ GET /api/reading, POST /api/reading (TASK-022)
-    │   └── reading.test.ts          # ✓ 12 unit tests for reading routes (TASK-022)
+    │   ├── reading.test.ts          # ✓ 12 unit tests for reading routes (TASK-022)
+    │   ├── canvases.ts              # ✓ GET /api/canvases, POST /api/canvases/:filename/add-node (TASK-027)
+    │   └── canvases.test.ts         # ✓ 16 unit tests for canvases routes (TASK-027)
     └── lib/
         ├── scanner.ts               # ✓ Project scanner (TASK-003)
         ├── scanner.test.ts          # ✓ 17 unit tests for scanner (TASK-003)
@@ -120,6 +124,10 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── bookmarks-parser.test.ts # ✓ 9 unit tests for bookmarks parser (TASK-022)
         ├── reading-log-parser.ts    # ✓ ReadingLog.md parser: parseReadingLog, appendToReadingLog (TASK-022)
         ├── reading-log-parser.test.ts  # ✓ 12 unit tests for reading-log parser (TASK-022)
+        ├── git-activity-parser.ts   # ✓ Git activity scanner: getGitActivity, runs git log across all projects, builds heatmap and per-project stats (TASK-026)
+        ├── git-activity-parser.test.ts  # ✓ 9 unit tests for git activity parser (TASK-026)
+        ├── canvas-parser.ts         # ✓ JSON Canvas parser: parseCanvas, addNodeToCanvas with color support (TASK-027)
+        ├── canvas-parser.test.ts    # ✓ 19 unit tests for canvas parser (TASK-027)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
