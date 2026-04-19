@@ -11,9 +11,12 @@
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "mcp:dev": "tsx server/mcp-server.ts",
+    "mcp:build": "tsc --project tsconfig.node.json --outDir dist-mcp server/mcp-server.ts server/lib/mcp-tools.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/d3": "^7.4.3",
     "cors": "^2.8.5",
     "d3": "^7.9.0",

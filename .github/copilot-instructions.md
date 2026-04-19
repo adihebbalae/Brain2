@@ -108,6 +108,13 @@ When work needs to transfer between agents:
 - **Usage/rate limit failures**: If Claude CLI exits with a usage limit error, set task status back to `pending` (not `blocked`). `blocked` is reserved for genuine code/logic failures. Re-running the script resumes from the pending task automatically.
 - **`context.blocked_on` hygiene**: Always clear `blocked_on` to `null` after a blocker is resolved. Stale blocker messages from previous runs must not persist into new sessions.
 - **`security_between_tasks` flag**: The `auto_run.security_between_tasks` boolean in state.json controls whether security scans run after each task (not just at end). This is implemented in `.github/scripts/auto-run.ps1` via `$SecurityBetweenTasks`.
+- **`current_task` cleanup after interruption**: If auto-run is interrupted (Ctrl+C, rate limit) mid-task, `current_task` and the task's `status` field are left as `in_progress`. Before re-running, manually reset: set `current_task` to `null` and the task's `status` back to `pending`.
+- **`auto_run.task_order` contains all tasks, not just pending**: The array is the full historical order. The script filters by `status: pending/not_started` — so already-done tasks in the order are silently skipped. Don't remove completed tasks from `task_order`.
+
+## Agent Status Verification Rules
+- **Never trust `in_progress` without verifying code exists**: Before reporting a task as `in_progress` or `done`, verify the key files actually exist. Check for the component file, the route file, and any test file. If they're missing, the task is `pending`.
+- **Verify file paths in handoffs before writing**: Before writing a handoff that references source files (e.g. "Read `server/lib/foo.ts`"), search the workspace to confirm those files exist. Wrong filenames cause Claude CLI to start from scratch instead of building on existing code.
+- **Quick state audit command**: Run `$s = Get-Content .agents/state.json -Raw | ConvertFrom-Json; $s.tasks.PSObject.Properties | Select-Object Name, @{n='status';e={$_.Value.status}}` to get a clean status table before any auto-run.
 
 ## Allowed File Write-back Operations
 Beyond the default read-only policy, these explicit write operations are permitted:

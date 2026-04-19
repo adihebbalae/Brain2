@@ -637,6 +637,25 @@
                                                                "Session history maintained (reset on refresh is fine)",
                                                                "Tests for context assembly and keyword scoring"
                                                            ]
+                               },
+                  "TASK-030":  {
+                                   "title":  "Cortex MCP server — expose backend as Claude Desktop tool server",
+                                   "assigned_to":  "engineer",
+                                   "status":  "in_progress",
+                                   "model":  "sonnet",
+                                   "priority":  "P4",
+                                   "depends_on":  [
+
+                                                  ],
+                                   "description":  "Implement an MCP (Model Context Protocol) server that exposes Cortex data as tools callable by Claude Desktop. Uses @modelcontextprotocol/sdk. Tools: list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log.",
+                                   "acceptance_criteria":  [
+                                                               "server/mcp-server.ts starts standalone on a configurable port (default 3002)",
+                                                               "8 tools registered: list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log",
+                                                               "Claude Desktop can connect via mcp.json config (stdio or sse transport)",
+                                                               "All tools return typed JSON with error handling",
+                                                               "package.json script: mcp:dev runs the MCP server",
+                                                               "Tests for all 8 tools (mocked filesystem)"
+                                                           ]
                                }
               },
     "active_task":  null,
@@ -710,6 +729,10 @@
                       "2026-04-18: TASK-023 completed — Implemented full RAG chat interface over all Cortex data: Keyword-based context assembly engine (server/lib/rag-engine.ts) indexes 5 data sources (notes from vault excluding Wiki/, projects via scanner, chat exports, wiki pages, reading list), extracts keywords with simple stemming (strip ing/ed/s) and stopword filtering, scores chunks by keyword overlap (title matches * 3 + content matches), returns top-20 chunks, assembles context capped at 6000 chars. Chat route (server/routes/chat-query.ts): POST /api/chat/query accepts {message, history}, assembles RAG context, builds Ollama prompt with context + last 3 conversation turns, calls Ollama llama3.1:8b with stream=true, pipes NDJSON response as SSE (data: {chunk} per token, data: [DONE] at end, data: {sources} at start), graceful error handling when Ollama unavailable (HTTP 503 with clear message). Frontend BrainChat component (src/components/BrainChat.tsx): full-panel overlay triggered by \"Ask Cortex\" button in App.tsx header, message list with user/assistant bubbles, SSE streaming display (reads fetch response body as ReadableStream, parses SSE lines, appends tokens to assistant message in real-time), session-only conversation history maintained in component state (reset on close), source chips displayed at bottom of each assistant response (notes/projects/chats/wiki/reading), textarea input with Shift+Enter for newline / Enter to send, Clear conversation button, error banner when Ollama unavailable or other errors. 5-minute in-memory index cache in chat-query route. Created server/lib/rag-engine.test.ts with 21 unit tests (extractKeywords: stopword filtering, stemming, lowercasing; scoreChunks: title vs content weighting, topN limiting, no matches; assembleContext: header formatting, content inclusion, maxChars truncation, single/empty chunks; getUniqueSources: deduplication, empty array). 563 total tests passing (542 existing + 21 new). Note: Pre-existing TypeScript errors in KnowledgeGraph.tsx (TASK-024) not addressed in this task. All acceptance criteria met"
                   ],
     "auto_run":  {
+                     "checkpoint_seconds":  45,
+                     "max_retries":  3,
+                     "security_between_tasks":  false,
+                     "rate_limit_wait_hours":  5,
                      "task_order":  [
                                         "TASK-001",
                                         "TASK-002",
@@ -739,14 +762,16 @@
                                         "TASK-028",
                                         "TASK-029",
                                         "TASK-025",
-                                        "TASK-023"
-                                    ],
-                     "checkpoint_seconds":  45,
-                     "max_retries":  3,
-                     "security_between_tasks":  false,
-                     "rate_limit_wait_hours":  5
+                                        "TASK-023",
+                                        "TASK-030"
+                                    ]
                  },
-    "last_updated":  "2026-04-18T14:46:08-05:00",
-    "last_updated_by":  "engineer",
-    "current_task":  null
+    "last_updated":  "2026-04-19T15:43:57.0777219-05:00",
+    "last_updated_by":  "auto-run",
+    "current_task":  {
+                         "id":  "TASK-030",
+                         "title":  "Cortex MCP server — expose backend as Claude Desktop tool server",
+                         "status":  "in_progress",
+                         "assigned_to":  "engineer"
+                     }
 }

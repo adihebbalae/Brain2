@@ -127,6 +127,8 @@ function Get-PendingTasks {
 
     if ($order.Count -gt 0) {
         foreach ($id in $order) {
+            # Guard: skip null/empty IDs that can appear if task_order was serialized with a null entry
+            if (-not $id -or $id.Trim() -eq '') { continue }
             if ($allTasks.ContainsKey($id) -and $allTasks[$id].status -in @("pending", "not_started")) {
                 [void]$tasks.Add(@{ id = $id; data = $allTasks[$id] })
             }
@@ -134,6 +136,7 @@ function Get-PendingTasks {
     }
     else {
         $allTasks.GetEnumerator() | Sort-Object Name | ForEach-Object {
+            if (-not $_.Key -or $_.Key.Trim() -eq '') { return }  # skip blank keys
             if ($_.Value.status -in @("pending", "not_started")) {
                 [void]$tasks.Add(@{ id = $_.Key; data = $_.Value })
             }
@@ -147,7 +150,9 @@ function Test-RateLimited {
     param([string]$Output, [int]$ExitCode)
     if ($ExitCode -eq 0) { return $false }
     $patterns = @("rate.limit", "usage.limit", "too many requests", "429",
-                   "throttl", "capacity", "overloaded", "quota")
+                   "throttl", "capacity", "overloaded", "quota",
+                   "hit your limit", "resets.*am", "resets.*pm",
+                   "resets.*chicago", "resets.*america")
     foreach ($p in $patterns) {
         if ($Output -match $p) { return $true }
     }
@@ -241,7 +246,31 @@ if (-not $claudeCmd -and -not $DryRun) {
 
 # Read state
 $state = Read-StateFile
-$pendingTasks = Get-PendingTasks -State $state
+
+# ── Auto-reset stale in_progress tasks ──────────────────────────────────────
+# If a previous run was interrupted (Ctrl+C, rate limit), tasks may be stuck as
+# 'in_progress' with no code actually built. Reset them to 'pending' automatically
+# so this run picks them up without requiring manual state.json edits.
+$staleReset = @()
+$state.tasks.PSObject.Properties | ForEach-Object {
+    if ($_.Value.status -eq 'in_progress') {
+        $_.Value.status = 'pending'
+        $staleReset += $_.Name
+    }
+}
+if ($state.PSObject.Properties.Name -contains 'current_task' -and $state.current_task) {
+    $state | Add-Member -NotePropertyName 'current_task' -NotePropertyValue $null -Force
+}
+if ($staleReset.Count -gt 0) {
+    Write-Host "  Auto-reset $($staleReset.Count) stale in_progress task(s) to pending: $($staleReset -join ', ')" -ForegroundColor Yellow
+    $state.last_updated    = (Get-Date -Format 'o')
+    $state.last_updated_by = 'auto-run'
+    Save-StateFile -State $state
+    $state = Read-StateFile
+}
+# ─────────────────────────────────────────────────────────────────────────────
+
+$pendingTasks = @(Get-PendingTasks -State $state)  # @() prevents single-item ArrayList unwrap
 $totalTasks = $pendingTasks.Count
 
 if ($totalTasks -eq 0) {

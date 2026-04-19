@@ -4,15 +4,13 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P3 — 10/10 complete ✅
+- **Phase**: P4 — 0/1 planned (TASK-030 MCP server)
 - **Current Task**: None
 - **Blocked On**: None
-- **Security**: Cleared for push ✅
+- **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Recent Completions**: 
-  - TASK-023 — Full RAG chat interface over all data (21 new tests for RAG engine, 563 total passing)
-  - TASK-025 — Weekly review generator + daily context (22 new tests: 8 daily + 14 weekly, 542 total passing)
-  - TASK-029 — Browser web clipper Chrome extension (Manifest V3 extension in src/extension/, CORS updated, 520 tests passing)
-  - TASK-028 — Spaced repetition note resurfacing (45 new tests: 16 review-log + 17 review-queue + 12 routes, 520 total passing)
+  - TASK-023 — Full RAG chat interface over all data (563 total tests passing)
+  - TASK-030 — Planned: Cortex MCP server (expose backend as Claude Desktop tools)
 
 ## Project Brief
 
@@ -69,6 +67,7 @@
 | TASK-027 | Obsidian Canvas reader | done | P3 |
 | TASK-028 | Spaced repetition note resurfacing | done | P3 |
 | TASK-029 | Browser web clipper Chrome extension | done | P3 |
+| TASK-030 | Cortex MCP server (Claude Desktop tools) | pending | P4 |
 
 ## P3 Architecture Decisions
 - **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.

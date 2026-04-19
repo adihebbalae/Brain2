@@ -36,7 +36,7 @@ describe('GET /api/daily-context', () => {
     expect(Array.isArray(res.body.staleProjects)).toBe(true)
     expect(Array.isArray(res.body.randomNotes)).toBe(true)
     expect(typeof res.body.gitActivity).toBe('object')
-  })
+  }, 15000) // googleapis dynamic import is slow on first load — rest of suite is fast
 
   it('should gracefully handle missing calendar data', async () => {
     const res = await request(app).get('/api/daily-context')

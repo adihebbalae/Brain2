@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cortex": {
+      "command": "node",
+      "args": [
+        "C:/Users/boomb/Documents/_Projects/Brain2/dist-mcp/mcp-server.js"
+      ],
+      "env": {
+        "PROJECTS_DIR": "C:/Users/boomb/Documents/_Projects",
+        "VAULT_DIR": "C:/Users/boomb/Documents/SecondBrain"
+      }
+    }
+  }
+}
