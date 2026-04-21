@@ -1,38 +1,23 @@
+import { QuickCapture } from './components/QuickCapture'
+import { BrainChat } from './components/BrainChat'
+import { NavBar, Page } from './components/NavBar'
+import { HomePage } from './pages/HomePage'
+import { ProjectsPage } from './pages/ProjectsPage'
+import { DeadlinesPage } from './pages/DeadlinesPage'
+import { KnowledgePage } from './pages/KnowledgePage'
+import { LearningPage } from './pages/LearningPage'
 import { useProjects } from './hooks/useProjects'
 import { useTodos } from './hooks/useTodos'
-import { ProjectCard } from './components/ProjectCard'
-import { StatusOverview } from './components/StatusOverview'
-import { QuickCapture } from './components/QuickCapture'
-import { TodoAggregator } from './components/TodoAggregator'
-import { DeadlineTimeline } from './components/DeadlineTimeline'
-import { ErrorBoundary } from './components/ErrorBoundary'
-import { ChatExplorer } from './components/ChatExplorer'
-import { WikiPanel } from './components/WikiPanel'
-import { CalendarPanel } from './components/CalendarPanel'
-import { MediaPanel } from './components/MediaPanel'
-import { ReadingPanel } from './components/ReadingPanel'
-import { KnowledgeGraph } from './components/KnowledgeGraph'
-import { GitActivityPanel } from './components/GitActivityPanel'
-import { CanvasPanel } from './components/CanvasPanel'
-import { ReviewPanel } from './components/ReviewPanel'
-import { DailyPanel } from './components/DailyPanel'
-import { BrainChat } from './components/BrainChat'
 import { useState } from 'react'
 
 function App() {
-  const { projects, loading, error, refetch } = useProjects()
+  const { refetch: refetchProjects } = useProjects()
   const { refetch: refetchTodos } = useTodos()
+  const [activePage, setActivePage] = useState<Page>('home')
   const [showBrainChat, setShowBrainChat] = useState(false)
 
-  // Extract project names for tag autocomplete
-  const projectNames = projects.map(p => p.name)
-
-  // Get current date formatted
   const currentDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   })
 
   return (
@@ -51,163 +36,35 @@ function App() {
               </svg>
               Ask Cortex
             </button>
-            <span className="text-sm text-gray-600">{currentDate}</span>
+            <span className="text-sm text-gray-600 hidden sm:block">{currentDate}</span>
           </div>
         </div>
       </header>
 
-      {/* BrainChat overlay */}
-      {showBrainChat && <BrainChat onClose={() => setShowBrainChat(false)} />}
+      {/* Navigation */}
+      <NavBar activePage={activePage} onNavigate={setActivePage} />
 
-      {/* QuickCapture */}
+      {/* Quick capture (always visible) */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
         <div className="max-w-7xl mx-auto">
-          <QuickCapture onCapture={() => {
-            refetch()
-            refetchTodos()
-          }} />
+          <QuickCapture onCapture={() => { refetchProjects(); refetchTodos() }} />
         </div>
       </div>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column: Stats + Project cards */}
-          <div className="lg:col-span-2">
-            {/* Error state */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-sm font-medium text-red-800">Error loading projects</h3>
-                    <p className="mt-1 text-sm text-red-700">{error}</p>
-                  </div>
-                  <button
-                    onClick={refetch}
-                    className="ml-4 px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Loading state */}
-            {loading && !error && (
-              <>
-                <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 animate-pulse">
-                  <div className="flex gap-4">
-                    <div className="h-8 w-24 bg-gray-200 rounded-full"></div>
-                    <div className="h-8 w-24 bg-gray-200 rounded-full"></div>
-                    <div className="h-8 w-24 bg-gray-200 rounded-full"></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse">
-                      <div className="h-6 w-48 bg-gray-200 rounded mb-3"></div>
-                      <div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
-                      <div className="h-4 w-3/4 bg-gray-200 rounded mb-4"></div>
-                      <div className="h-20 bg-gray-200 rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Loaded state */}
-            {!loading && !error && (
-              <>
-                <StatusOverview projects={projects} />
-
-                {projects.length === 0 ? (
-                  <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                    <p className="text-gray-600 mb-2">No projects found</p>
-                    <p className="text-sm text-gray-500">
-                      Check your configured projects directory
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-6">
-                    {projects.map(project => (
-                      <ProjectCard key={project.path} project={project} />
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Right column: Sidebar (daily context + calendar + YouTube + reading + deadline timeline + TODO aggregator) */}
-          <div className="lg:col-span-1 space-y-6">
-            <ErrorBoundary fallbackMessage="Error loading daily context">
-              <DailyPanel />
-            </ErrorBoundary>
-
-            <ErrorBoundary fallbackMessage="Error loading calendar">
-              <CalendarPanel />
-            </ErrorBoundary>
-
-            <ErrorBoundary fallbackMessage="Error loading YouTube history">
-              <MediaPanel />
-            </ErrorBoundary>
-
-            <ErrorBoundary fallbackMessage="Error loading reading list">
-              <ReadingPanel />
-            </ErrorBoundary>
-
-            <ErrorBoundary fallbackMessage="Error loading review queue">
-              <ReviewPanel />
-            </ErrorBoundary>
-
-            <ErrorBoundary fallbackMessage="Error loading deadlines">
-              <DeadlineTimeline compact={false} />
-            </ErrorBoundary>
-
-            <ErrorBoundary fallbackMessage="Error loading TODOs">
-              <TodoAggregator />
-            </ErrorBoundary>
-          </div>
-        </div>
-
-        {/* Wiki Panel */}
-        <div className="mt-8">
-          <ErrorBoundary fallbackMessage="Error loading wiki">
-            <WikiPanel />
-          </ErrorBoundary>
-        </div>
-
-        {/* Git Activity Panel */}
-        <div className="mt-8">
-          <ErrorBoundary fallbackMessage="Error loading git activity">
-            <GitActivityPanel />
-          </ErrorBoundary>
-        </div>
-
-        {/* Canvas Panel */}
-        <div className="mt-8">
-          <ErrorBoundary fallbackMessage="Error loading canvases">
-            <CanvasPanel />
-          </ErrorBoundary>
-        </div>
-
-        {/* Chat Exports section (below main grid) */}
-        <div className="mt-8">
-          <ErrorBoundary fallbackMessage="Error loading chat exports">
-            <ChatExplorer projectNames={projectNames} />
-          </ErrorBoundary>
-        </div>
-
-        {/* Knowledge Graph section */}
-        <div className="mt-8">
-          <ErrorBoundary fallbackMessage="Error loading knowledge graph">
-            <KnowledgeGraph />
-          </ErrorBoundary>
-        </div>
+      {/* Page content */}
+      <main>
+        {activePage === 'home' && <HomePage />}
+        {activePage === 'projects' && <ProjectsPage />}
+        {activePage === 'deadlines' && <DeadlinesPage />}
+        {activePage === 'learning' && <LearningPage />}
+        {activePage === 'knowledge' && <KnowledgePage />}
       </main>
+
+      {/* BrainChat overlay */}
+      {showBrainChat && <BrainChat onClose={() => setShowBrainChat(false)} />}
     </div>
   )
 }
 
 export default App
+

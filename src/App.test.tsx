@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import App from './App'
 
 // Mock the fetch function
@@ -82,6 +82,9 @@ describe('App', () => {
 
     render(<App />)
 
+    // Navigate to Projects page where project errors are shown
+    fireEvent.click(screen.getByText('Projects'))
+
     await waitFor(() => {
       expect(screen.getByText('Error loading projects')).toBeTruthy()
     })
@@ -91,8 +94,11 @@ describe('App', () => {
     mockAllApis([], { total: 0, completed: 0, byProject: {} }, [])
     render(<App />)
 
+    // Navigate to Projects page where empty state is shown
+    fireEvent.click(screen.getByText('Projects'))
+
     await waitFor(() => {
-      expect(screen.getByText('No projects found')).toBeTruthy()
+      expect(screen.getByText('No projects match your filter')).toBeTruthy()
     })
   })
 })

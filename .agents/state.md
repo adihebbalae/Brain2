@@ -4,13 +4,13 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P4 — 0/1 planned (TASK-030 MCP server)
+- **Phase**: P4 — 1/1 complete (TASK-030 MCP server)
 - **Current Task**: None
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Recent Completions**: 
   - TASK-023 — Full RAG chat interface over all data (563 total tests passing)
-  - TASK-030 — Planned: Cortex MCP server (expose backend as Claude Desktop tools)
+  - TASK-030 — Cortex MCP server exposing backend as Claude Desktop tools (587 total tests passing)
 
 ## Project Brief
 
@@ -67,7 +67,9 @@
 | TASK-027 | Obsidian Canvas reader | done | P3 |
 | TASK-028 | Spaced repetition note resurfacing | done | P3 |
 | TASK-029 | Browser web clipper Chrome extension | done | P3 |
-| TASK-030 | Cortex MCP server (Claude Desktop tools) | pending | P4 |
+| TASK-030 | Cortex MCP server (Claude Desktop tools) | done | P4 |
+| TASK-031 | Fix mcp-tools.test.ts stale hardcoded dates | pending | P0 |
+| TASK-032 | Multi-page dashboard routing restructure | done | P4 |
 
 ## P3 Architecture Decisions
 - **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
@@ -78,6 +80,7 @@
 - **Weekly review**: Triggered on Sunday startup or POST endpoint. Uses git log + todos + reading list + calendar. Saves to vault DailyNotes.
 - **Git activity**: `git log` across all `.git` dirs in PROJECTS_DIR. 90-day CSS grid heatmap.
 - **Canvas reader**: JSON Canvas spec (.canvas files). Read+write (add-node for MCP use).
+- **Deadline write-back**: POST /api/deadlines appends new line to deadlines.md; DELETE /api/deadlines/:id removes by ID. Used by DeadlinesPage in TASK-032.
 - **Spaced repetition**: `VAULT_DIR/Resources/review-log.json` tracks last-reviewed per note. 30/60/90d thresholds.
 - **Web clipper**: Chrome Manifest V3 extension in `src/extension/`. Developer-mode install only.
 
@@ -532,3 +535,5 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **563 total tests passing** (542 existing + 21 new RAG engine tests), all existing tests still pass
   - **Type-check**: BrainChat.tsx compiles cleanly, pre-existing TypeScript errors in KnowledgeGraph.tsx (TASK-024) not addressed in this task
   - **All acceptance criteria met**: POST /api/chat/query returns SSE stream, context assembled from all 5 data sources, top-20 chunks by keyword score, context capped at 6000 chars, BrainChat component renders with streaming display, session history maintained, Ollama unavailable error shows in UI, sources shown on each response, comprehensive tests for keyword scoring and context assembly
+
+- 2026-04-19: TASK-030 completed — Cortex MCP server exposing backend as Claude Desktop tools: Created standalone MCP server using @modelcontextprotocol/sdk with stdio transport. Registered 8 tools wrapping existing lib functions (list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log). Uses Zod schemas for input validation. Created comprehensive test suite with 24 unit tests. Added mcp:dev and mcp:build scripts. 587 total tests passing.

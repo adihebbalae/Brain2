@@ -124,6 +124,7 @@ Beyond the default read-only policy, these explicit write operations are permitt
 - `VAULT_DIR/DailyNotes/YYYY-WXX-weekly-review.md` — weekly review generation
 - `VAULT_DIR/**/*.canvas` — add-node only (Canvas MCP write-back)
 - TODO checkbox toggling in any project file (in-place `[ ]` → `[x]` flip only)
+- `VAULT_DIR/Deadlines/deadlines.md` — append new deadline line (POST /api/deadlines) or remove existing line by ID (DELETE /api/deadlines/:id)
 - `data/calendar-tokens.json` — OAuth2 token storage (project root, gitignored)
 
 ## Communication Principles

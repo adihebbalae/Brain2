@@ -158,6 +158,73 @@ export async function readDeadlines(vaultDir: string): Promise<DeadlineItem[]> {
 }
 
 /**
+ * Append a new deadline to the primary vault's deadlines.md
+ */
+export async function addDeadline(
+  vaultDir: string,
+  { date, description, tag }: { date: string; description: string; tag?: string | null }
+): Promise<DeadlineItem> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid date format')
+  if (!validatePath(path.join(vaultDir, 'Deadlines', 'deadlines.md'), vaultDir)) {
+    throw new Error('Invalid vault path')
+  }
+
+  const cleanDesc = description.trim().replace(/\|/g, '-')
+  const cleanTag = tag ? tag.trim().replace(/\|/g, '-') : null
+  const line = cleanTag
+    ? `- [ ] ${date} | ${cleanDesc} | ${cleanTag}`
+    : `- [ ] ${date} | ${cleanDesc}`
+
+  const deadlinesPath = path.join(vaultDir, 'Deadlines', 'deadlines.md')
+  await fs.mkdir(path.dirname(deadlinesPath), { recursive: true })
+  try {
+    await fs.access(deadlinesPath)
+  } catch {
+    await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+  }
+  await fs.appendFile(deadlinesPath, `${line}\n`, 'utf-8')
+
+  const daysUntil = calculateDaysUntil(date)
+  return {
+    id: generateDeadlineId(date, cleanDesc),
+    date,
+    description: cleanDesc,
+    tag: cleanTag,
+    done: false,
+    urgency: calculateUrgency(daysUntil, false),
+    daysUntil,
+  }
+}
+
+/**
+ * Remove a deadline by ID from the first vault dir that contains it.
+ * Returns true if found and removed, false otherwise.
+ */
+export async function removeDeadline(vaultDirs: string[], id: string): Promise<boolean> {
+  for (const vaultDir of vaultDirs) {
+    const deadlinesPath = path.join(vaultDir, 'Deadlines', 'deadlines.md')
+    if (!validatePath(deadlinesPath, vaultDir)) continue
+    try {
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      const lines = content.split('\n')
+      let found = false
+      const newLines = lines.filter(line => {
+        const parsed = parseDeadlineLine(line)
+        if (parsed && parsed.id === id) { found = true; return false }
+        return true
+      })
+      if (found) {
+        await fs.writeFile(deadlinesPath, newLines.join('\n'), 'utf-8')
+        return true
+      }
+    } catch {
+      // file may not exist in this vault — continue
+    }
+  }
+  return false
+}
+
+/**
  * Read and merge deadlines from deadlines.md in multiple vault directories.
  * Deduplicates by ID (same date + description = same ID).
  */

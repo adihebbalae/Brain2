@@ -293,6 +293,7 @@ describe('MCP Tools', () => {
 
   describe('get_daily_context', () => {
     it('should assemble daily context from all sources', async () => {
+      const today = new Date().toISOString().split('T')[0]
       vi.mocked(readDeadlinesMultiVault).mockResolvedValue([
         { id: '1', date: '2026-04-20', description: 'Deadline 1', tag: 'work', done: false, urgency: 'red', daysUntil: 1 }
       ])
@@ -300,7 +301,7 @@ describe('MCP Tools', () => {
         { name: 'Project1', status: 'stale', staleDays: 35, summary: 'Old project', nextSteps: [], lastModified: '2026-03-10', path: 'C:\\projects\\Project1', stateFile: 'state.md', todoCount: 0 }
       ])
       vi.mocked(getGitActivity).mockResolvedValue({
-        heatmap: { '2026-04-19': 3 },
+        heatmap: { [today]: 3 },
         projects: [],
         totalCommitsLast30Days: 15
       })
@@ -308,12 +309,13 @@ describe('MCP Tools', () => {
       const handler = toolHandlers.get('get_daily_context')!
       const result = await handler({})
 
-      expect(result.content[0].text).toContain('2026-04-19')
+      expect(result.content[0].text).toContain(today)
       expect(result.content[0].text).toContain('Deadline 1')
       expect(result.content[0].text).toContain('Project1')
     })
 
     it('should handle missing data sources gracefully', async () => {
+      const today = new Date().toISOString().split('T')[0]
       vi.mocked(readDeadlinesMultiVault).mockResolvedValue([])
       vi.mocked(scanProjects).mockResolvedValue([])
       vi.mocked(getGitActivity).mockRejectedValue(new Error('Not available'))
@@ -321,7 +323,7 @@ describe('MCP Tools', () => {
       const handler = toolHandlers.get('get_daily_context')!
       const result = await handler({})
 
-      expect(result.content[0].text).toContain('2026-04-19')
+      expect(result.content[0].text).toContain(today)
       expect(result.content[0].text).toContain('gitActivity')
     })
   })

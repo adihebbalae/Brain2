@@ -88,6 +88,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
+    ├── mcp-server.ts                # ✓ Standalone MCP server for Claude Desktop (TASK-030)
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
@@ -154,6 +155,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── review-queue.test.ts     # ✓ 17 unit tests for review-queue (TASK-028)
         ├── rag-engine.ts            # ✓ RAG context assembly: keyword extraction, chunk scoring, context building from 5 sources (TASK-023)
         ├── rag-engine.test.ts       # ✓ 21 unit tests for RAG engine (TASK-023)
+        ├── mcp-tools.ts             # ✓ MCP tool handlers: registers 8 tools wrapping existing lib functions with Zod schemas (TASK-030)
+        ├── mcp-tools.test.ts        # ✓ 24 unit tests for MCP tools (TASK-030)
         └── markdown-parser.ts       # [planned] Markdown parsing utilities
 ```
 
@@ -182,6 +185,7 @@ C:\Users\boomb\Documents\SecondBrain\        ← [planned] Obsidian vault
     └── *.md                                 ← Wiki pages with YAML frontmatter + [[wikilinks]]
 C:\Users\boomb\Documents\notes_corpus.txt.txt  ← Existing notes file to parse
 ```
+mcp-config.example.json          # ✓ Example Claude Desktop MCP configuration (TASK-030)
 README.md                        # Boilerplate documentation
 ```
 

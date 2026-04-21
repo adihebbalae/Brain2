@@ -1,139 +1,88 @@
 ╔══════════════════════════════════════════════════════════════╗
-║  🔀 SWITCH TO:  @engineer   |   MODEL:  Sonnet             ║
+║  SWITCH TO:  @engineer   |   MODEL:  Sonnet                ║
 ╚══════════════════════════════════════════════════════════════╝
 
-# Handoff: TASK-030 — Cortex MCP Server
+# Handoff: TASK-032 — Deadline write-back tests (final gap)
 **From**: Manager → **To**: Engineer | **Model**: Sonnet
-**Date**: 2026-04-19 | **Task ID**: TASK-030
+**Date**: 2026-04-21 | **Task ID**: TASK-032
 
 ## Context
 
-Cortex is a local-only personal command center dashboard (Brain2 repo). It has:
-- Express.js backend on `:3001` with ~20 routes reading filesystem data
-- React frontend on `:5173`
-- All existing lib functions in `server/lib/` (scanner, deadline-reader, todo-extractor, capture-writer, wiki-core, reading-log-parser, rag-engine, etc.)
-- Tests via Vitest — currently 563 passing
+Cortex is a local-only personal command center dashboard (Brain2 repo). The multi-page
+dashboard restructure (TASK-032) is 95% complete:
+- All 5 page components live: HomePage, ProjectsPage, DeadlinesPage, KnowledgePage, LearningPage
+- NavBar.tsx handles state-based routing (no react-router-dom — simpler approach, same UX)
+- ProjectDetailView.tsx is an inline panel inside ProjectsPage (receives Project as prop)
+- App.tsx wired: NavBar + QuickCapture persistent + all pages + BrainChat overlay
+- POST /api/deadlines and DELETE /api/deadlines/:id routes exist and work
+- addDeadline() and removeDeadline() functions live in server/lib/deadline-reader.ts
 
-The goal of this task is to expose the same backend data as an **MCP (Model Context Protocol) server** so Claude Desktop can query Cortex data directly via natural language. This is the highest-leverage next feature: Claude gains live access to the user's second brain without hallucinating.
+**The only remaining gap**: No tests exist for the new write-back functions or route handlers.
+- `server/lib/deadline-reader.test.ts` does NOT cover `addDeadline` or `removeDeadline`
+- No `server/routes/deadlines.test.ts` file exists at all
 
-**MCP reference**: https://modelcontextprotocol.io/
-**SDK**: `@modelcontextprotocol/sdk` (npm package)
-**Transport**: Use **stdio** transport for Claude Desktop compatibility (simplest, no HTTP).
+All 587 existing tests pass. This task adds the missing test coverage.
 
 ## Task
 
-Create `server/mcp-server.ts` — a standalone MCP server that registers 8 tools wrapping existing lib functions. The server runs as a separate process (not integrated into the Express server) and communicates via stdio.
+### 1. Extend `server/lib/deadline-reader.test.ts`
 
-### 8 Tools to Register
+Add tests for `addDeadline` and `removeDeadline`. Use `fs.mkdtemp` (or `tmp`) for
+temp directories — follow the pattern already in this file.
 
-| Tool name | Wraps | Returns |
-|-----------|-------|---------|
-| `list_todos` | `extractTodos()` from `server/lib/todo-extractor.ts` | Array of `{text, file, line, done, priority}` |
-| `get_deadlines` | `readDeadlinesMultiVault()` from `server/lib/deadline-reader.ts` | Array of `{date, description, tag, done, urgency}` |
-| `list_projects` | `scanProjects()` from `server/lib/scanner.ts` | Array of `{name, status, staleDays, summary, nextSteps}` |
-| `search_notes` | keyword search across vault `.md` files | Array of `{title, path, preview, score}` |
-| `add_capture` | `writeCapture()` from `server/lib/capture-writer.ts` | `{success: true, text}` |
-| `get_daily_context` | assemble deadline + stale projects + git summary | `{date, deadlines[], staleProjects[], gitActivity}` |
-| `search_wiki` | `queryWiki()` from `server/lib/wiki-query.ts` | Array of `{term, definition, tags, file}` |
-| `get_reading_log` | `parseReadingLog()` from `server/lib/reading-log-parser.ts` | Array of `{title, author, status, rating, dateRead}` |
+**Tests for `addDeadline`:**
+- Appends correctly formatted line `- [ ] YYYY-MM-DD | Description` to deadlines.md
+- Appends with optional tag: `- [ ] YYYY-MM-DD | Description | tag`
+- Creates `Deadlines/` directory and `deadlines.md` when they don't exist
+- Returns a `DeadlineItem` with correct `id`, `date`, `description`, `urgency`, `daysUntil`
+- Sanitizes pipe characters in description (replaces `|` with `-`)
+- Throws on invalid date format (e.g. `"not-a-date"`)
 
-### Input Schemas
+**Tests for `removeDeadline`:**
+- Returns `true` and removes the correct line when a matching ID is found
+- Returns `false` when no matching ID exists in any vault dir
+- Scans multiple vault dirs (passes array, first match wins)
+- Leaves other deadline lines intact after removal
+- Handles missing `deadlines.md` gracefully (skips, does not throw)
 
-- `list_todos`: optional `{ filter: "open" | "done" | "all" }` — default `"open"`
-- `get_deadlines`: optional `{ days: number }` — upcoming N days, default 7
-- `list_projects`: optional `{ status: "active" | "stale" | "all" }` — default `"all"`
-- `search_notes`: required `{ query: string }`, optional `{ limit: number }` — default limit 10
-- `add_capture`: required `{ text: string }`
-- `get_daily_context`: no inputs
-- `search_wiki`: required `{ query: string }`, optional `{ limit: number }` — default 5
-- `get_reading_log`: optional `{ status: "read" | "reading" | "want-to-read" | "all" }` — default `"all"`
+### 2. Create `server/routes/deadlines.test.ts`
 
-## File Structure
+New route test file. Mock `'../lib/deadline-reader.js'` and `'../lib/vault-config.js'`.
+Use supertest. Follow the pattern in `server/routes/reading.test.ts` or `server/routes/review.test.ts`.
 
-```
-server/
-  mcp-server.ts          ← NEW: standalone MCP server entry point
-  lib/
-    mcp-tools.ts         ← NEW: tool handler implementations (wraps existing libs)
-    mcp-tools.test.ts    ← NEW: tests for all 8 tools
-```
+**Tests for `POST /api/deadlines`:**
+- Returns 201 + DeadlineItem body on valid `{ date, description }` input
+- Returns 201 with optional `tag` included
+- Returns 400 when `date` is missing or malformed (not YYYY-MM-DD)
+- Returns 400 when `description` is missing or empty string
+- Returns 500 when `VAULT_DIR` env var is not set (unset it in the test)
 
-## Key Implementation Details
-
-1. **Entry point** (`server/mcp-server.ts`):
-```typescript
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { registerTools } from './lib/mcp-tools.js'
-
-const server = new McpServer({ name: 'cortex', version: '1.0.0' })
-registerTools(server)
-const transport = new StdioServerTransport()
-await server.connect(transport)
-```
-
-2. **Load env vars** at startup: `dotenv.config()` so `PROJECTS_DIR`, `VAULT_DIR` etc. are available.
-
-3. **Error handling**: All tools should catch errors and return `{ error: string }` rather than throwing — MCP clients show tool errors to the user.
-
-4. **search_notes implementation**: Simple keyword match — split query into words, scan vault .md files, score by word frequency. Reuse the RAG pattern from `server/lib/rag-engine.ts` if it has a scoring function; otherwise implement a simple 20-line variant.
-
-5. **package.json scripts** — add:
-```json
-"mcp:build": "tsc --project tsconfig.node.json --outDir dist-mcp server/mcp-server.ts",
-"mcp:dev": "npx tsx server/mcp-server.ts"
-```
-
-6. **Claude Desktop config** — create `mcp-config.example.json` at the repo root:
-```json
-{
-  "mcpServers": {
-    "cortex": {
-      "command": "node",
-      "args": ["C:/path/to/Brain2/dist-mcp/mcp-server.js"],
-      "env": {
-        "PROJECTS_DIR": "C:/Users/boomb/Documents/_Projects",
-        "VAULT_DIR": "C:/Users/boomb/Documents/SecondBrain"
-      }
-    }
-  }
-}
-```
-Also document `npx tsx server/mcp-server.ts` as the dev variant.
-
-## Acceptance Criteria
-
-- [ ] `server/mcp-server.ts` exists and compiles with `npx tsc --noEmit`
-- [ ] `server/lib/mcp-tools.ts` registers all 8 tools with correct input schemas
-- [ ] `server/lib/mcp-tools.test.ts` has tests for all 8 tools (mocked filesystem / mocked lib calls)
-- [ ] `npm test` still passes (563+ tests, now with new mcp-tools tests)
-- [ ] `package.json` has `mcp:dev` script
-- [ ] `mcp-config.example.json` exists at repo root with correct structure
-- [ ] `@modelcontextprotocol/sdk` added to `package.json` dependencies
-
-## Validation Gates
-
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] `npm test` — all tests pass (563 + new MCP tests)
-- [ ] `npx tsx server/mcp-server.ts` starts without crashing (Ctrl+C to stop)
-- [ ] Commit: `feat(TASK-030): Cortex MCP server — expose backend as Claude Desktop tools`
+**Tests for `DELETE /api/deadlines/:id`:**
+- Returns 200 `{ success: true }` when deadline is found and removed
+- Returns 404 when deadline ID not found (`removeDeadline` returns false)
+- Returns 400 when ID format is invalid (e.g. `"abc"` — not 12-char hex)
+- Returns 500 when `VAULT_DIR` env var is not set
 
 ## Files to Read First
 
-- `server/lib/todo-extractor.ts` — understand exported function signatures
-- `server/lib/deadline-reader.ts` — `readDeadlinesMultiVault` signature
-- `server/lib/scanner.ts` — `scanProjects` signature
-- `server/lib/capture-writer.ts` — `writeCapture` signature
-- `server/lib/wiki-query.ts` — `queryWiki` signature
-- `server/lib/reading-log-parser.ts` — `parseReadingLog` signature
-- `server/lib/rag-engine.ts` — borrow keyword scoring for `search_notes`
-- `package.json` — understand current scripts and deps structure
+- [server/lib/deadline-reader.ts](server/lib/deadline-reader.ts) — `addDeadline` (line ~163) and `removeDeadline` (line ~200) implementations
+- [server/lib/deadline-reader.test.ts](server/lib/deadline-reader.test.ts) — existing test patterns and temp dir setup
+- [server/routes/deadlines.ts](server/routes/deadlines.ts) — the two new route handlers to understand what to mock
+- [server/routes/reading.test.ts](server/routes/reading.test.ts) — reference pattern for route tests with mocked lib
+
+## Acceptance Criteria
+
+- [ ] `addDeadline` tests: at least 6 cases, all passing
+- [ ] `removeDeadline` tests: at least 5 cases, all passing
+- [ ] `server/routes/deadlines.test.ts` created with at least 9 route tests, all passing
+- [ ] `npm test -- --reporter=dot` shows all tests passing (587 + new tests)
+- [ ] `npx tsc --noEmit` — zero errors
+- [ ] Update `.agents/state.json`: set `TASK-032.status` to `"done"`, add `"completed_at": "2026-04-21"`
+- [ ] Append to `state.json` changelog: `"2026-04-21: TASK-032 completed — Multi-page dashboard fully live. Added N tests for addDeadline, removeDeadline, and deadline POST/DELETE routes. XXX total tests passing."`
 
 ## Constraints
 
-- Do NOT integrate MCP into the existing Express server (`:3001`) — it must be standalone stdio
-- Do NOT add authentication — this is localhost only, single user
-- Do NOT use HTTP transport (SSE) — use stdio only for Claude Desktop compatibility
-- Do NOT change any existing lib functions — only wrap them
-- Do NOT add streaming to tools — return complete results as JSON
-- Install `@modelcontextprotocol/sdk` only — no other new production deps
+- Do NOT modify any production source files — tests only in this task
+- Do NOT install new packages — vitest + supertest already available
+- Do NOT add `GET /api/projects/:slug` — ProjectDetailView receives project as prop from ProjectsPage (no URL routing needed; design decision already made)
+- When mocking vault-config.js in route tests, mock `getVaultDirs` to return a temp array and `getPrimaryVaultDir` if needed

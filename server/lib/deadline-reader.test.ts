@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { readDeadlines } from './deadline-reader.js'
+import { readDeadlines, addDeadline, removeDeadline } from './deadline-reader.js'
 
 describe('deadline-reader', () => {
   let testDir: string
@@ -388,6 +388,251 @@ describe('deadline-reader', () => {
       // Reading from a valid vault should work
       const deadlines = await readDeadlines(childVault)
       expect(Array.isArray(deadlines)).toBe(true)
+    })
+  })
+
+  describe('addDeadline', () => {
+    it('appends correctly formatted line to deadlines.md', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      const result = await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test deadline'
+      })
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('- [ ] 2026-05-01 | Test deadline\n')
+      expect(result).toMatchObject({
+        date: '2026-05-01',
+        description: 'Test deadline',
+        tag: null,
+        done: false
+      })
+      expect(result.id).toHaveLength(12)
+    })
+
+    it('appends with optional tag', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      const result = await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test deadline',
+        tag: 'school'
+      })
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('- [ ] 2026-05-01 | Test deadline | school\n')
+      expect(result.tag).toBe('school')
+    })
+
+    it('creates Deadlines directory and file if missing', async () => {
+      // Remove the directory we created in beforeEach
+      await fs.rm(deadlinesDir, { recursive: true, force: true })
+
+      await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test deadline'
+      })
+
+      // Verify directory and file were created
+      const dirExists = await fs.access(deadlinesDir).then(() => true).catch(() => false)
+      const fileExists = await fs.access(deadlinesPath).then(() => true).catch(() => false)
+      expect(dirExists).toBe(true)
+      expect(fileExists).toBe(true)
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('# Deadlines\n\n')
+      expect(content).toContain('- [ ] 2026-05-01 | Test deadline\n')
+    })
+
+    it('returns a DeadlineItem with correct properties', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      const result = await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test deadline',
+        tag: 'project'
+      })
+
+      expect(result).toHaveProperty('id')
+      expect(result).toHaveProperty('date', '2026-05-01')
+      expect(result).toHaveProperty('description', 'Test deadline')
+      expect(result).toHaveProperty('tag', 'project')
+      expect(result).toHaveProperty('done', false)
+      expect(result).toHaveProperty('urgency')
+      expect(result).toHaveProperty('daysUntil')
+      expect(typeof result.daysUntil).toBe('number')
+    })
+
+    it('sanitizes pipe characters in description', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      const result = await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test | with | pipes'
+      })
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('- [ ] 2026-05-01 | Test - with - pipes\n')
+      expect(result.description).toBe('Test - with - pipes')
+    })
+
+    it('throws on invalid date format', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      await expect(async () => {
+        await addDeadline(vaultDir, {
+          date: 'not-a-date',
+          description: 'Test deadline'
+        })
+      }).rejects.toThrow('Invalid date format')
+
+      await expect(async () => {
+        await addDeadline(vaultDir, {
+          date: '05-01-2026',
+          description: 'Test deadline'
+        })
+      }).rejects.toThrow('Invalid date format')
+
+      await expect(async () => {
+        await addDeadline(vaultDir, {
+          date: '2026/05/01',
+          description: 'Test deadline'
+        })
+      }).rejects.toThrow('Invalid date format')
+    })
+  })
+
+  describe('removeDeadline', () => {
+    it('removes matching line and returns true', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        [
+          '# Deadlines',
+          '',
+          '- [ ] 2026-05-01 | Task A | school',
+          '- [ ] 2026-05-02 | Task B | project',
+          '- [ ] 2026-05-03 | Task C | personal'
+        ].join('\n'),
+        'utf-8'
+      )
+
+      // Read to get the ID
+      const deadlines = await readDeadlines(vaultDir)
+      const targetId = deadlines[1].id // Task B
+
+      const result = await removeDeadline([vaultDir], targetId)
+      expect(result).toBe(true)
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('Task A')
+      expect(content).not.toContain('Task B')
+      expect(content).toContain('Task C')
+    })
+
+    it('returns false when no matching ID exists', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        [
+          '# Deadlines',
+          '',
+          '- [ ] 2026-05-01 | Task A | school'
+        ].join('\n'),
+        'utf-8'
+      )
+
+      const result = await removeDeadline([vaultDir], 'nonexistent123')
+      expect(result).toBe(false)
+
+      // Original content should be unchanged
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('Task A')
+    })
+
+    it('scans multiple vault dirs and removes from first match', async () => {
+      // Create a second vault directory
+      const vault2Dir = path.join(testDir, 'vault2')
+      const deadlines2Dir = path.join(vault2Dir, 'Deadlines')
+      const deadlines2Path = path.join(deadlines2Dir, 'deadlines.md')
+      await fs.mkdir(deadlines2Dir, { recursive: true })
+
+      await fs.writeFile(
+        deadlinesPath,
+        [
+          '# Deadlines',
+          '',
+          '- [ ] 2026-05-01 | Task A | school'
+        ].join('\n'),
+        'utf-8'
+      )
+
+      await fs.writeFile(
+        deadlines2Path,
+        [
+          '# Deadlines',
+          '',
+          '- [ ] 2026-05-02 | Task B | project'
+        ].join('\n'),
+        'utf-8'
+      )
+
+      // Get ID from second vault
+      const deadlines2 = await readDeadlines(vault2Dir)
+      const targetId = deadlines2[0].id // Task B
+
+      const result = await removeDeadline([vaultDir, vault2Dir], targetId)
+      expect(result).toBe(true)
+
+      // First vault should be unchanged
+      const content1 = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content1).toContain('Task A')
+
+      // Second vault should have Task B removed
+      const content2 = await fs.readFile(deadlines2Path, 'utf-8')
+      expect(content2).not.toContain('Task B')
+    })
+
+    it('leaves other deadline lines intact after removal', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        [
+          '# Deadlines',
+          '',
+          '- [ ] 2026-05-01 | Task A | school',
+          '- [ ] 2026-05-02 | Task B | project',
+          '- [ ] 2026-05-03 | Task C | personal',
+          '- [x] 2026-05-04 | Task D | school',
+          '',
+          'Some other text',
+          '- [ ] 2026-05-05 | Task E | project'
+        ].join('\n'),
+        'utf-8'
+      )
+
+      // Get ID of Task C
+      const deadlines = await readDeadlines(vaultDir)
+      const targetId = deadlines[2].id // Task C
+
+      const result = await removeDeadline([vaultDir], targetId)
+      expect(result).toBe(true)
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+
+      expect(content).toContain('Task A')
+      expect(content).toContain('Task B')
+      expect(content).not.toContain('Task C')
+      expect(content).toContain('Task D')
+      expect(content).toContain('Task E')
+      expect(content).toContain('Some other text')
+      expect(content).toContain('# Deadlines')
+    })
+
+    it('handles missing deadlines.md gracefully', async () => {
+      // Remove the deadlines file
+      await fs.rm(deadlinesPath, { force: true })
+
+      const result = await removeDeadline([vaultDir], 'some-id-123')
+      expect(result).toBe(false)
     })
   })
 })

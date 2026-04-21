@@ -31,6 +31,7 @@ export interface Deadline {
   tag: string | null
   done: boolean
   urgency: 'red' | 'amber' | 'green' | 'gray'
+  daysUntil: number
 }
 
 export interface ReadingItem {
