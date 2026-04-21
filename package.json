@@ -4,9 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "concurrently --kill-others-on-fail false \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ollama\"",
     "dev:frontend": "vite",
     "dev:backend": "tsx watch server/index.ts",
+    "dev:ollama": "node scripts/start-ollama.js",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
