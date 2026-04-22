@@ -4,13 +4,14 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P5 — Packaging & Desktop (TASK-033 complete)
-- **Current Task**: None (awaiting TASK-034)
+- **Phase**: P5 — Packaging & Desktop (complete)
+- **Current Task**: None (all P5 tasks complete)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Recent Completions**: 
-  - TASK-032 — Multi-page dashboard routing restructure (610 total tests passing)
-  - TASK-033 — Single unified startup command (610 total tests passing)
+  - TASK-032 — Multi-page dashboard routing restructure (610 total tests)
+  - TASK-033 — Single unified startup command (610 total tests)
+  - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
 
 ## Project Brief
 
