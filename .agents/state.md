@@ -4,14 +4,15 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P5 — Packaging & Desktop (complete)
-- **Current Task**: None (all P5 tasks complete)
+- **Phase**: P6 — Fixes & Improvements
+- **Current Task**: None (TASK-035 complete)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Recent Completions**: 
   - TASK-032 — Multi-page dashboard routing restructure (610 total tests)
   - TASK-033 — Single unified startup command (610 total tests)
   - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
+  - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
 
 ## Project Brief
 
@@ -73,6 +74,7 @@
 | TASK-032 | Multi-page dashboard routing restructure | done | P4 |
 | TASK-033 | Single unified startup command | done | P5 |
 | TASK-034 | Electron desktop application packaging | pending | P5 |
+| TASK-035 | Fix review queue — exclude project junctions | done | P6 |
 
 ## P3 Architecture Decisions
 - **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
@@ -540,3 +542,15 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **All acceptance criteria met**: POST /api/chat/query returns SSE stream, context assembled from all 5 data sources, top-20 chunks by keyword score, context capped at 6000 chars, BrainChat component renders with streaming display, session history maintained, Ollama unavailable error shows in UI, sources shown on each response, comprehensive tests for keyword scoring and context assembly
 
 - 2026-04-19: TASK-030 completed — Cortex MCP server exposing backend as Claude Desktop tools: Created standalone MCP server using @modelcontextprotocol/sdk with stdio transport. Registered 8 tools wrapping existing lib functions (list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log). Uses Zod schemas for input validation. Created comprehensive test suite with 24 unit tests. Added mcp:dev and mcp:build scripts. 587 total tests passing.
+
+- 2026-04-21: TASK-035 completed — Fixed review queue bug to exclude project junctions and non-note directories:
+  - **Root cause**: The vault's Projects/ subdirectory contains NTFS junction points (symlinks) to C:\Users\boomb\Documents\_Projects\*. The glob scan in syncNewNotes was following these junctions and indexing all project markdown files as vault notes, causing them to appear in the spaced repetition review queue.
+  - **Fix**: Updated server/lib/review-log.ts syncNewNotes function to exclude 4 additional directories from glob ignore list:
+    - **/Projects/** — contains NTFS junctions to _Projects directory (prevents following symlinks)
+    - **/Wiki/** — AI-generated wiki pages, not personal notes for review
+    - **/ChatExports/** — chat export JSON files, not notes for review
+    - **/Archive/** — archived content, not part of active review queue
+  - **Test updates**: Updated "should handle nested directories" test to use Areas/SubArea instead of Projects/SubProject (Projects/ is now intentionally excluded). Added 4 new exclusion tests verifying Projects, Wiki, ChatExports, and Archive directories are properly excluded from scan.
+  - **612 total tests passing** (up from 607, added 5 new tests), 2 pre-existing failures in git-activity-parser.test.ts (unrelated to this task)
+  - **Type-check clean**: No new TypeScript errors introduced
+  - **All acceptance criteria met**: syncNewNotes glob ignore includes all 4 new paths, all review-log and review-queue tests pass, commit completed

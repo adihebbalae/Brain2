@@ -1,5 +1,6 @@
-﻿import { app, BrowserWindow, Tray, Menu, shell } from 'electron';
+﻿import { app, BrowserWindow, Tray, Menu, shell, nativeImage } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 
@@ -76,7 +77,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false
     },
-    icon: path.join(__dirname, '../build/icon.png')
+    ...(fs.existsSync(path.join(__dirname, '../build/icon.png')) ? { icon: path.join(__dirname, '../build/icon.png') } : {})
   });
 
   // Load the app
@@ -108,7 +109,8 @@ function createWindow() {
 
 function createTray() {
   const iconPath = path.join(__dirname, '../build/icon.png');
-  tray = new Tray(iconPath);
+  const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
+  tray = new Tray(icon);
   
   const contextMenu = Menu.buildFromTemplate([
     { 

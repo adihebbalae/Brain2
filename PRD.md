@@ -2,7 +2,7 @@
 
 ## Overview
 
-A local-only personal command center that aggregates all of Adi's projects, deadlines, TODOs, and knowledge into a single web dashboard. It reads existing markdown project state files from `~/_Projects/`, pulls deadlines from Google Calendar and Apple Reminders (via iCloud), extracts TODOs automatically, and provides an at-a-glance view of everything in one place. Optionally uses Claude API for light AI features (summarization, TODO extraction from prose).
+A local-only personal command center that aggregates your projects, deadlines, TODOs, and knowledge into a single web dashboard. It reads existing markdown project state files from `~/_Projects/`, pulls deadlines from Google Calendar and Apple Reminders (via iCloud), extracts TODOs automatically, and provides an at-a-glance view of everything in one place. Optionally uses Claude API for light AI features (summarization, TODO extraction from prose).
 
 **This is a personal tool. No auth, no deployment, no multi-user. Runs on `localhost`.**
 
@@ -73,7 +73,7 @@ A local-only personal command center that aggregates all of Adi's projects, dead
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| Frontend | React + Vite | Fast, minimal config, Adi knows React |
+| Frontend | React + Vite | Fast, minimal config, lightweight |
 | Styling | Tailwind CSS | Rapid iteration, no design system needed |
 | Backend | Express.js (TypeScript) | Lightweight, reads local filesystem |
 | Calendar | Google Calendar API (OAuth2) | Native REST API, well-documented |
@@ -232,7 +232,7 @@ Returns array of project objects scanned from `~/_Projects/`.
 [
   {
     "name": "TutorOS",
-    "path": "C:/Users/Adi/_Projects/TutorOS",
+    "path": "C:/Users/<username>/_Projects/TutorOS",
     "stateFile": "agent_state.md",
     "status": "in_progress",
     "lastModified": "2026-04-03T18:22:00Z",
@@ -349,8 +349,8 @@ Tags can be: `school`, `project`, `personal`, `tutoring`, `poker`
 
 ### Environment Variables (`.env`)
 ```
-PROJECTS_DIR=C:\Users\Adi\_Projects
-VAULT_DIR=C:\Users\Adi\SecondBrain
+PROJECTS_DIR=C:\Users\<username>\_Projects
+VAULT_DIR=C:\Users\<username>\SecondBrain
 GOOGLE_CLIENT_ID=           # optional, for calendar
 GOOGLE_CLIENT_SECRET=       # optional, for calendar
 ANTHROPIC_API_KEY=          # optional, for AI features

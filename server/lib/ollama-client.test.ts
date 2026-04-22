@@ -132,6 +132,24 @@ describe('Ollama Client', () => {
       expect(result.error).toContain('Ollama API error');
     });
 
+    it('returns model_not_found error for 404 response', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // getOllamaStatus
+        .mockResolvedValueOnce({ ok: false, status: 404 }) // model not found
+      );
+
+      const result = await summarizeProject('TestProject', 'State content', 12345);
+
+      expect(result.summary).toBe(null);
+      expect(result.cached).toBe(false);
+      expect(result.error).toBe('model_not_found');
+      expect(consoleSpy).toHaveBeenCalledWith('[ollama] Model not found (404). Run: ollama pull llama3.1:8b');
+
+      consoleSpy.mockRestore();
+    });
+
     it('cache expires after 1 hour', async () => {
       vi.useFakeTimers();
 
@@ -224,8 +242,8 @@ describe('Ollama Client', () => {
       expect(capturedBody.model).toBe('llama3.1:8b');
       expect(capturedBody.stream).toBe(false);
       expect(capturedBody.prompt).toContain('My state content');
-      expect(capturedBody.prompt).toContain('Where did I leave off?');
-      expect(capturedBody.prompt).toContain('Be specific and actionable');
+      expect(capturedBody.prompt).toContain('based ONLY on what is written in this file');
+      expect(capturedBody.prompt).toContain('Do not invent details');
     });
   });
 });

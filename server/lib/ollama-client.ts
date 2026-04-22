@@ -103,16 +103,10 @@ export async function summarizeProject(
   const truncatedContent = stateFileContent.slice(0, 2000);
 
   // Build prompt
-  const prompt = `You are a developer assistant helping someone quickly re-orient to a project.
-Given the following project state file, write a 2-3 sentence summary answering:
-"Where did I leave off? What's the current status and what should I do next?"
+  const prompt = `You are reading a project state file. In 2-3 sentences, describe exactly where the developer left off based ONLY on what is written in this file. Do not invent details. Do not guess. If the file doesn't have enough information, say "State file has limited context." Be concise and direct.
 
-Be specific and actionable. Use first person. Do not include project name.
-
-State file:
-${truncatedContent}
-
-Summary:`;
+State file content:
+${truncatedContent}`;
 
   try {
     const controller = new AbortController();
@@ -134,6 +128,14 @@ Summary:`;
     clearTimeout(timeout);
 
     if (!response.ok) {
+      if (response.status === 404) {
+        console.error('[ollama] Model not found (404). Run: ollama pull llama3.1:8b');
+        return {
+          summary: null,
+          cached: false,
+          error: 'model_not_found',
+        };
+      }
       return {
         summary: null,
         cached: false,

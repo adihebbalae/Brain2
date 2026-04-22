@@ -8,7 +8,7 @@
     "dev": "concurrently --kill-others-on-fail false \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ollama\"",
     "dev:frontend": "vite",
     "dev:backend": "tsx watch server/index.ts",
-    "dev:ollama": "node scripts/start-ollama.js",
+    "dev:ollama": "node scripts/start-ollama.cjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
@@ -17,7 +17,7 @@
     "mcp:dev": "tsx server/mcp-server.ts",
     "mcp:build": "tsc --project tsconfig.node.json --outDir dist-mcp server/mcp-server.ts server/lib/mcp-tools.ts",
     "electron:compile": "esbuild electron/main.ts --bundle --platform=node --outfile=dist-electron/main.cjs --external:electron && esbuild electron/preload.ts --bundle --platform=node --outfile=dist-electron/preload.cjs --external:electron",
-    "electron:dev": "npm run electron:compile && concurrently --kill-others-on-fail false \"npm run dev:backend\" \"npm run dev:ollama\" \"cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "npm run electron:compile && concurrently --kill-others-on-fail false \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ollama\" \"cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && node scripts/bundle-server.mjs && npm run electron:compile && electron-builder"
   },
   "dependencies": {

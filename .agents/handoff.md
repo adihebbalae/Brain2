@@ -1,88 +1,79 @@
-╔══════════════════════════════════════════════════════════════╗
-║  SWITCH TO:  @engineer   |   MODEL:  Sonnet                ║
-╚══════════════════════════════════════════════════════════════╝
-
-# Handoff: TASK-034 — Electron Desktop Application
-**From**: Manager → **To**: Engineer | **Model**: Sonnet
-**Date**: 2026-04-21 | **Task ID**: TASK-032
+# Handoff: Fix project summaries — use state-file content, not hallucinated AI
+**Task ID**: TASK-036
+**Mode**: autonomous (no user interaction available)
 
 ## Context
 
-Cortex is a local-only personal command center dashboard (Brain2 repo). The multi-page
-dashboard restructure (TASK-032) is 95% complete:
-- All 5 page components live: HomePage, ProjectsPage, DeadlinesPage, KnowledgePage, LearningPage
-- NavBar.tsx handles state-based routing (no react-router-dom — simpler approach, same UX)
-- ProjectDetailView.tsx is an inline panel inside ProjectsPage (receives Project as prop)
-- App.tsx wired: NavBar + QuickCapture persistent + all pages + BrainChat overlay
-- POST /api/deadlines and DELETE /api/deadlines/:id routes exist and work
-- addDeadline() and removeDeadline() functions live in server/lib/deadline-reader.ts
+**Project**: Cortex — local-only personal command center dashboard. React+Vite+TypeScript frontend on :5173, Express.js TypeScript backend on :3001. Repo at `C:\Users\boomb\Documents\_Projects\Brain2`.
 
-**The only remaining gap**: No tests exist for the new write-back functions or route handlers.
-- `server/lib/deadline-reader.test.ts` does NOT cover `addDeadline` or `removeDeadline`
-- No `server/routes/deadlines.test.ts` file exists at all
+**The bug**: Project cards on the dashboard show "wacky" AI-generated summaries — the AI invents details that aren't in the project state files. There are two root causes:
 
-All 587 existing tests pass. This task adds the missing test coverage.
+1. **Ollama 404**: When Ollama returns a 404 (model not pulled), the error is swallowed silently. There's no log message telling the user to run `ollama pull llama3.1:8b`, so the AI returns garbage or errors that appear as summaries.
+
+2. **Weak AI prompt**: The prompt in `server/lib/ollama-client.ts` (function `summarizeProject`) doesn't constrain the AI tightly enough, allowing hallucination.
+
+3. **Summary display priority**: `src/components/ProjectCard.tsx` already shows `project.summary` (from the state file) as primary content and `project.aiSummary` as secondary. This is correct — but the AI summary section appears even when `aiSummary` is a hallucinated/error string. Need to ensure bad AI summaries don't display.
+
+**Key files**:
+- `server/lib/ollama-client.ts` — `summarizeProject` function, contains the Ollama API call and prompt
+- `src/components/ProjectCard.tsx` — renders the card with summary and aiSummary fields
+- `server/routes/ai.ts` — `/api/ai/summarize/:project` endpoint
 
 ## Task
 
-### 1. Extend `server/lib/deadline-reader.test.ts`
+### 1. Fix the Ollama prompt (server/lib/ollama-client.ts)
 
-Add tests for `addDeadline` and `removeDeadline`. Use `fs.mkdtemp` (or `tmp`) for
-temp directories — follow the pattern already in this file.
+Find the `summarizeProject` function. Update the prompt to be factual-only:
 
-**Tests for `addDeadline`:**
-- Appends correctly formatted line `- [ ] YYYY-MM-DD | Description` to deadlines.md
-- Appends with optional tag: `- [ ] YYYY-MM-DD | Description | tag`
-- Creates `Deadlines/` directory and `deadlines.md` when they don't exist
-- Returns a `DeadlineItem` with correct `id`, `date`, `description`, `urgency`, `daysUntil`
-- Sanitizes pipe characters in description (replaces `|` with `-`)
-- Throws on invalid date format (e.g. `"not-a-date"`)
+```
+You are reading a project state file. In 2-3 sentences, describe exactly where the developer left off based ONLY on what is written in this file. Do not invent details. Do not guess. If the file doesn't have enough information, say "State file has limited context." Be concise and direct.
 
-**Tests for `removeDeadline`:**
-- Returns `true` and removes the correct line when a matching ID is found
-- Returns `false` when no matching ID exists in any vault dir
-- Scans multiple vault dirs (passes array, first match wins)
-- Leaves other deadline lines intact after removal
-- Handles missing `deadlines.md` gracefully (skips, does not throw)
+State file content:
+[content here]
+```
 
-### 2. Create `server/routes/deadlines.test.ts`
+### 2. Add clear error logging for 404 (server/lib/ollama-client.ts and server/routes/ai.ts)
 
-New route test file. Mock `'../lib/deadline-reader.js'` and `'../lib/vault-config.js'`.
-Use supertest. Follow the pattern in `server/routes/reading.test.ts` or `server/routes/review.test.ts`.
+In `summarizeProject`, when the Ollama API returns a non-ok response, log clearly:
+```
+if (response.status === 404) {
+  console.error('[ollama] Model not found (404). Run: ollama pull llama3.1:8b')
+}
+```
 
-**Tests for `POST /api/deadlines`:**
-- Returns 201 + DeadlineItem body on valid `{ date, description }` input
-- Returns 201 with optional `tag` included
-- Returns 400 when `date` is missing or malformed (not YYYY-MM-DD)
-- Returns 400 when `description` is missing or empty string
-- Returns 500 when `VAULT_DIR` env var is not set (unset it in the test)
+Return `{ summary: null, error: 'model_not_found' }` for 404 responses so the frontend knows to hide the AI section entirely.
 
-**Tests for `DELETE /api/deadlines/:id`:**
-- Returns 200 `{ success: true }` when deadline is found and removed
-- Returns 404 when deadline ID not found (`removeDeadline` returns false)
-- Returns 400 when ID format is invalid (e.g. `"abc"` — not 12-char hex)
-- Returns 500 when `VAULT_DIR` env var is not set
+### 3. Ensure ProjectCard hides AI summary on error (src/components/ProjectCard.tsx)
 
-## Files to Read First
+The current code: `{project.aiSummary && (...)}` already hides the AI section when `aiSummary` is null/undefined/empty. This is correct. Just verify the `aiSummary` field in `src/types.ts` is typed as `string | null | undefined` so null is valid. No visual changes needed if this is already correct.
 
-- [server/lib/deadline-reader.ts](server/lib/deadline-reader.ts) — `addDeadline` (line ~163) and `removeDeadline` (line ~200) implementations
-- [server/lib/deadline-reader.test.ts](server/lib/deadline-reader.test.ts) — existing test patterns and temp dir setup
-- [server/routes/deadlines.ts](server/routes/deadlines.ts) — the two new route handlers to understand what to mock
-- [server/routes/reading.test.ts](server/routes/reading.test.ts) — reference pattern for route tests with mocked lib
+### 4. Run tests and commit
+
+- `npm test -- --reporter=dot` — verify same pass count (608+ passing)
+- `git add -A && git commit -m "fix(TASK-036): factual AI prompt, 404 error logging for ollama model not found"`
 
 ## Acceptance Criteria
+- [ ] Ollama prompt updated to be factual-only with explicit instruction not to invent details
+- [ ] 404 response from Ollama logs: `[ollama] Model not found (404). Run: ollama pull llama3.1:8b`
+- [ ] null returned from summarizeProject on 404 (not a fabricated string)
+- [ ] ProjectCard correctly hides aiSummary section when value is null
+- [ ] `npm test -- --reporter=dot` passes with same count
+- [ ] Committed
 
-- [ ] `addDeadline` tests: at least 6 cases, all passing
-- [ ] `removeDeadline` tests: at least 5 cases, all passing
-- [ ] `server/routes/deadlines.test.ts` created with at least 9 route tests, all passing
-- [ ] `npm test -- --reporter=dot` shows all tests passing (587 + new tests)
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] Update `.agents/state.json`: set `TASK-032.status` to `"done"`, add `"completed_at": "2026-04-21"`
-- [ ] Append to `state.json` changelog: `"2026-04-21: TASK-032 completed — Multi-page dashboard fully live. Added N tests for addDeadline, removeDeadline, and deadline POST/DELETE routes. XXX total tests passing."`
+## Validation Gates
+- [ ] `npm test -- --reporter=dot` passes
+- [ ] `npx tsc --noEmit` shows no new type errors
+- [ ] `git commit` done
+
+## Files to Read First
+- `server/lib/ollama-client.ts` — contains `summarizeProject`, prompt, and API call
+- `server/routes/ai.ts` — endpoint that calls summarizeProject
+- `src/components/ProjectCard.tsx` — renders aiSummary
+- `src/types.ts` — ProjectCard prop types
+- `server/lib/ollama-client.test.ts` — existing tests to keep passing
 
 ## Constraints
-
-- Do NOT modify any production source files — tests only in this task
-- Do NOT install new packages — vitest + supertest already available
-- Do NOT add `GET /api/projects/:slug` — ProjectDetailView receives project as prop from ProjectsPage (no URL routing needed; design decision already made)
-- When mocking vault-config.js in route tests, mock `getVaultDirs` to return a temp array and `getPrimaryVaultDir` if needed
+- Do NOT change the visual layout of ProjectCard beyond what's needed
+- Do NOT add new dependencies
+- Do NOT change the `project.summary` field (from state file) — it should remain the primary summary
+- Do NOT ask questions — make reasonable assumptions and document them
