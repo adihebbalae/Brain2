@@ -1,108 +1,125 @@
-# Handoff: Wiki — Scan Projects button to bulk-ingest project README/state files
-**Task ID**: TASK-037
+# Handoff: Fix Obsidian deep links — configurable VAULT_NAME env var
+**Task ID**: TASK-038
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center dashboard. React+Vite+TypeScript frontend on :5173, Express.js TypeScript backend on :3001. Repo at `C:\Users\boomb\Documents\_Projects\Brain2`.
 
-**The problem**: The Wiki panel (WikiPanel.tsx) currently requires users to manually type a full file path to ingest notes. There's no way to bulk-ingest from projects. New users have no onboarding path.
+**The bug**: Clicking "Open in Obsidian" links results in "Unable to find a vault for the URL" error. All `obsidian://` deep links are hardcoded with `vault=SecondBrain`, but the exact registered vault name in Obsidian may differ on the user's machine.
 
-**Existing wiki infrastructure** (already built in TASK-016):
-- `server/lib/wiki-manager.ts` — exports `ingestSource(sourcePath, wikiDir)` function
-- `server/routes/wiki.ts` — has `POST /api/wiki/ingest` accepting `{ sourcePath }`
-- `src/components/WikiPanel.tsx` — wiki UI component
-- `src/hooks/useWiki.ts` — wiki hook
-- `VAULT_DIR/Wiki/` — where wiki pages are written
+**Current hardcoded locations** (all frontend, no backend URLs found):
 
-**State file priority** (same as scanner):
-```
-agent_state.md → Agent_State.json → state.md → Status.md → README.md
-```
-
-**Key paths from .env**:
-- `PROJECTS_DIR` = `C:\Users\boomb\Documents\_Projects`
-- `VAULT_DIR` = `C:\Users\boomb\Documents\SecondBrain`
+| File | Line | Current hardcode |
+|------|------|-----------------|
+| `src/components/CanvasPanel.tsx` | 32 | `const vault = 'SecondBrain'` |
+| `src/components/DailyPanel.tsx` | 192 | `` `obsidian://open?vault=SecondBrain&...` `` |
+| `src/components/KnowledgeGraph.tsx` | 19-21 | Returns hardcoded `'SecondBrain'` |
+| `src/components/ReviewPanel.tsx` | 182, 243 | `` `obsidian://open?vault=SecondBrain&...` `` |
 
 ## Task
 
-### 1. Add backend endpoint (server/routes/wiki.ts)
+### 1. Add VAULT_NAME to .env.example
 
-Add `POST /api/wiki/ingest-projects`:
+```
+# The name of your Obsidian vault (must match exactly what Obsidian shows in top-left)
+VAULT_NAME=SecondBrain
+```
+
+### 2. Create GET /api/config endpoint (server/routes/ — new file or add to existing)
+
+Create `server/routes/config.ts`:
 
 ```typescript
-router.post('/ingest-projects', async (_req, res) => {
-  // 1. Read PROJECTS_DIR from env
-  // 2. Scan immediate subdirs (same as scanner.ts does)
-  // 3. For each project dir, find first existing state file using priority order
-  // 4. Call ingestSource(stateFilePath, wikiDir) for each found file
-  // 5. Return { ingested: number, errors: string[] }
-  // Always return HTTP 200 (errors in body)
+import { Router } from 'express'
+import { config } from 'dotenv'
+config()
+
+const router = Router()
+
+router.get('/', (_req, res) => {
+  res.json({
+    vaultName: process.env.VAULT_NAME || 'SecondBrain',
+    projectsDir: process.env.PROJECTS_DIR || '',
+  })
 })
+
+export { router as configRouter }
 ```
 
-The state file priority array (copy from `server/lib/state-reader.ts`):
+Mount in `server/index.ts`: `app.use('/api/config', configRouter)`
+
+### 3. Create useConfig hook (src/hooks/useConfig.ts)
+
+```typescript
+import { useState, useEffect } from 'react'
+
+interface Config {
+  vaultName: string
+  projectsDir: string
+}
+
+export function useConfig() {
+  const [config, setConfig] = useState<Config>({ vaultName: 'SecondBrain', projectsDir: '' })
+  
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(setConfig)
+      .catch(() => {}) // fall back to default
+  }, [])
+  
+  return config
+}
 ```
-['agent_state.md', 'Agent_State.json', 'state.md', 'Status.md', 'README.md']
+
+### 4. Update all frontend components
+
+Replace every hardcoded `'SecondBrain'` in `obsidian://` URLs with the value from `useConfig()`.
+
+**CanvasPanel.tsx**: Replace `const vault = 'SecondBrain'` with:
+```typescript
+const { vaultName } = useConfig()
 ```
+And use `vaultName` in the URL.
 
-Path traversal protection: all state file paths must be inside PROJECTS_DIR. Use `path.resolve()` and check that the resolved path starts with the resolved PROJECTS_DIR.
+**DailyPanel.tsx**: Import `useConfig`, call it at the top of the component, replace `SecondBrain` in the URL.
 
-Ollama check: call `getOllamaStatus()` first. If Ollama unavailable, return `{ ingested: 0, errors: ['Ollama not available — start it first'] }`.
+**KnowledgeGraph.tsx**: Replace the hardcoded `getVaultName()` function. Import and call `useConfig()` instead.
 
-### 2. Update frontend hook (src/hooks/useWiki.ts)
-
-Add `ingestProjects` function that calls `POST /api/wiki/ingest-projects` and returns `{ ingested: number, errors: string[] }`.
-
-### 3. Update WikiPanel component (src/components/WikiPanel.tsx)
-
-Add a "Scan Projects" button in the ingest section. Show it when `wikiExists` is true OR as part of the first-time onboarding when wiki doesn't exist yet.
-
-Button behavior:
-- While running: "Scanning N projects..." (disable button)
-- On success: "Ingested N project files into wiki" (green toast, auto-dismiss 5s)
-- On error: show error count and list first 3 errors (red)
-
-The button should be styled similarly to the existing "Ingest" button.
-
-### 4. Add a test for the new endpoint (server/routes/wiki.ts or a test file)
-
-Add at minimum 2 tests to the existing wiki test file (if it exists) or create `server/routes/wiki.test.ts`:
-- Returns 200 with `{ ingested: 0, errors: ['Ollama not available...'] }` when Ollama is mocked as unavailable
-- Returns 200 with ingested count when projects are found (mock PROJECTS_DIR with temp dir)
+**ReviewPanel.tsx**: Import `useConfig`, call at component top, replace both hardcoded instances.
 
 ### 5. Run tests and commit
 
 - `npm test -- --reporter=dot`
-- `git add -A && git commit -m "feat(TASK-037): wiki scan projects endpoint and UI button"`
+- `git add -A && git commit -m "fix(TASK-038): configurable VAULT_NAME for obsidian:// deep links"`
 
 ## Acceptance Criteria
-- [ ] `POST /api/wiki/ingest-projects` endpoint exists and works
-- [ ] Returns `{ ingested: number, errors: string[] }` always HTTP 200
-- [ ] Uses state file priority order for discovery
-- [ ] Path traversal protection on all paths
-- [ ] Checks Ollama availability before attempting ingest
-- [ ] WikiPanel has "Scan Projects" button with progress feedback
-- [ ] At least 2 new tests for the endpoint
-- [ ] `npm test -- --reporter=dot` passes
+- [ ] `VAULT_NAME` added to `.env.example` with comment
+- [ ] `GET /api/config` returns `{ vaultName, projectsDir }`
+- [ ] `useConfig` hook created in `src/hooks/useConfig.ts`
+- [ ] All 4 components use `vaultName` from `useConfig()` instead of hardcoded string
+- [ ] No hardcoded `'SecondBrain'` remains in `obsidian://` URLs in frontend components
+- [ ] `npm test -- --reporter=dot` passes (same count)
+- [ ] `npx tsc --noEmit` shows no new type errors
 - [ ] Committed
 
 ## Validation Gates
 - [ ] `npm test -- --reporter=dot` passes
-- [ ] `npx tsc --noEmit` shows no new type errors
+- [ ] `npx tsc --noEmit` no new errors
+- [ ] Grep: `grep -r "vault=SecondBrain" src/` returns no matches
 - [ ] `git commit` done
 
 ## Files to Read First
-- `server/routes/wiki.ts` — where to add new endpoint; understand existing patterns
-- `server/lib/wiki-manager.ts` — `ingestSource` function signature
-- `server/lib/state-reader.ts` — STATE_FILE_PRIORITY array to copy
-- `server/lib/ollama-client.ts` — `getOllamaStatus` function
-- `src/components/WikiPanel.tsx` — where to add the button
-- `src/hooks/useWiki.ts` — where to add `ingestProjects` method
+- `src/components/CanvasPanel.tsx` — line 32, first hardcoded vault
+- `src/components/DailyPanel.tsx` — line 192, hardcoded vault in handler
+- `src/components/KnowledgeGraph.tsx` — lines 19-21, getVaultName function
+- `src/components/ReviewPanel.tsx` — lines 182 and 243, two hardcoded vaults
+- `server/index.ts` — where to mount the new configRouter
+- `.env.example` — where to add VAULT_NAME
 
 ## Constraints
-- Do NOT change `ingestSource` in wiki-manager.ts
-- Do NOT change existing wiki endpoints
+- Do NOT change any obsidian:// URL structure except replacing the vault name
+- Do NOT add new test files for the config hook (keep scope small)
 - Do NOT install new packages
-- Do NOT recurse deeper than immediate subdirectories of PROJECTS_DIR (same as scanner)
 - Do NOT ask questions — make reasonable assumptions and document them

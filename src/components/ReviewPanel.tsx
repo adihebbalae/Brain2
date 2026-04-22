@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useReviewQueue, ReviewQueueItem } from '../hooks/useReviewQueue'
+import { useConfig } from '../hooks/useConfig'
 
 export function ReviewPanel() {
+  const { vaultName } = useConfig()
   const { queue, totalDue, neverReviewed, loading, error, refetch, markReviewed, getRandomNote } = useReviewQueue()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [surpriseNote, setSurpriseNote] = useState<ReviewQueueItem | null>(null)
@@ -179,7 +181,7 @@ export function ReviewPanel() {
               {currentNote.preview || 'No preview available'}
             </p>
             <a
-              href={`obsidian://open?vault=SecondBrain&file=${encodeURIComponent(currentNote.relativePath)}`}
+              href={`obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(currentNote.relativePath)}`}
               className="text-sm text-blue-600 hover:text-blue-800 mb-4 inline-block"
               target="_blank"
               rel="noopener noreferrer"
@@ -240,7 +242,7 @@ export function ReviewPanel() {
               {surpriseNote.preview || 'No preview available'}
             </p>
             <a
-              href={`obsidian://open?vault=SecondBrain&file=${encodeURIComponent(surpriseNote.relativePath)}`}
+              href={`obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(surpriseNote.relativePath)}`}
               className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
               target="_blank"
               rel="noopener noreferrer"

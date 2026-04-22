@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useConfig } from '../hooks/useConfig'
 
 interface Deadline {
   id: string
@@ -41,6 +42,7 @@ interface DailyContext {
 }
 
 export function DailyPanel() {
+  const { vaultName } = useConfig()
   const [context, setContext] = useState<DailyContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -189,7 +191,7 @@ export function DailyPanel() {
           <div className="space-y-2">
             {context.randomNotes.map((note, idx) => {
               const encodedPath = encodeURIComponent(note.path)
-              const obsidianUrl = `obsidian://open?vault=SecondBrain&file=${encodedPath}`
+              const obsidianUrl = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodedPath}`
 
               return (
                 <div key={idx} className="text-sm">

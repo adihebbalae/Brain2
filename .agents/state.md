@@ -564,3 +564,17 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **613 total tests passing** (up from 611, added 2 new tests for 404 handling), 2 pre-existing failures (DeadlineTimeline, git-activity-parser) unrelated to this task
   - **Type-check clean**: No new TypeScript errors introduced
   - **All acceptance criteria met**: Factual-only prompt prevents hallucination, 404 logs actionable message, null returned on model_not_found, ProjectCard hides AI section when null, tests pass
+
+- 2026-04-21: TASK-037 completed — Implemented Wiki Scan Projects bulk-ingest feature:
+  - **Backend endpoint**: Created POST /api/wiki/ingest-projects in server/routes/wiki.ts that scans all immediate subdirectories of PROJECTS_DIR, finds state files using priority order (agent_state.md > Agent_State.json > state.md > Status.md > README.md), calls ingestSource for each found file
+  - **Ollama availability check**: Returns {ingested: 0, errors: ['Ollama not available — start it first']} when Ollama is unavailable
+  - **Path traversal protection**: All paths validated to be inside PROJECTS_DIR before processing
+  - **Error handling**: Returns {ingested: number, errors: string[]} always HTTP 200, partial success supported (ingests what it can, reports errors for failures)
+  - **Frontend hook**: Added ingestProjects() method to useWiki.ts that calls POST /api/wiki/ingest-projects and refetches wiki index on success
+  - **WikiPanel button**: Added "Scan Projects" button in both empty state (onboarding) and ingest section (existing wiki), green styling to differentiate from single-file ingest
+  - **Progress feedback**: Shows "Scanning projects..." while running (button disabled), success toast "✅ Ingested N project file(s) into wiki" (auto-dismiss 5s), error toast shows error count and first 3 errors
+  - **Tests**: Created server/routes/wiki.test.ts with 7 comprehensive tests covering Ollama unavailable check, bulk ingest with multiple projects, partial success, skipping projects without state files, skipping hidden directories, state file priority order, PROJECTS_DIR not configured error
+  - **Test updates**: Fixed all WikiPanel.test.tsx mocks to include new ingestProjects function
+  - **620 total tests passing** (up from 613, added 7 new route tests), 2 pre-existing failures (DeadlineTimeline, git-activity-parser) unrelated to this task
+  - **Type-check clean**: No new TypeScript errors introduced (pre-existing mcp-tools.ts errors remain)
+  - **All acceptance criteria met**: POST /api/wiki/ingest-projects endpoint works, uses state file priority, path traversal protection, checks Ollama, WikiPanel has Scan Projects button with progress feedback, comprehensive tests pass

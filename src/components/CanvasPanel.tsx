@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useCanvases } from '../hooks/useCanvases'
+import { useConfig } from '../hooks/useConfig'
 
 export function CanvasPanel() {
   const { canvases, loading, error, addNode } = useCanvases()
+  const { vaultName } = useConfig()
   const [addNodeText, setAddNodeText] = useState<Record<string, string>>({})
   const [addingNode, setAddingNode] = useState<Record<string, boolean>>({})
   const [addMessage, setAddMessage] = useState<{ filename: string; type: 'success' | 'error'; text: string } | null>(null)
@@ -29,8 +31,7 @@ export function CanvasPanel() {
 
   const openInObsidian = (filePath: string) => {
     // Construct Obsidian deep link
-    const vault = 'SecondBrain' // TODO: Make this configurable if needed
-    const url = `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(filePath)}`
+    const url = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(filePath)}`
     window.open(url, '_blank')
   }
 

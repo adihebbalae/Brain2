@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import * as d3 from 'd3'
 import { useKnowledgeGraph, type GraphNode, type GraphEdge } from '../hooks/useKnowledgeGraph'
+import { useConfig } from '../hooks/useConfig'
 
 // Color mapping for PARA folders
 const FOLDER_COLORS: Record<string, string> = {
@@ -12,13 +13,6 @@ const FOLDER_COLORS: Record<string, string> = {
   wiki: '#a855f7',       // purple
   dailynotes: '#ec4899', // pink
   other: '#9ca3af'       // light gray
-}
-
-// Get vault name from vault path
-function getVaultName(): string {
-  // This would ideally come from the backend, but for now we'll use 'SecondBrain'
-  // In the future, this could be derived from VAULT_DIR basename
-  return 'SecondBrain'
 }
 
 interface D3Node extends GraphNode {
@@ -36,6 +30,7 @@ interface D3Edge extends Omit<GraphEdge, 'source' | 'target'> {
 }
 
 export function KnowledgeGraph() {
+  const { vaultName } = useConfig()
   const [limit, setLimit] = useState(200)
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set(Object.keys(FOLDER_COLORS)))
   const svgRef = useRef<SVGSVGElement>(null)
@@ -123,7 +118,6 @@ export function KnowledgeGraph() {
       .attr('stroke-width', 1.5)
       .style('cursor', 'pointer')
       .on('click', (_event, d) => {
-        const vaultName = getVaultName()
         const obsidianUrl = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(d.filePath)}`
         window.open(obsidianUrl, '_blank')
       })

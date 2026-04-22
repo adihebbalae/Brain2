@@ -20,6 +20,7 @@ import { reviewRouter } from './routes/review.js'
 import { dailyRouter } from './routes/daily.js'
 import { weeklyRouter, autoTriggerWeeklyReview } from './routes/weekly.js'
 import chatQueryRouter from './routes/chat-query.js'
+import { configRouter } from './routes/config.js'
 import { startNotificationService } from './lib/notification-service.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
@@ -79,6 +80,7 @@ app.use('/api/review', reviewRouter)
 app.use('/api', dailyRouter)
 app.use('/api', weeklyRouter)
 app.use('/api/chat', chatQueryRouter)
+app.use('/api/config', configRouter)
 
 // SPA fallback - serve index.html for non-API routes in production
 if (process.env.SERVE_STATIC === 'true') {
