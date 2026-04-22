@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { config } from 'dotenv'
 import { projectsRouter } from './routes/projects.js'
 import { todosRouter } from './routes/todos.js'
@@ -24,6 +26,9 @@ import { getPrimaryVaultDir } from './lib/vault-config.js'
 
 config()
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 const app = express()
 const PORT = process.env.PORT || 3001
 
@@ -44,6 +49,12 @@ app.use(cors({
   }
 }))
 app.use(express.json())
+
+// Serve static files in production (Electron mode)
+if (process.env.SERVE_STATIC === 'true') {
+  const distPath = path.join(__dirname, '../dist')
+  app.use(express.static(distPath))
+}
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -68,6 +79,14 @@ app.use('/api/review', reviewRouter)
 app.use('/api', dailyRouter)
 app.use('/api', weeklyRouter)
 app.use('/api/chat', chatQueryRouter)
+
+// SPA fallback - serve index.html for non-API routes in production
+if (process.env.SERVE_STATIC === 'true') {
+  app.get('*', (_req, res) => {
+    const distPath = path.join(__dirname, '../dist')
+    res.sendFile(path.join(distPath, 'index.html'))
+  })
+}
 
 // Start server
 app.listen(PORT, () => {

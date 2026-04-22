@@ -4,13 +4,13 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P4 — 1/1 complete (TASK-030 MCP server)
-- **Current Task**: None
+- **Phase**: P5 — Packaging & Desktop (TASK-033 complete)
+- **Current Task**: None (awaiting TASK-034)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Recent Completions**: 
-  - TASK-023 — Full RAG chat interface over all data (563 total tests passing)
-  - TASK-030 — Cortex MCP server exposing backend as Claude Desktop tools (587 total tests passing)
+  - TASK-032 — Multi-page dashboard routing restructure (610 total tests passing)
+  - TASK-033 — Single unified startup command (610 total tests passing)
 
 ## Project Brief
 
@@ -68,8 +68,10 @@
 | TASK-028 | Spaced repetition note resurfacing | done | P3 |
 | TASK-029 | Browser web clipper Chrome extension | done | P3 |
 | TASK-030 | Cortex MCP server (Claude Desktop tools) | done | P4 |
-| TASK-031 | Fix mcp-tools.test.ts stale hardcoded dates | pending | P0 |
+| TASK-031 | Fix mcp-tools.test.ts stale hardcoded dates | done | P0 |
 | TASK-032 | Multi-page dashboard routing restructure | done | P4 |
+| TASK-033 | Single unified startup command | done | P5 |
+| TASK-034 | Electron desktop application packaging | pending | P5 |
 
 ## P3 Architecture Decisions
 - **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.

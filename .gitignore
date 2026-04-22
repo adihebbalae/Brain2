@@ -28,6 +28,16 @@ _dev/
 # Dependencies
 node_modules/
 vendor/
+
+# Build outputs
+dist/
+dist-mcp/
+dist-server/
+dist-electron/
+release/
+build/*.png
+build/*.ico
+build/*.icns
 __pycache__/
 *.pyc
 .venv/

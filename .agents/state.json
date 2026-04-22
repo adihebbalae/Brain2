@@ -696,16 +696,53 @@
                                                                "All previously passing tests still pass (no regressions)",
                                                                "New tests for GET /api/projects/:slug, POST /api/deadlines, DELETE /api/deadlines/:id"
                                                            ]
+                               },
+                  "TASK-033":  {
+                                   "title":  "Single unified startup command (frontend + backend + Ollama)",
+                                   "assigned_to":  "engineer",
+                                   "status":  "done",
+                                   "completed_at":  "2026-04-21",
+                                   "model":  "sonnet",
+                                   "priority":  "P5",
+                                   "depends_on":  [],
+                                   "completed_at":  "2026-04-21",
+                                   "description":  "Add scripts/start-ollama.js — a Node.js CJS script that checks whether Ollama is already listening on port 11434 (using net.connect). If not running, spawns 'ollama serve' and keeps the process alive. If already running, logs '[ollama] already running' and exits 0. Update package.json: add dev:ollama script ('node scripts/start-ollama.js') and update dev script to run frontend + backend + ollama concurrently with --kill-others-on-fail false so Ollama exiting early never kills the other two. No tests needed (dev-only startup script).",
+                                   "acceptance_criteria":  [
+                                                               "npm run dev starts frontend (:5173), backend (:3001), AND Ollama",
+                                                               "If Ollama is already running, command detects this and logs it without error",
+                                                               "Frontend and backend continue even if Ollama exits early",
+                                                               "scripts/start-ollama.js created with port-check logic",
+                                                               "concurrently uses --kill-others-on-fail false"
+                                                           ],
+                                   "engineer_notes":  "Implementation complete (commit a07f412). All 610 tests pass. Pre-existing TypeScript errors in server/lib/mcp-tools.ts (TASK-030) prevented full type-check validation but are unrelated to this task's changes."
+                               },
+                  "TASK-034":  {
+                                   "title":  "Electron desktop application packaging",
+                                   "assigned_to":  "engineer",
+                                   "status":  "pending",
+                                   "model":  "sonnet",
+                                   "priority":  "P5",
+                                   "depends_on":  ["TASK-033"],
+                                   "description":  "Package Cortex as a full native Electron desktop app with system tray, titlebar, taskbar icon. Install electron and electron-builder. Create electron/main.ts (main process): dev mode loads http://localhost:5173 after waiting for Vite + backend to be ready; production mode starts Express as child process and loads from it. Spawn Ollama check/start logic. System tray icon with Open and Quit menu. Window close hides to tray (does not quit). On quit: kill all child processes. Create electron/preload.ts (minimal). Add separate tsconfig for electron (electron/tsconfig.json). Add package.json scripts: electron:dev (concurrently runs dev:backend + dev:ollama + electron in watch mode), electron:build (runs vite build + tsc server + electron-builder). Add electron-builder config in package.json for Windows NSIS installer. In production, Express serves the Vite dist/ output as static files AND the /api/* routes, so Electron BrowserWindow loads http://localhost:3001 only.",
+                                   "acceptance_criteria":  [
+                                                               "npm run electron:dev opens a native Electron window showing the Cortex dashboard",
+                                                               "System tray icon visible with Open and Quit options",
+                                                               "Closing the window hides it to tray rather than quitting",
+                                                               "npm run electron:build produces a Windows .exe installer in release/",
+                                                               "Ollama is started automatically when Electron app launches",
+                                                               "All child processes (backend, Ollama) are killed when app quits",
+                                                               "No TypeScript errors in electron/ code"
+                                                           ]
                                }
               },
     "active_task":  null,
-    "status":  "p4_active",
+    "status":  "p5_active",
     "handoff":  {
                     "from":  "manager",
                     "to":  "engineer",
                     "model":  "sonnet",
                     "prompt_file":  ".agents/handoff.md",
-                    "task_id":  "TASK-032",
+                    "task_id":  "TASK-033",
                     "approved_by_user":  true,
                     "created_at":  "2026-04-21"
                 },
@@ -770,7 +807,9 @@
                       "2026-04-18: TASK-023 completed — Implemented full RAG chat interface over all Cortex data: Keyword-based context assembly engine (server/lib/rag-engine.ts) indexes 5 data sources (notes from vault excluding Wiki/, projects via scanner, chat exports, wiki pages, reading list), extracts keywords with simple stemming (strip ing/ed/s) and stopword filtering, scores chunks by keyword overlap (title matches * 3 + content matches), returns top-20 chunks, assembles context capped at 6000 chars. Chat route (server/routes/chat-query.ts): POST /api/chat/query accepts {message, history}, assembles RAG context, builds Ollama prompt with context + last 3 conversation turns, calls Ollama llama3.1:8b with stream=true, pipes NDJSON response as SSE (data: {chunk} per token, data: [DONE] at end, data: {sources} at start), graceful error handling when Ollama unavailable (HTTP 503 with clear message). Frontend BrainChat component (src/components/BrainChat.tsx): full-panel overlay triggered by \"Ask Cortex\" button in App.tsx header, message list with user/assistant bubbles, SSE streaming display (reads fetch response body as ReadableStream, parses SSE lines, appends tokens to assistant message in real-time), session-only conversation history maintained in component state (reset on close), source chips displayed at bottom of each assistant response (notes/projects/chats/wiki/reading), textarea input with Shift+Enter for newline / Enter to send, Clear conversation button, error banner when Ollama unavailable or other errors. 5-minute in-memory index cache in chat-query route. Created server/lib/rag-engine.test.ts with 21 unit tests (extractKeywords: stopword filtering, stemming, lowercasing; scoreChunks: title vs content weighting, topN limiting, no matches; assembleContext: header formatting, content inclusion, maxChars truncation, single/empty chunks; getUniqueSources: deduplication, empty array). 563 total tests passing (542 existing + 21 new). Note: Pre-existing TypeScript errors in KnowledgeGraph.tsx (TASK-024) not addressed in this task. All acceptance criteria met",
                       "2026-04-19: TASK-030 completed — Implemented Cortex MCP server exposing backend as Claude Desktop tools: Created standalone MCP server (server/mcp-server.ts) using @modelcontextprotocol/sdk with stdio transport for Claude Desktop compatibility. Registered 8 tools wrapping existing lib functions: list_todos (wraps extractTodosMultiVault with filter: open/done/all), get_deadlines (wraps readDeadlinesMultiVault with days parameter), list_projects (wraps scanProjects with status filter: active/stale/all), search_notes (keyword-based vault search with limit), add_capture (wraps appendCapture), get_daily_context (assembles deadlines + stale projects + git activity), search_wiki (wraps queryWiki), get_reading_log (wraps parseReadingLog with status filter). Tool handler implementation (server/lib/mcp-tools.ts) uses Zod schemas for input validation, properly awaits all async calls (getVaultDirs, getPrimaryVaultDir), reads env vars dynamically (process.env.PROJECTS_DIR/VAULT_DIR), graceful error handling (returns {error} instead of throwing). Created comprehensive test suite (server/lib/mcp-tools.test.ts) with 24 unit tests covering all 8 tools with mocked filesystem and lib functions (all passing). Created mcp-config.example.json at repo root with Claude Desktop configuration (stdio transport, env vars for PROJECTS_DIR and VAULT_DIR). Added package.json scripts: mcp:dev (tsx server/mcp-server.ts), mcp:build (tsc with tsconfig.node.json to dist-mcp). 587 total tests passing (563 existing + 24 new MCP tests). All acceptance criteria met: MCP server starts without errors, all 8 tools registered with correct schemas, stdio transport for Claude Desktop, comprehensive tests, example config provided",
                       "2026-04-21: TASK-031 and TASK-032 scoped by manager — TASK-031 fixes 2 failing mcp-tools.test.ts tests (hardcoded stale date '2026-04-19'). TASK-032 is the full multi-page dashboard routing restructure with react-router-dom, 6 page components, Navigation sidebar, project detail view, and extended deadline write-back (POST add + DELETE remove)",
-                      "2026-04-21: TASK-032 completed — Multi-page dashboard fully live (NavBar, 5 pages, DeadlinesPage add/delete, ProjectDetailView inline panel). Added 23 tests for addDeadline (6), removeDeadline (5), and deadline POST/DELETE routes (12). 610 total tests passing."
+                      "2026-04-21: TASK-032 completed — Multi-page dashboard fully live (NavBar, 5 pages, DeadlinesPage add/delete, ProjectDetailView inline panel). Added 23 tests for addDeadline (6), removeDeadline (5), and deadline POST/DELETE routes (12). 610 total tests passing.",
+                      "2026-04-21: TASK-033 and TASK-034 scoped by manager — TASK-033 adds single npm run dev command that starts frontend + backend + Ollama together (scripts/start-ollama.js port check). TASK-034 packages Cortex as full Electron desktop app (native window, system tray, .exe installer, auto-starts all services).",
+                      "2026-04-21: TASK-033 completed — Single unified startup command implemented. Created scripts/start-ollama.js (CommonJS port-checking script: checks localhost:11434, spawns ollama serve if not running, exits cleanly if already running). Updated package.json dev script to use concurrently with all three processes (frontend, backend, ollama) with --kill-others-on-fail false flag. Commit a07f412. All 610 tests pass. Note: Pre-existing TypeScript errors in server/lib/mcp-tools.ts from TASK-030 (MCP SDK type incompatibilities) remain unresolved but are outside scope of this task."
                   ],
     "auto_run":  {
                      "checkpoint_seconds":  45,
@@ -809,10 +848,12 @@
                                         "TASK-023",
                                         "TASK-030",
                                         "TASK-031",
-                                        "TASK-032"
+                                        "TASK-032",
+                                        "TASK-033",
+                                        "TASK-034"
                                     ]
                  },
-    "last_updated":  "2026-04-21T00:00:00-05:00",
+    "last_updated":  "2026-04-21T15:55:00-05:00",
     "last_updated_by":  "manager",
-    "current_task":  null
+    "current_task":  "TASK-034"
 }

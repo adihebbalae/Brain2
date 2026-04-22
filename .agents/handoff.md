@@ -2,7 +2,7 @@
 ║  SWITCH TO:  @engineer   |   MODEL:  Sonnet                ║
 ╚══════════════════════════════════════════════════════════════╝
 
-# Handoff: TASK-032 — Deadline write-back tests (final gap)
+# Handoff: TASK-034 — Electron Desktop Application
 **From**: Manager → **To**: Engineer | **Model**: Sonnet
 **Date**: 2026-04-21 | **Task ID**: TASK-032
 
