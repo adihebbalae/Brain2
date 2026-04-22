@@ -15,10 +15,18 @@ import {
   lintWiki,
   analyzeGaps,
 } from '../lib/wiki-manager.js';
+import { getOllamaStatus } from '../lib/ollama-client.js';
 
 const router = Router();
 
-const PROJECTS_DIR = process.env.PROJECTS_DIR || '';
+// Priority order for state file detection (same as scanner.ts)
+const STATE_FILE_PRIORITY = [
+  'agent_state.md',
+  'Agent_State.json',
+  'state.md',
+  'Status.md',
+  'README.md',
+];
 
 /**
  * POST /api/wiki/ingest
@@ -36,8 +44,9 @@ router.post('/ingest', async (req, res) => {
     // Validate: sourcePath must be inside a configured vault or projects dir
     const isValid = await isPathInVault(sourcePath);
     const resolvedPath = path.resolve(sourcePath);
-    const resolvedProjectsDir = path.resolve(PROJECTS_DIR);
-    const inProjects = resolvedPath.startsWith(resolvedProjectsDir + path.sep);
+    const projectsDir = process.env.PROJECTS_DIR || '';
+    const resolvedProjectsDir = path.resolve(projectsDir);
+    const inProjects = projectsDir && resolvedPath.startsWith(resolvedProjectsDir + path.sep);
 
     if (!isValid && !inProjects) {
       return res.status(403).json({
@@ -226,7 +235,8 @@ router.post('/gaps', async (_req, res) => {
     }
 
     // Analyze gaps
-    const result = await analyzeGaps(wikiDir, PROJECTS_DIR);
+    const projectsDir = process.env.PROJECTS_DIR || '';
+    const result = await analyzeGaps(wikiDir, projectsDir);
 
     res.json(result);
   } catch (error) {
@@ -235,6 +245,117 @@ router.post('/gaps', async (_req, res) => {
       gaps: [],
       generatedAt: new Date().toISOString(),
       error: message,
+    });
+  }
+});
+
+/**
+ * POST /api/wiki/ingest-projects
+ * Bulk-ingest project state files from all projects in PROJECTS_DIR
+ * Returns: { ingested: number, errors: string[] } (always HTTP 200)
+ */
+router.post('/ingest-projects', async (_req, res) => {
+  try {
+    // Check Ollama availability first
+    const ollamaStatus = await getOllamaStatus();
+    if (!ollamaStatus.available) {
+      return res.json({
+        ingested: 0,
+        errors: ['Ollama not available — start it first'],
+      });
+    }
+
+    // Validate PROJECTS_DIR is set
+    const projectsDir = process.env.PROJECTS_DIR || '';
+    if (!projectsDir) {
+      return res.json({
+        ingested: 0,
+        errors: ['PROJECTS_DIR not configured'],
+      });
+    }
+
+    const resolvedProjectsDir = path.resolve(projectsDir);
+
+    // Read all immediate subdirectories
+    let entries;
+    try {
+      entries = await fs.readdir(resolvedProjectsDir, { withFileTypes: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.json({
+        ingested: 0,
+        errors: [`Failed to read projects directory: ${message}`],
+      });
+    }
+
+    // Filter for directories, skip hidden ones (starting with .)
+    const directories = entries
+      .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map(entry => path.join(resolvedProjectsDir, entry.name));
+
+    // Get wiki directory
+    const primaryVault = getPrimaryVaultDir();
+    const wikiDir = path.join(primaryVault, 'Wiki');
+
+    // Ensure wiki exists
+    await ensureWikiExists(wikiDir);
+
+    // For each project directory, find and ingest state file
+    let ingested = 0;
+    const errors: string[] = [];
+
+    for (const projectDir of directories) {
+      try {
+        // Find first existing state file
+        let stateFilePath: string | null = null;
+        for (const filename of STATE_FILE_PRIORITY) {
+          const filePath = path.join(projectDir, filename);
+          const resolvedPath = path.resolve(filePath);
+
+          // Path traversal protection: validate path is inside PROJECTS_DIR
+          if (!resolvedPath.startsWith(resolvedProjectsDir + path.sep)) {
+            continue;
+          }
+
+          try {
+            await fs.access(filePath);
+            stateFilePath = filePath;
+            break;
+          } catch {
+            // File doesn't exist, try next
+            continue;
+          }
+        }
+
+        // If no state file found, skip this project
+        if (!stateFilePath) {
+          continue;
+        }
+
+        // Ingest the state file
+        const result = await ingestSource(stateFilePath, wikiDir);
+
+        if (result.error) {
+          errors.push(`${path.basename(projectDir)}: ${result.error}`);
+        } else {
+          ingested++;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`${path.basename(projectDir)}: ${message}`);
+      }
+    }
+
+    // Always return HTTP 200 with errors in body
+    res.json({
+      ingested,
+      errors,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.json({
+      ingested: 0,
+      errors: [message],
     });
   }
 });

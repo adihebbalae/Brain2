@@ -1,63 +1,90 @@
-# Handoff: Fix project summaries — use state-file content, not hallucinated AI
-**Task ID**: TASK-036
+# Handoff: Wiki — Scan Projects button to bulk-ingest project README/state files
+**Task ID**: TASK-037
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center dashboard. React+Vite+TypeScript frontend on :5173, Express.js TypeScript backend on :3001. Repo at `C:\Users\boomb\Documents\_Projects\Brain2`.
 
-**The bug**: Project cards on the dashboard show "wacky" AI-generated summaries — the AI invents details that aren't in the project state files. There are two root causes:
+**The problem**: The Wiki panel (WikiPanel.tsx) currently requires users to manually type a full file path to ingest notes. There's no way to bulk-ingest from projects. New users have no onboarding path.
 
-1. **Ollama 404**: When Ollama returns a 404 (model not pulled), the error is swallowed silently. There's no log message telling the user to run `ollama pull llama3.1:8b`, so the AI returns garbage or errors that appear as summaries.
+**Existing wiki infrastructure** (already built in TASK-016):
+- `server/lib/wiki-manager.ts` — exports `ingestSource(sourcePath, wikiDir)` function
+- `server/routes/wiki.ts` — has `POST /api/wiki/ingest` accepting `{ sourcePath }`
+- `src/components/WikiPanel.tsx` — wiki UI component
+- `src/hooks/useWiki.ts` — wiki hook
+- `VAULT_DIR/Wiki/` — where wiki pages are written
 
-2. **Weak AI prompt**: The prompt in `server/lib/ollama-client.ts` (function `summarizeProject`) doesn't constrain the AI tightly enough, allowing hallucination.
+**State file priority** (same as scanner):
+```
+agent_state.md → Agent_State.json → state.md → Status.md → README.md
+```
 
-3. **Summary display priority**: `src/components/ProjectCard.tsx` already shows `project.summary` (from the state file) as primary content and `project.aiSummary` as secondary. This is correct — but the AI summary section appears even when `aiSummary` is a hallucinated/error string. Need to ensure bad AI summaries don't display.
-
-**Key files**:
-- `server/lib/ollama-client.ts` — `summarizeProject` function, contains the Ollama API call and prompt
-- `src/components/ProjectCard.tsx` — renders the card with summary and aiSummary fields
-- `server/routes/ai.ts` — `/api/ai/summarize/:project` endpoint
+**Key paths from .env**:
+- `PROJECTS_DIR` = `C:\Users\boomb\Documents\_Projects`
+- `VAULT_DIR` = `C:\Users\boomb\Documents\SecondBrain`
 
 ## Task
 
-### 1. Fix the Ollama prompt (server/lib/ollama-client.ts)
+### 1. Add backend endpoint (server/routes/wiki.ts)
 
-Find the `summarizeProject` function. Update the prompt to be factual-only:
+Add `POST /api/wiki/ingest-projects`:
 
-```
-You are reading a project state file. In 2-3 sentences, describe exactly where the developer left off based ONLY on what is written in this file. Do not invent details. Do not guess. If the file doesn't have enough information, say "State file has limited context." Be concise and direct.
-
-State file content:
-[content here]
-```
-
-### 2. Add clear error logging for 404 (server/lib/ollama-client.ts and server/routes/ai.ts)
-
-In `summarizeProject`, when the Ollama API returns a non-ok response, log clearly:
-```
-if (response.status === 404) {
-  console.error('[ollama] Model not found (404). Run: ollama pull llama3.1:8b')
-}
+```typescript
+router.post('/ingest-projects', async (_req, res) => {
+  // 1. Read PROJECTS_DIR from env
+  // 2. Scan immediate subdirs (same as scanner.ts does)
+  // 3. For each project dir, find first existing state file using priority order
+  // 4. Call ingestSource(stateFilePath, wikiDir) for each found file
+  // 5. Return { ingested: number, errors: string[] }
+  // Always return HTTP 200 (errors in body)
+})
 ```
 
-Return `{ summary: null, error: 'model_not_found' }` for 404 responses so the frontend knows to hide the AI section entirely.
+The state file priority array (copy from `server/lib/state-reader.ts`):
+```
+['agent_state.md', 'Agent_State.json', 'state.md', 'Status.md', 'README.md']
+```
 
-### 3. Ensure ProjectCard hides AI summary on error (src/components/ProjectCard.tsx)
+Path traversal protection: all state file paths must be inside PROJECTS_DIR. Use `path.resolve()` and check that the resolved path starts with the resolved PROJECTS_DIR.
 
-The current code: `{project.aiSummary && (...)}` already hides the AI section when `aiSummary` is null/undefined/empty. This is correct. Just verify the `aiSummary` field in `src/types.ts` is typed as `string | null | undefined` so null is valid. No visual changes needed if this is already correct.
+Ollama check: call `getOllamaStatus()` first. If Ollama unavailable, return `{ ingested: 0, errors: ['Ollama not available — start it first'] }`.
 
-### 4. Run tests and commit
+### 2. Update frontend hook (src/hooks/useWiki.ts)
 
-- `npm test -- --reporter=dot` — verify same pass count (608+ passing)
-- `git add -A && git commit -m "fix(TASK-036): factual AI prompt, 404 error logging for ollama model not found"`
+Add `ingestProjects` function that calls `POST /api/wiki/ingest-projects` and returns `{ ingested: number, errors: string[] }`.
+
+### 3. Update WikiPanel component (src/components/WikiPanel.tsx)
+
+Add a "Scan Projects" button in the ingest section. Show it when `wikiExists` is true OR as part of the first-time onboarding when wiki doesn't exist yet.
+
+Button behavior:
+- While running: "Scanning N projects..." (disable button)
+- On success: "Ingested N project files into wiki" (green toast, auto-dismiss 5s)
+- On error: show error count and list first 3 errors (red)
+
+The button should be styled similarly to the existing "Ingest" button.
+
+### 4. Add a test for the new endpoint (server/routes/wiki.ts or a test file)
+
+Add at minimum 2 tests to the existing wiki test file (if it exists) or create `server/routes/wiki.test.ts`:
+- Returns 200 with `{ ingested: 0, errors: ['Ollama not available...'] }` when Ollama is mocked as unavailable
+- Returns 200 with ingested count when projects are found (mock PROJECTS_DIR with temp dir)
+
+### 5. Run tests and commit
+
+- `npm test -- --reporter=dot`
+- `git add -A && git commit -m "feat(TASK-037): wiki scan projects endpoint and UI button"`
 
 ## Acceptance Criteria
-- [ ] Ollama prompt updated to be factual-only with explicit instruction not to invent details
-- [ ] 404 response from Ollama logs: `[ollama] Model not found (404). Run: ollama pull llama3.1:8b`
-- [ ] null returned from summarizeProject on 404 (not a fabricated string)
-- [ ] ProjectCard correctly hides aiSummary section when value is null
-- [ ] `npm test -- --reporter=dot` passes with same count
+- [ ] `POST /api/wiki/ingest-projects` endpoint exists and works
+- [ ] Returns `{ ingested: number, errors: string[] }` always HTTP 200
+- [ ] Uses state file priority order for discovery
+- [ ] Path traversal protection on all paths
+- [ ] Checks Ollama availability before attempting ingest
+- [ ] WikiPanel has "Scan Projects" button with progress feedback
+- [ ] At least 2 new tests for the endpoint
+- [ ] `npm test -- --reporter=dot` passes
 - [ ] Committed
 
 ## Validation Gates
@@ -66,14 +93,16 @@ The current code: `{project.aiSummary && (...)}` already hides the AI section wh
 - [ ] `git commit` done
 
 ## Files to Read First
-- `server/lib/ollama-client.ts` — contains `summarizeProject`, prompt, and API call
-- `server/routes/ai.ts` — endpoint that calls summarizeProject
-- `src/components/ProjectCard.tsx` — renders aiSummary
-- `src/types.ts` — ProjectCard prop types
-- `server/lib/ollama-client.test.ts` — existing tests to keep passing
+- `server/routes/wiki.ts` — where to add new endpoint; understand existing patterns
+- `server/lib/wiki-manager.ts` — `ingestSource` function signature
+- `server/lib/state-reader.ts` — STATE_FILE_PRIORITY array to copy
+- `server/lib/ollama-client.ts` — `getOllamaStatus` function
+- `src/components/WikiPanel.tsx` — where to add the button
+- `src/hooks/useWiki.ts` — where to add `ingestProjects` method
 
 ## Constraints
-- Do NOT change the visual layout of ProjectCard beyond what's needed
-- Do NOT add new dependencies
-- Do NOT change the `project.summary` field (from state file) — it should remain the primary summary
+- Do NOT change `ingestSource` in wiki-manager.ts
+- Do NOT change existing wiki endpoints
+- Do NOT install new packages
+- Do NOT recurse deeper than immediate subdirectories of PROJECTS_DIR (same as scanner)
 - Do NOT ask questions — make reasonable assumptions and document them

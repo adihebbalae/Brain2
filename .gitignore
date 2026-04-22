@@ -58,15 +58,7 @@ out/
 data/
 
 # Vault content — personal notes must never be committed to this public repo
-# These folders exist as empty scaffolding; any content dropped here is private
-Archive/
-Areas/
-ChatExports/
-DailyNotes/
-Deadlines/
-Inbox/
-Projects/
-Resources/
+zzVault/
 
 # IDE
 .vscode/settings.json

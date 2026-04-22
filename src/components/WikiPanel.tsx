@@ -12,6 +12,7 @@ export function WikiPanel() {
     query,
     lint,
     ingest,
+    ingestProjects,
     analyzeGaps,
   } = useWiki()
 
@@ -27,6 +28,9 @@ export function WikiPanel() {
   const [ingestStatus, setIngestStatus] = useState<string | null>(null)
   const [ingestLoading, setIngestLoading] = useState(false)
 
+  const [scanProjectsLoading, setScanProjectsLoading] = useState(false)
+  const [scanProjectsStatus, setScanProjectsStatus] = useState<string | null>(null)
+
   const [gapsStatus, setGapsStatus] = useState<string | null>(null)
   const [addingToInbox, setAddingToInbox] = useState<string | null>(null)
 
@@ -39,7 +43,7 @@ export function WikiPanel() {
         </div>
         <div className="text-center py-8">
           <p className="text-gray-600 mb-4">No wiki yet — ingest a file to start</p>
-          <div className="flex gap-2 max-w-md mx-auto">
+          <div className="flex gap-2 max-w-md mx-auto mb-3">
             <input
               type="text"
               value={ingestPath}
@@ -56,8 +60,21 @@ export function WikiPanel() {
               {ingestLoading ? 'Ingesting...' : 'Ingest'}
             </button>
           </div>
+          <div className="max-w-md mx-auto">
+            <p className="text-xs text-gray-500 mb-2">or bulk-ingest all projects:</p>
+            <button
+              onClick={handleScanProjects}
+              disabled={scanProjectsLoading}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {scanProjectsLoading ? 'Scanning projects...' : 'Scan Projects'}
+            </button>
+          </div>
           {ingestStatus && (
             <p className="mt-3 text-sm text-gray-700">{ingestStatus}</p>
+          )}
+          {scanProjectsStatus && (
+            <p className="mt-3 text-sm text-gray-700">{scanProjectsStatus}</p>
           )}
         </div>
       </div>
@@ -114,6 +131,26 @@ export function WikiPanel() {
 
     setIngestLoading(false)
     setTimeout(() => setIngestStatus(null), 5000)
+  }
+
+  async function handleScanProjects() {
+    setScanProjectsLoading(true)
+    setScanProjectsStatus(null)
+
+    const result = await ingestProjects()
+
+    if (result.errors.length > 0) {
+      const errorCount = result.errors.length
+      const firstErrors = result.errors.slice(0, 3).join('; ')
+      setScanProjectsStatus(`❌ ${errorCount} error(s): ${firstErrors}`)
+    } else if (result.ingested === 0) {
+      setScanProjectsStatus('⚠️ No project files found to ingest')
+    } else {
+      setScanProjectsStatus(`✅ Ingested ${result.ingested} project file(s) into wiki`)
+    }
+
+    setScanProjectsLoading(false)
+    setTimeout(() => setScanProjectsStatus(null), 5000)
   }
 
   async function handleAnalyzeGaps() {
@@ -352,7 +389,7 @@ export function WikiPanel() {
       {/* Ingest section */}
       <div className="border-t border-gray-200 pt-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Ingest</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-2">
           <input
             type="text"
             value={ingestPath}
@@ -369,8 +406,18 @@ export function WikiPanel() {
             {ingestLoading ? 'Ingesting...' : 'Ingest'}
           </button>
         </div>
+        <button
+          onClick={handleScanProjects}
+          disabled={scanProjectsLoading}
+          className="w-full px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+        >
+          {scanProjectsLoading ? 'Scanning projects...' : 'Scan Projects'}
+        </button>
         {ingestStatus && (
           <p className="mt-2 text-xs text-gray-700">{ingestStatus}</p>
+        )}
+        {scanProjectsStatus && (
+          <p className="mt-2 text-xs text-gray-700">{scanProjectsStatus}</p>
         )}
       </div>
 

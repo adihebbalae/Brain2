@@ -22,6 +22,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -61,6 +62,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -93,6 +95,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: mockLint,
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -129,6 +132,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: mockLint,
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -164,6 +168,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: mockLint,
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -196,6 +201,7 @@ describe('WikiPanel', () => {
       query: mockQuery,
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -227,6 +233,7 @@ describe('WikiPanel', () => {
       query: mockQuery,
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -263,6 +270,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: mockIngest,
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -298,6 +306,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: mockIngest,
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -326,6 +335,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -372,6 +382,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -411,6 +422,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: mockAnalyzeGaps,
       refetch: vi.fn(),
     })
@@ -449,6 +461,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -483,6 +496,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })
@@ -504,6 +518,7 @@ describe('WikiPanel', () => {
       query: vi.fn(),
       lint: vi.fn(),
       ingest: vi.fn(),
+      ingestProjects: vi.fn(),
       analyzeGaps: vi.fn(),
       refetch: vi.fn(),
     })

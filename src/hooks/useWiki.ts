@@ -59,10 +59,16 @@ interface GapAnalysisResult {
   error?: string
 }
 
+interface IngestProjectsResult {
+  ingested: number
+  errors: string[]
+}
+
 export function useWiki(): WikiState & {
   query: (question: string) => Promise<QueryResult>
   lint: () => Promise<LintResult>
   ingest: (sourcePath: string) => Promise<IngestResult>
+  ingestProjects: () => Promise<IngestProjectsResult>
   analyzeGaps: () => Promise<GapAnalysisResult>
   refetch: () => void
 } {
@@ -177,6 +183,36 @@ export function useWiki(): WikiState & {
     }
   }, [fetchIndex])
 
+  const ingestProjects = useCallback(async (): Promise<IngestProjectsResult> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/wiki/ingest-projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to ingest projects: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Refetch index after successful ingest
+      if (data.ingested > 0) {
+        await fetchIndex()
+      }
+
+      return data
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to ingest projects'
+      return {
+        ingested: 0,
+        errors: [errorMessage],
+      }
+    }
+  }, [fetchIndex])
+
   const analyzeGaps = useCallback(async (): Promise<GapAnalysisResult> => {
     setGapsLoading(true)
     try {
@@ -221,6 +257,7 @@ export function useWiki(): WikiState & {
     query,
     lint,
     ingest,
+    ingestProjects,
     analyzeGaps,
     refetch: fetchIndex,
   }

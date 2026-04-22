@@ -104,6 +104,14 @@ When work needs to transfer between agents:
 - **Keep banner/status strings ASCII-safe**: `Write-Banner`, `Write-Host`, and `blocked_on` string assignments must all use ASCII only.
 - **Verify encoding after edits**: If a `.ps1` file is edited by a tool that may inject Unicode, run `[System.Management.Automation.Language.Parser]::ParseFile(...)` to confirm no parse errors before running.
 
+## state.json Encoding Rules
+- **UTF-8 with BOM**: `state.json` is written by PowerShell 5.1's `Set-Content -Encoding UTF8`, which produces a UTF-8 BOM (EF BB BF). External tools (Node.js scripts, agents) MUST preserve the BOM when writing the file back, or strip it correctly when reading.
+- **ASCII-only structural keys and string values written by agents**: When agents append to `state.json` changelog or task entries, use only ASCII characters in string values. Em dashes (`—`), curly/smart quotes (`"` `"`), and other Unicode outside the Basic Latin block will silently corrupt the file when round-tripped through PowerShell 5.1's encoding.
+- **Em dash corruption pattern**: UTF-8 em dash bytes `E2 80 94` can be decoded as Windows-1252, turning `0x94` → U+201D (right curly quote), producing the `â€"` sequence in string values. This does NOT break string values (only cosmetic) but the U+201D byte also appears as a structural JSON delimiter if smart quotes appear in key/value positions.
+- **Smart quote structural corruption**: If an agent writes a task's `"title"`, `"status"`, or `"assigned_to"` field using curly quotes (U+201C/U+201D) instead of ASCII `"`, PowerShell's `ConvertFrom-Json` will fail with `':' or '}' expected` at that position — with no clear indication of the character causing the failure.
+- **Diagnosing `ConvertFrom-Json` failures**: PowerShell's error message does NOT include a character position. Use Node.js to get the exact position: write a `.mjs` file and run `node script.mjs` (do NOT use multi-line `node -e "..."` in PowerShell — the `->` arrow operator conflicts). Recovery script: `scripts/fix-state-json.mjs` can be re-run to sanitize the file.
+- **Node.js multi-line `-e` is broken in PowerShell**: `node -e "...multiline..."` fails because PowerShell interprets `->` as a redirection operator and `//` as a command. Always write Node.js scripts to a `.mjs` file and invoke with `node script.mjs`.
+
 ## auto-run.ps1 Task Status Rules
 - **Usage/rate limit failures**: If Claude CLI exits with a usage limit error, set task status back to `pending` (not `blocked`). `blocked` is reserved for genuine code/logic failures. Re-running the script resumes from the pending task automatically.
 - **`context.blocked_on` hygiene**: Always clear `blocked_on` to `null` after a blocker is resolved. Stale blocker messages from previous runs must not persist into new sessions.

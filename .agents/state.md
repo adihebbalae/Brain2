@@ -5,14 +5,14 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: P6 — Fixes & Improvements
-- **Current Task**: None (TASK-035 complete)
+- **Current Task**: None (TASK-036 complete)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Recent Completions**: 
-  - TASK-032 — Multi-page dashboard routing restructure (610 total tests)
   - TASK-033 — Single unified startup command (610 total tests)
   - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
   - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
+  - TASK-036 — Fix AI summaries: factual-only prompt, 404 error logging (613 tests passing, 2 pre-existing failures)
 
 ## Project Brief
 
@@ -544,7 +544,7 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
 - 2026-04-19: TASK-030 completed — Cortex MCP server exposing backend as Claude Desktop tools: Created standalone MCP server using @modelcontextprotocol/sdk with stdio transport. Registered 8 tools wrapping existing lib functions (list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log). Uses Zod schemas for input validation. Created comprehensive test suite with 24 unit tests. Added mcp:dev and mcp:build scripts. 587 total tests passing.
 
 - 2026-04-21: TASK-035 completed — Fixed review queue bug to exclude project junctions and non-note directories:
-  - **Root cause**: The vault's Projects/ subdirectory contains NTFS junction points (symlinks) to C:\Users\boomb\Documents\_Projects\*. The glob scan in syncNewNotes was following these junctions and indexing all project markdown files as vault notes, causing them to appear in the spaced repetition review queue.
+  - **Root cause**: The vault's Projects/ subdirectory contains NTFS junction points (symlinks) to C:\Users\boomb\Documents\_Projects\*. The glob scan in syncNewNots was following these junctions and indexing all project markdown files as vault notes, causing them to appear in the spaced repetition review queue.
   - **Fix**: Updated server/lib/review-log.ts syncNewNotes function to exclude 4 additional directories from glob ignore list:
     - **/Projects/** — contains NTFS junctions to _Projects directory (prevents following symlinks)
     - **/Wiki/** — AI-generated wiki pages, not personal notes for review
@@ -554,3 +554,13 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **612 total tests passing** (up from 607, added 5 new tests), 2 pre-existing failures in git-activity-parser.test.ts (unrelated to this task)
   - **Type-check clean**: No new TypeScript errors introduced
   - **All acceptance criteria met**: syncNewNotes glob ignore includes all 4 new paths, all review-log and review-queue tests pass, commit completed
+
+- 2026-04-21: TASK-036 completed — Fixed project summaries to use state-file content, not hallucinated AI:
+  - **Root cause**: Project cards showed "wacky" AI-generated summaries because: (1) Ollama llama3.1:8b model not pulled (404 errors swallowed silently), (2) AI prompt too loose allowing hallucination
+  - **Prompt fix**: Updated server/lib/ollama-client.ts summarizeProject prompt to be strictly factual-only: "describe exactly where the developer left off based ONLY on what is written in this file. Do not invent details. Do not guess." Removed subjective "Be specific and actionable" instruction.
+  - **404 error logging**: Added explicit check for 404 response status, logs clear message `[ollama] Model not found (404). Run: ollama pull llama3.1:8b`, returns `error: 'model_not_found'` instead of generic error string
+  - **Frontend already correct**: ProjectCard.tsx already shows `project.summary` (from state file) as primary content and `project.aiSummary` as secondary section with conditional render `{project.aiSummary && (...)}`. Type definition already supports `aiSummary?: string | null`. No changes needed.
+  - **Test updates**: Updated ollama-client.test.ts prompt expectations to match new factual-only prompt (checks for "based ONLY on what is written in this file" and "Do not invent details" instead of "Where did I leave off?"). Added new test for 404 handling with console.error verification.
+  - **613 total tests passing** (up from 611, added 2 new tests for 404 handling), 2 pre-existing failures (DeadlineTimeline, git-activity-parser) unrelated to this task
+  - **Type-check clean**: No new TypeScript errors introduced
+  - **All acceptance criteria met**: Factual-only prompt prevents hallucination, 404 logs actionable message, null returned on model_not_found, ProjectCard hides AI section when null, tests pass
