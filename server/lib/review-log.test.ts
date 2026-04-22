@@ -177,6 +177,50 @@ describe('review-log', () => {
       expect(log['Resources/resource.md']).toBeUndefined()
     })
 
+    it('should exclude Projects directory', async () => {
+      const projectsDir = path.join(tempDir, 'Projects')
+      await fs.mkdir(projectsDir, { recursive: true })
+      await fs.writeFile(path.join(projectsDir, 'project-note.md'), '# Project', 'utf-8')
+
+      await syncNewNotes(tempDir)
+
+      const log = await loadReviewLog(tempDir)
+      expect(log['Projects/project-note.md']).toBeUndefined()
+    })
+
+    it('should exclude Wiki directory', async () => {
+      const wikiDir = path.join(tempDir, 'Wiki')
+      await fs.mkdir(wikiDir, { recursive: true })
+      await fs.writeFile(path.join(wikiDir, 'wiki-page.md'), '# Wiki', 'utf-8')
+
+      await syncNewNotes(tempDir)
+
+      const log = await loadReviewLog(tempDir)
+      expect(log['Wiki/wiki-page.md']).toBeUndefined()
+    })
+
+    it('should exclude ChatExports directory', async () => {
+      const chatExportsDir = path.join(tempDir, 'ChatExports')
+      await fs.mkdir(chatExportsDir, { recursive: true })
+      await fs.writeFile(path.join(chatExportsDir, 'chat.md'), '# Chat', 'utf-8')
+
+      await syncNewNotes(tempDir)
+
+      const log = await loadReviewLog(tempDir)
+      expect(log['ChatExports/chat.md']).toBeUndefined()
+    })
+
+    it('should exclude Archive directory', async () => {
+      const archiveDir = path.join(tempDir, 'Archive')
+      await fs.mkdir(archiveDir, { recursive: true })
+      await fs.writeFile(path.join(archiveDir, 'archived-note.md'), '# Archived', 'utf-8')
+
+      await syncNewNotes(tempDir)
+
+      const log = await loadReviewLog(tempDir)
+      expect(log['Archive/archived-note.md']).toBeUndefined()
+    })
+
     it('should not overwrite existing entries', async () => {
       // Create initial log with one reviewed note
       const logData = {
@@ -207,14 +251,14 @@ describe('review-log', () => {
     })
 
     it('should handle nested directories', async () => {
-      const nestedDir = path.join(tempDir, 'Projects', 'SubProject')
+      const nestedDir = path.join(tempDir, 'Areas', 'SubArea')
       await fs.mkdir(nestedDir, { recursive: true })
       await fs.writeFile(path.join(nestedDir, 'NestedNote.md'), '# Nested', 'utf-8')
 
       await syncNewNotes(tempDir)
 
       const log = await loadReviewLog(tempDir)
-      expect(log['Projects/SubProject/NestedNote.md']).toBeNull()
+      expect(log['Areas/SubArea/NestedNote.md']).toBeNull()
     })
   })
 })

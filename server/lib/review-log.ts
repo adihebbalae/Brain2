@@ -81,6 +81,10 @@ export async function syncNewNotes(vaultDir: string): Promise<void> {
     ignore: [
       '**/DailyNotes/**',
       '**/Resources/**',
+      '**/Projects/**',
+      '**/Wiki/**',
+      '**/ChatExports/**',
+      '**/Archive/**',
       '**/node_modules/**',
       '**/.git/**'
     ],
