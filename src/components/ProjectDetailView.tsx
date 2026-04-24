@@ -30,6 +30,8 @@ export function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) 
   const [notesSaved, setNotesSaved] = useState(false)
   const [captureText, setCaptureText] = useState('')
   const [captureSent, setCaptureSent] = useState(false)
+  const [weeklySummary, setWeeklySummary] = useState<string | null>(null)
+  const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(true)
   const panelRef = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -38,6 +40,28 @@ export function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) 
     const saved = localStorage.getItem(NOTES_KEY(project.path))
     if (saved) setNotes(saved)
   }, [project.path])
+
+  // Fetch weekly summary file if it exists
+  useEffect(() => {
+    async function fetchWeeklySummary() {
+      setWeeklySummaryLoading(true)
+      try {
+        // Fetch the .cortex-weekly-summary.md file via the API
+        const response = await fetch(`/api/projects/${encodeURIComponent(project.name)}/weekly-summary`)
+        if (response.ok) {
+          const data = await response.json()
+          setWeeklySummary(data.content || null)
+        } else {
+          setWeeklySummary(null)
+        }
+      } catch {
+        setWeeklySummary(null)
+      } finally {
+        setWeeklySummaryLoading(false)
+      }
+    }
+    void fetchWeeklySummary()
+  }, [project.name])
 
   // Close on Escape
   useEffect(() => {
@@ -122,6 +146,18 @@ export function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) 
 
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+            {/* Weekly Summary */}
+            {!weeklySummaryLoading && weeklySummary && (
+              <details className="border border-blue-200 rounded-lg bg-blue-50">
+                <summary className="cursor-pointer px-4 py-3 font-medium text-blue-900 hover:bg-blue-100 rounded-lg transition-colors select-none">
+                  📊 This Week
+                </summary>
+                <div className="px-4 py-3 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border-t border-blue-200">
+                  {weeklySummary}
+                </div>
+              </details>
+            )}
 
             {/* Summary */}
             <section>

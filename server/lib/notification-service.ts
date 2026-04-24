@@ -151,6 +151,51 @@ async function runChecks(): Promise<void> {
     console.error('[notification-service] Weekly gap notification failed:', error)
   }
 
+  // --- 5. Weekly git summary generation ---
+  try {
+    const weeklySummaryDay = parseInt(process.env.WEEKLY_SUMMARY_DAY || '5', 10) // Friday = 5
+    const weeklySummaryHour = parseInt(process.env.WEEKLY_SUMMARY_HOUR || '17', 10) // 5 PM
+
+    const now = new Date()
+    const currentDay = now.getDay() // 0 = Sunday, 5 = Friday
+    const currentHour = now.getHours()
+
+    // Check if it's the right day and hour (within 5 minute window)
+    if (currentDay === weeklySummaryDay && Math.abs(currentHour - weeklySummaryHour) === 0) {
+      // Import generateProjectGitSummary dynamically
+      const { generateProjectGitSummary } = await import('./git-summary-generator.js')
+      const { promises: fsPromises } = await import('node:fs')
+
+      console.log('[notification-service] Running weekly git summary generation...')
+
+      // Read all project directories
+      try {
+        const entries = await fsPromises.readdir(projectsDir, { withFileTypes: true })
+        const directories = entries
+          .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+          .map(entry => ({ name: entry.name, path: path.join(projectsDir, entry.name) }))
+
+        let successCount = 0
+        let skipCount = 0
+
+        for (const { name, path: projectPath } of directories) {
+          const summary = await generateProjectGitSummary(projectPath, name)
+          if (summary !== null) {
+            successCount++
+          } else {
+            skipCount++
+          }
+        }
+
+        console.log(`[notification-service] Weekly git summaries complete: ${successCount} generated, ${skipCount} skipped`)
+      } catch (error) {
+        console.error('[notification-service] Failed to generate weekly git summaries:', error)
+      }
+    }
+  } catch (error) {
+    console.error('[notification-service] Weekly git summary generation failed:', error)
+  }
+
   if (stateChanged) {
     await saveNotificationState(vaultDir, state)
   }

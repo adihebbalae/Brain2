@@ -5,11 +5,12 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: P7 — Feature Expansion
-- **Current Task**: None (8 new tasks scaffolded: TASK-041 through TASK-048)
+- **Current Task**: TASK-042 — In-App Command Palette (done)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
 - **Recent Completions**: 
+  - TASK-042 — In-app command palette with cmdk (Ctrl+K for fuzzy search navigation, 657 tests passing)
   - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
   - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
   - TASK-036 — Fix AI summaries: factual-only prompt, 404 error logging (613 tests passing, 2 pre-existing failures)
@@ -81,7 +82,7 @@
 | TASK-037 | Wiki Scan Projects bulk-ingest feature | done | P6 |
 | TASK-038 | Fix Obsidian deep links — configurable VAULT_NAME | done | P6 |
 | **TASK-041** | **Zen/Focus Mode with Pomodoro Timer** | **pending** | **P7** |
-| **TASK-042** | **In-App Command Palette (Ctrl+K)** | **pending** | **P7** |
+| TASK-042 | In-App Command Palette (Ctrl+K) | done | P7 |
 | **TASK-043** | **Automated State Diffing (weekly git-summary)** | **pending** | **P7** |
 | **TASK-044** | **Velocity Tracking + Deadline Risk Scores** | **pending** | **P7** |
 | **TASK-045** | **Kanban Triage Board (checkbox drag-and-drop)** | **pending** | **P7** |

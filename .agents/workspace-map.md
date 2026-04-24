@@ -75,6 +75,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── DeadlineTimeline.test.tsx # ✓ DeadlineTimeline tests (TASK-009)
 │       ├── QuickCapture.tsx         # ✓ Quick capture input bar component (TASK-010)
 │       ├── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
+│       ├── CommandPalette.tsx       # ✓ Command palette with cmdk: Ctrl+K fuzzy search for navigation, projects, actions (TASK-042)
+│       ├── CommandPalette.css       # ✓ Command palette dark theme styles (TASK-042)
 │       ├── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
 │       ├── ChatExplorer.tsx         # ✓ Chat export viewer with inline message expansion and tagging (TASK-014)
 │       ├── WikiPanel.tsx            # ✓ Wiki panel with query/lint/ingest/gaps UI (TASK-017)
