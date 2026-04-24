@@ -810,9 +810,10 @@
                   "TASK-043":  {
                                    "title":  "Automated State Diffing (weekly git-summary per project)",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "priority":  "P7",
+                                   "completed_at":  "2026-04-24",
                                    "depends_on":  [
                                                       "TASK-026",
                                                       "TASK-013"

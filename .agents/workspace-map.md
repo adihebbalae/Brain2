@@ -94,7 +94,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
     ├── mcp-server.ts                # ✓ Standalone MCP server for Claude Desktop (TASK-030)
     ├── routes/
-    │   ├── projects.ts              # ✓ GET /api/projects (TASK-003)
+    │   ├── projects.ts              # ✓ GET /api/projects, POST /api/projects/:slug/auto-summary, GET /api/projects/:slug/weekly-summary (TASK-003, TASK-043)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
@@ -132,7 +132,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── notifier.ts              # ✓ Core notification sender using native fetch (TASK-012)
         ├── notifier.test.ts         # ✓ 15 unit tests for notifier (TASK-012)
         ├── notification-state.ts    # ✓ State persistence for notification deduplication (TASK-012)
-        ├── notification-service.ts  # ✓ Background service for red deadlines, stale projects, daily digest (TASK-012)
+        ├── notification-service.ts  # ✓ Background service for red deadlines, stale projects, daily digest, weekly git summaries (TASK-012, TASK-043)
         ├── ollama-client.ts         # ✓ Ollama API client with 1h cache (TASK-013)
         ├── ollama-client.test.ts    # ✓ 12 unit tests for Ollama client (TASK-013)
         ├── chat-export-parser.ts    # ✓ Parses Claude conversation exports with search and tagging (TASK-014)
@@ -154,6 +154,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── git-activity-parser.ts   # ✓ Git activity scanner: getGitActivity, runs git log across all projects, builds heatmap and per-project stats (TASK-026)
         ├── git-activity-cache.ts    # ✓ Shared in-memory git activity cache used by multiple routes
         ├── git-activity-parser.test.ts  # ✓ 9 unit tests for git activity parser (TASK-026)
+        ├── git-summary-generator.ts # ✓ Weekly git summary generator: runs git log --since=7.days, generates Ollama summaries, writes to .cortex-weekly-summary.md (TASK-043)
+        ├── git-summary-generator.test.ts  # ✓ 6 unit tests for git-summary-generator (TASK-043)
         ├── canvas-parser.ts         # ✓ JSON Canvas parser: parseCanvas, addNodeToCanvas with color support (TASK-027)
         ├── canvas-parser.test.ts    # ✓ 19 unit tests for canvas parser (TASK-027)
         ├── review-log.ts            # ✓ Review log manager: loadReviewLog, saveReviewLog, markReviewed, syncNewNotes (TASK-028)
