@@ -1,21 +1,92 @@
 import { Router } from 'express'
-import { readDeadlinesMultiVault, addDeadline, removeDeadline, updateDeadline } from '../lib/deadline-reader.js'
+import { readDeadlinesMultiVault, addDeadline, removeDeadline, updateDeadline, DeadlineItem } from '../lib/deadline-reader.js'
 import { getVaultDirs } from '../lib/vault-config.js'
+import { extractTodosMultiVault } from '../lib/todo-extractor.js'
+import { getVelocityDataAsync, getWeeklyAverage } from '../lib/velocity-tracker.js'
 import { config } from 'dotenv'
 
 config()
 
 const router = Router()
 
+/**
+ * Calculate risk score for a deadline
+ * riskScore = remainingTodos / (avgTodosCompletedPerWeek * weeksUntilDeadline)
+ * Returns null if not enough data or deadline has no associated project
+ */
+async function calculateRiskScore(
+  deadline: DeadlineItem,
+  projectTodos: Record<string, number>,
+  avgTodosPerWeek: number
+): Promise<number | null> {
+  // Skip completed deadlines
+  if (deadline.done) return null
+
+  // Skip if no tag (can't match to project)
+  if (!deadline.tag) return null
+
+  // Get remaining todos for this project (match by tag)
+  const remainingTodos = projectTodos[deadline.tag] || 0
+
+  // Calculate weeks until deadline
+  const weeksUntilDeadline = deadline.daysUntil / 7
+
+  // Need at least some velocity data and positive time remaining
+  if (avgTodosPerWeek === 0 || weeksUntilDeadline <= 0) return null
+
+  // Calculate risk score
+  const riskScore = remainingTodos / (avgTodosPerWeek * weeksUntilDeadline)
+
+  return riskScore
+}
+
 router.get('/', async (_req, res) => {
-  const { VAULT_DIR } = process.env
+  const { VAULT_DIR, PROJECTS_DIR } = process.env
   if (!VAULT_DIR) {
     return res.status(500).json({ error: 'VAULT_DIR not configured' })
   }
+  if (!PROJECTS_DIR) {
+    return res.status(500).json({ error: 'PROJECTS_DIR not configured' })
+  }
+
   try {
     const vaultDirs = await getVaultDirs()
     const deadlines = await readDeadlinesMultiVault(vaultDirs)
-    return res.json(deadlines)
+
+    // Get velocity data to calculate risk scores
+    let avgTodosPerWeek = 0
+    try {
+      const velocityData = await getVelocityDataAsync(30) // Use last 30 days for average
+      const weeklyAvg = getWeeklyAverage(velocityData)
+      avgTodosPerWeek = weeklyAvg.todosPerWeek
+    } catch (error) {
+      console.warn('[deadlines] Failed to get velocity data for risk scores:', error)
+    }
+
+    // Get TODO counts by project
+    let projectTodos: Record<string, number> = {}
+    try {
+      const todosResult = await extractTodosMultiVault(PROJECTS_DIR, vaultDirs)
+      // Count open TODOs by project
+      for (const [project, todos] of Object.entries(todosResult.byProject)) {
+        projectTodos[project] = todos.filter(t => !t.done).length
+      }
+    } catch (error) {
+      console.warn('[deadlines] Failed to get TODOs for risk scores:', error)
+    }
+
+    // Calculate risk scores
+    const deadlinesWithRisk = await Promise.all(
+      deadlines.map(async (deadline) => {
+        const riskScore = await calculateRiskScore(deadline, projectTodos, avgTodosPerWeek)
+        return {
+          ...deadline,
+          riskScore,
+        }
+      })
+    )
+
+    return res.json(deadlinesWithRisk)
   } catch (err) {
     console.error('Failed to read deadlines:', err)
     return res.status(500).json({ error: 'Failed to read deadlines' })

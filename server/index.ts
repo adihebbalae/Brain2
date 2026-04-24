@@ -21,10 +21,12 @@ import { dailyRouter } from './routes/daily.js'
 import { weeklyRouter, autoTriggerWeeklyReview } from './routes/weekly.js'
 import chatQueryRouter from './routes/chat-query.js'
 import { configRouter } from './routes/config.js'
+import { velocityRouter } from './routes/velocity.js'
 import { startNotificationService } from './lib/notification-service.js'
 import { startRagIndexBackgroundRefresh } from './lib/rag-cache.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
+import { recordDailySnapshot } from './lib/velocity-tracker.js'
 
 config()
 
@@ -82,6 +84,7 @@ app.use('/api', dailyRouter)
 app.use('/api', weeklyRouter)
 app.use('/api/chat', chatQueryRouter)
 app.use('/api/config', configRouter)
+app.use('/api/velocity', velocityRouter)
 
 // SPA fallback - serve index.html for non-API routes in production
 if (process.env.SERVE_STATIC === 'true') {
@@ -119,6 +122,15 @@ if (process.env.NODE_ENV !== 'test') {
       console.error('[startup] Failed to auto-trigger weekly review:', err)
     })
   }, 5000)
+}
+
+// Record daily velocity snapshot on startup (non-blocking, 3-second delay)
+if (process.env.NODE_ENV !== 'test') {
+  setTimeout(() => {
+    recordDailySnapshot().catch(err => {
+      console.error('[startup] Failed to record daily snapshot:', err)
+    })
+  }, 3000)
 }
 
 export default app

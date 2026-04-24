@@ -33,6 +33,7 @@ export interface Deadline {
   done: boolean
   urgency: 'red' | 'amber' | 'green' | 'gray'
   daysUntil: number
+  riskScore?: number | null
 }
 
 export interface ReadingItem {

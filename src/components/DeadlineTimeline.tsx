@@ -119,7 +119,7 @@ interface DeadlineItemProps {
 }
 
 function DeadlineItem({ deadline, isLast }: DeadlineItemProps) {
-  const { date, description, tag, urgency } = deadline
+  const { date, description, tag, urgency, riskScore } = deadline
 
   // Parse YYYY-MM-DD as local time (not UTC) to avoid off-by-one on date labels
   const [year, month0, day0] = date.split('-').map(Number)
@@ -181,10 +181,13 @@ function DeadlineItem({ deadline, isLast }: DeadlineItemProps) {
         )}
       </div>
 
-      {/* Right column: Description + tag */}
+      {/* Right column: Description + tag + risk badge */}
       <div className={`flex-1 pb-6 border-l-2 ${style.borderColor} pl-4 -ml-px`}>
-        <div className={`${style.textWeight} ${style.textColor} ${urgency === 'gray' ? 'line-through' : ''}`}>
-          {description}
+        <div className="flex items-start gap-2">
+          <div className={`flex-1 ${style.textWeight} ${style.textColor} ${urgency === 'gray' ? 'line-through' : ''}`}>
+            {description}
+          </div>
+          {riskScore !== null && riskScore !== undefined && getRiskBadge(riskScore)}
         </div>
         {tag && (
           <div className="mt-2">
@@ -196,6 +199,34 @@ function DeadlineItem({ deadline, isLast }: DeadlineItemProps) {
       </div>
     </div>
   )
+}
+
+/**
+ * Get risk badge component based on risk score
+ * riskScore > 1.0: 🔴 red badge "At Risk"
+ * 0.7 <= riskScore <= 1.0: 🟡 amber badge "Tight"
+ * riskScore < 0.7: 🟢 green badge "On Track"
+ */
+function getRiskBadge(riskScore: number): JSX.Element | null {
+  if (riskScore > 1.0) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-700 font-medium whitespace-nowrap">
+        🔴 At Risk
+      </span>
+    )
+  } else if (riskScore >= 0.7) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 font-medium whitespace-nowrap">
+        🟡 Tight
+      </span>
+    )
+  } else {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 font-medium whitespace-nowrap">
+        🟢 On Track
+      </span>
+    )
+  }
 }
 
 /**

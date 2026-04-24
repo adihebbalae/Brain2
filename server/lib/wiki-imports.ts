@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { promises as fs } from 'node:fs'
+import { promises as fs, type Dirent } from 'node:fs'
 import { parse as parseCsv } from 'csv-parse/sync'
 import * as ical from 'node-ical'
 import {
@@ -39,6 +39,9 @@ const STOPWORDS = new Set([
 ])
 
 const IMPORT_INDEX_SEPARATOR = 'â€”'
+
+const NORMALIZED_IMPORT_INDEX_SEPARATOR = IMPORT_INDEX_SEPARATOR.includes('â') ? 'â€”' : IMPORT_INDEX_SEPARATOR
+const CHROME_WEBKIT_EPOCH_OFFSET_MICROSECONDS = 11644473600000000
 
 interface SourceFingerprint {
   path: string
@@ -105,7 +108,7 @@ export async function scanImportDatasets(): Promise<ImportCatalog> {
   const scanTimestamp = new Date().toISOString()
   const datasets: ImportDataset[] = []
 
-  let entries: Array<fs.Dirent>
+  let entries: Dirent[]
   try {
     entries = await fs.readdir(dataDir, { withFileTypes: true })
   } catch {
@@ -306,7 +309,14 @@ export async function findLegacyYouTubeHistoryPath(): Promise<string | null> {
 
   const historyDir = path.join(youtubeDataset.sourceRoot, 'history')
   const watchHtmlPath = path.join(historyDir, 'watch-history.html')
-  return await exists(watchHtmlPath) ? watchHtmlPath : null
+  if (await exists(watchHtmlPath)) {
+    return watchHtmlPath
+  }
+
+  return findFirstMatchingFile(getDataDir(), filePath => {
+    const normalized = filePath.replace(/\\/g, '/').toLowerCase()
+    return normalized.endsWith('/watch-history.html') || normalized.endsWith('/watch-history.json')
+  })
 }
 
 async function discoverClaudeDataset(folderName: string, datasetRoot: string, scanTimestamp: string): Promise<ImportDataset> {
@@ -952,7 +962,8 @@ function getDefaultModeForDataset(kind: ImportKind): Exclude<ImportIngestMode, '
 
 function buildImportedPageName(dataset: ImportDataset, filePath: string, mode: Exclude<ImportIngestMode, 'default'>): string {
   const relative = relativePathFrom(getDatasetMirrorDir(dataset.id), filePath)
-  return slugify(`${dataset.id}-${mode}-${relative.replace(/[\\/]/g, '-')}`)
+  const normalized = `${dataset.id}-${mode}-${relative.replace(/[\\/]/g, '-')}`
+  return `${slugify(normalized).slice(0, 96)}-${shortHash(normalized)}`
 }
 
 function buildImportedPageTitle(dataset: ImportDataset, filePath: string): string {
@@ -996,7 +1007,7 @@ async function rebuildWikiIndex(wikiDir: string): Promise<void> {
     const content = await fs.readFile(page.path, 'utf-8')
     const summary = extractWikiSummary(content)
     const sourceCount = page.sources.length
-    entries.push(`- [[${page.name}]] ${IMPORT_INDEX_SEPARATOR} ${summary} (sources: ${sourceCount})`)
+    entries.push(`- [[${page.name}]] ${NORMALIZED_IMPORT_INDEX_SEPARATOR} ${summary} (sources: ${sourceCount})`)
   }
 
   entries.sort((left, right) => left.localeCompare(right))
@@ -1079,6 +1090,14 @@ async function listFiles(root: string, filter: (entryName: string) => boolean): 
   }
 
   return results.sort()
+}
+
+async function findFirstMatchingFile(
+  root: string,
+  predicate: (filePath: string) => boolean,
+): Promise<string | null> {
+  const files = await listFiles(root, () => true)
+  return files.find(predicate) ?? null
 }
 
 async function countMatchingFiles(root: string, suffix: string): Promise<number> {
@@ -1389,7 +1408,7 @@ function normalizeChromeHistoryEntry(entry: ChromeHistoryEntry): { title: string
     return null
   }
 
-  const visitedAt = new Date(rawValue / 1000)
+  const visitedAt = chromeTimestampToDate(rawValue)
   if (Number.isNaN(visitedAt.getTime())) {
     return null
   }
@@ -1476,6 +1495,10 @@ function slugify(value: string): string {
     .slice(0, 120) || 'item'
 }
 
+function shortHash(value: string): string {
+  return crypto.createHash('sha1').update(value).digest('hex').slice(0, 10)
+}
+
 function relativePathFrom(root: string, filePath: string): string {
   return path.relative(root, filePath)
 }
@@ -1486,6 +1509,22 @@ function capitalize(value: string): string {
 
 function dedupeStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)))
+}
+
+function chromeTimestampToDate(rawValue: number): Date {
+  if (rawValue > CHROME_WEBKIT_EPOCH_OFFSET_MICROSECONDS) {
+    return new Date((rawValue - CHROME_WEBKIT_EPOCH_OFFSET_MICROSECONDS) / 1000)
+  }
+
+  if (rawValue > 1e12) {
+    return new Date(rawValue / 1000)
+  }
+
+  if (rawValue > 1e10) {
+    return new Date(rawValue)
+  }
+
+  return new Date(rawValue * 1000)
 }
 
 function toError(error: unknown): Error {

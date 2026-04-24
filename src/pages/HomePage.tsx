@@ -4,6 +4,7 @@ import { DailyPanel } from '../components/DailyPanel'
 import { CalendarPanel } from '../components/CalendarPanel'
 import { GitActivityPanel } from '../components/GitActivityPanel'
 import { ReviewPanel } from '../components/ReviewPanel'
+import { VelocityPanel } from '../components/VelocityPanel'
 import { useProjects } from '../hooks/useProjects'
 
 export function HomePage() {
@@ -22,6 +23,10 @@ export function HomePage() {
 
           <ErrorBoundary fallbackMessage="Error loading git activity">
             <GitActivityPanel />
+          </ErrorBoundary>
+
+          <ErrorBoundary fallbackMessage="Error loading velocity tracking">
+            <VelocityPanel />
           </ErrorBoundary>
         </div>
 

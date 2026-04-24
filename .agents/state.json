@@ -833,7 +833,7 @@
                   "TASK-044":  {
                                    "title":  "Velocity Tracking (daily snapshots + trend chart)",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "priority":  "P7",
                                    "depends_on":  [
@@ -1133,11 +1133,11 @@
                                         "TASK-049"
                                     ]
                  },
-    "last_updated":  "2026-04-24T18:37:05.6520453-05:00",
+    "last_updated":  "2026-04-24T18:49:28.8728535-05:00",
     "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-043",
-                         "title":  "Automated State Diffing (weekly git-summary per project)",
+                         "id":  "TASK-044",
+                         "title":  "Velocity Tracking (daily snapshots + trend chart)",
                          "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
