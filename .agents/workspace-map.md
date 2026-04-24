@@ -62,7 +62,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   │   ├── useYouTubeHistory.ts     # ✓ Data fetching hook for YouTube history with 60s polling (TASK-021)
 │   │   ├── useReading.ts            # ✓ Data fetching hook for reading list with 60s polling (TASK-022)
 │   │   ├── useCanvases.ts           # ✓ Data fetching hook for canvases with 60s polling, addNode function (TASK-027)
-│   │   └── useReviewQueue.ts        # ✓ Data fetching hook for review queue with 60s polling, markReviewed, getRandomNote (TASK-028)
+│   │   ├── useReviewQueue.ts        # ✓ Data fetching hook for review queue with 60s polling, markReviewed, getRandomNote (TASK-028)
+│   │   └── useConfig.ts             # ✓ Data fetching hook for config (vaultName, projectsDir) from /api/config (TASK-038)
 │   └── components/
 │       ├── ProjectCard.tsx          # ✓ Project card component (TASK-007)
 │       ├── ProjectCard.test.tsx     # ✓ ProjectCard tests (TASK-007)
@@ -94,6 +95,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
+    │   ├── config.ts                # ✓ GET /api/config (vaultName, projectsDir) (TASK-038)
     │   ├── ai.ts                    # ✓ GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all (TASK-013)
     │   ├── chats.ts                 # ✓ GET /api/chats, GET /api/chats/search, GET /api/chats/:uuid, PATCH /api/chats/:uuid/tags (TASK-014)
     │   ├── wiki.ts                  # ✓ POST /api/wiki/ingest, GET /api/wiki/index, GET /api/wiki/pages, POST /api/wiki/query, POST /api/wiki/lint, POST /api/wiki/gaps, POST /api/wiki/ingest-projects (TASK-016, TASK-017, TASK-018, TASK-037)

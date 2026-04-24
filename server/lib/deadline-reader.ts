@@ -7,6 +7,7 @@ export interface DeadlineItem {
   date: string         // ISO date string (YYYY-MM-DD)
   description: string
   tag: string | null   // school, project, personal, tutoring, poker — or null
+  notes?: string       // optional free-text notes (4th pipe field)
   done: boolean
   urgency: 'red' | 'amber' | 'green' | 'gray'
   daysUntil: number    // negative = overdue, 0 = today
@@ -70,7 +71,7 @@ function parseDeadlineLine(line: string): DeadlineItem | null {
   const done = checkboxMatch[1] === 'x'
   const content = checkboxMatch[2]
 
-  // Parse date | description | optional tag
+  // Parse date | description | optional tag | optional notes
   const parts = content.split('|').map(p => p.trim())
   if (parts.length < 2) {
     return null
@@ -79,6 +80,7 @@ function parseDeadlineLine(line: string): DeadlineItem | null {
   const dateStr = parts[0]
   const description = parts[1]
   const tag = parts.length >= 3 && parts[2] ? parts[2] : null
+  const notes = parts.length >= 4 && parts[3] ? parts[3] : undefined
 
   // Validate date format (YYYY-MM-DD)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -100,6 +102,7 @@ function parseDeadlineLine(line: string): DeadlineItem | null {
     date: dateStr,
     description,
     tag,
+    notes,
     done,
     urgency,
     daysUntil
@@ -160,9 +163,26 @@ export async function readDeadlines(vaultDir: string): Promise<DeadlineItem[]> {
 /**
  * Append a new deadline to the primary vault's deadlines.md
  */
+function buildDeadlineLine(
+  done: boolean,
+  date: string,
+  description: string,
+  tag: string | null,
+  notes: string | null
+): string {
+  const checkbox = done ? '[x]' : '[ ]'
+  if (notes) {
+    return `- ${checkbox} ${date} | ${description} | ${tag ?? ''} | ${notes}`
+  }
+  if (tag) {
+    return `- ${checkbox} ${date} | ${description} | ${tag}`
+  }
+  return `- ${checkbox} ${date} | ${description}`
+}
+
 export async function addDeadline(
   vaultDir: string,
-  { date, description, tag }: { date: string; description: string; tag?: string | null }
+  { date, description, tag, notes }: { date: string; description: string; tag?: string | null; notes?: string | null }
 ): Promise<DeadlineItem> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid date format')
   if (!validatePath(path.join(vaultDir, 'Deadlines', 'deadlines.md'), vaultDir)) {
@@ -171,9 +191,8 @@ export async function addDeadline(
 
   const cleanDesc = description.trim().replace(/\|/g, '-')
   const cleanTag = tag ? tag.trim().replace(/\|/g, '-') : null
-  const line = cleanTag
-    ? `- [ ] ${date} | ${cleanDesc} | ${cleanTag}`
-    : `- [ ] ${date} | ${cleanDesc}`
+  const cleanNotes = notes ? notes.trim().replace(/\|/g, '-') : null
+  const line = buildDeadlineLine(false, date, cleanDesc, cleanTag, cleanNotes)
 
   const deadlinesPath = path.join(vaultDir, 'Deadlines', 'deadlines.md')
   await fs.mkdir(path.dirname(deadlinesPath), { recursive: true })
@@ -190,6 +209,7 @@ export async function addDeadline(
     date,
     description: cleanDesc,
     tag: cleanTag,
+    notes: cleanNotes ?? undefined,
     done: false,
     urgency: calculateUrgency(daysUntil, false),
     daysUntil,
@@ -222,6 +242,73 @@ export async function removeDeadline(vaultDirs: string[], id: string): Promise<b
     }
   }
   return false
+}
+
+/**
+ * Update an existing deadline in the first vault dir that contains it.
+ * Finds the line by old ID, replaces it with the new values.
+ * Returns the updated DeadlineItem (with possibly a new ID if date/description changed),
+ * or null if not found.
+ */
+export async function updateDeadline(
+  vaultDirs: string[],
+  id: string,
+  updates: {
+    date?: string
+    description?: string
+    tag?: string | null
+    notes?: string | null
+    done?: boolean
+  }
+): Promise<DeadlineItem | null> {
+  for (const vaultDir of vaultDirs) {
+    const deadlinesPath = path.join(vaultDir, 'Deadlines', 'deadlines.md')
+    if (!validatePath(deadlinesPath, vaultDir)) continue
+    try {
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      const lines = content.split('\n')
+      let updatedItem: DeadlineItem | null = null
+
+      const newLines = lines.map(line => {
+        const parsed = parseDeadlineLine(line)
+        if (!parsed || parsed.id !== id) return line
+
+        const newDate = updates.date ?? parsed.date
+        const newDesc = updates.description !== undefined
+          ? updates.description.trim().replace(/\|/g, '-')
+          : parsed.description
+        const newTag = updates.tag !== undefined
+          ? (updates.tag ? updates.tag.trim().replace(/\|/g, '-') : null)
+          : parsed.tag
+        const newNotes = updates.notes !== undefined
+          ? (updates.notes ? updates.notes.trim().replace(/\|/g, '-') : null)
+          : (parsed.notes ?? null)
+        const newDone = updates.done !== undefined ? updates.done : parsed.done
+
+        const daysUntil = calculateDaysUntil(newDate)
+        updatedItem = {
+          id: generateDeadlineId(newDate, newDesc),
+          date: newDate,
+          description: newDesc,
+          tag: newTag,
+          notes: newNotes ?? undefined,
+          done: newDone,
+          urgency: calculateUrgency(daysUntil, newDone),
+          daysUntil,
+        }
+
+        return buildDeadlineLine(newDone, newDate, newDesc, newTag, newNotes)
+      })
+
+      if (updatedItem) {
+        await fs.writeFile(deadlinesPath, newLines.join('\n'), 'utf-8')
+        return updatedItem
+      }
+    } catch {
+      // file may not exist in this vault — continue
+    }
+  }
+  return null
 }
 
 /**

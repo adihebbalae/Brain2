@@ -4,6 +4,7 @@ import path from 'node:path'
 import { readDeadlinesMultiVault } from '../lib/deadline-reader.js'
 import { scanProjects } from '../lib/scanner.js'
 import { getVaultDirs, getPrimaryVaultDir } from '../lib/vault-config.js'
+import { getCachedGitActivity } from '../lib/git-activity-cache.js'
 import type { DeadlineItem } from '../lib/deadline-reader.js'
 import type { ProjectState } from '../lib/state-reader.js'
 
@@ -35,6 +36,12 @@ export interface DailyContext {
   randomNotes: RandomNote[]
   gitActivity: GitActivitySummary
 }
+
+const DAILY_CONTEXT_CACHE_TTL_MS = 60 * 1000
+
+let cachedDailyContext: DailyContext | null = null
+let dailyContextTimestamp = 0
+let dailyContextRequest: Promise<DailyContext> | null = null
 
 /**
  * Get today's date formatted as "Wednesday, April 16, 2026"
@@ -185,11 +192,10 @@ function shuffle<T>(array: T[]): T[] {
  */
 async function getGitActivitySummary(): Promise<GitActivitySummary> {
   try {
-    const { getGitActivity } = await import('../lib/git-activity-parser.js')
     const projectsDir = process.env.PROJECTS_DIR
     if (!projectsDir) return { commitsToday: 0, commitsThisWeek: 0 }
 
-    const activity = await getGitActivity(projectsDir)
+    const activity = await getCachedGitActivity(projectsDir)
 
     const today = new Date().toISOString().substring(0, 10)
     const commitsToday = activity.heatmap[today] || 0
@@ -211,30 +217,62 @@ async function getGitActivitySummary(): Promise<GitActivitySummary> {
   }
 }
 
+async function buildDailyContext(): Promise<DailyContext> {
+  const [date, deadlines, calendarEvents, staleProjects, randomNotes, gitActivity] = await Promise.all([
+    getTodayFormatted(),
+    getTodayDeadlines(),
+    getCalendarEvents(),
+    getStaleProjects(),
+    getRandomNotes(),
+    getGitActivitySummary()
+  ])
+
+  return {
+    date,
+    deadlines,
+    calendarEvents,
+    staleProjects,
+    randomNotes,
+    gitActivity
+  }
+}
+
+async function getDailyContext(): Promise<DailyContext> {
+  const now = Date.now()
+  if (cachedDailyContext && (now - dailyContextTimestamp) < DAILY_CONTEXT_CACHE_TTL_MS) {
+    return cachedDailyContext
+  }
+
+  if (dailyContextRequest) {
+    return dailyContextRequest
+  }
+
+  dailyContextRequest = buildDailyContext()
+    .then(context => {
+      cachedDailyContext = context
+      dailyContextTimestamp = Date.now()
+      return context
+    })
+    .finally(() => {
+      dailyContextRequest = null
+    })
+
+  return dailyContextRequest
+}
+
+export function clearDailyContextCache(): void {
+  cachedDailyContext = null
+  dailyContextTimestamp = 0
+  dailyContextRequest = null
+}
+
 /**
  * GET /api/daily-context
  * Assembles today's context from all available sources
  */
 router.get('/daily-context', async (_req, res) => {
   try {
-    const [date, deadlines, calendarEvents, staleProjects, randomNotes, gitActivity] = await Promise.all([
-      getTodayFormatted(),
-      getTodayDeadlines(),
-      getCalendarEvents(),
-      getStaleProjects(),
-      getRandomNotes(),
-      getGitActivitySummary()
-    ])
-
-    const context: DailyContext = {
-      date,
-      deadlines,
-      calendarEvents,
-      staleProjects,
-      randomNotes,
-      gitActivity
-    }
-
+    const context = await getDailyContext()
     return res.json(context)
   } catch (err) {
     console.error('Failed to get daily context:', err)

@@ -55,7 +55,7 @@ describe('Project Scanner', () => {
       expect(state?.stateFile).toBe('state.md')
     })
 
-    it('should use README.md as last resort', async () => {
+    it('should use README.md as last resort when no current state file exists', async () => {
       const projectDir = path.join(tempDir, 'test-project')
       await fs.mkdir(projectDir)
 
@@ -67,6 +67,30 @@ describe('Project Scanner', () => {
       const state = await readProjectState(projectDir, tempDir)
       expect(state).not.toBeNull()
       expect(state?.stateFile).toBe('README.md')
+      expect(state?.summaryFile).toBe('README.md')
+      expect(state?.currentStateFile).toBeNull()
+    })
+
+    it('should prefer README for summary and .agents/state.md for current state', async () => {
+      const projectDir = path.join(tempDir, 'test-project')
+      await fs.mkdir(path.join(projectDir, '.agents'), { recursive: true })
+
+      await fs.writeFile(
+        path.join(projectDir, 'README.md'),
+        '# Test Project\n\nThis project helps users organize tasks.'
+      )
+      await fs.writeFile(
+        path.join(projectDir, '.agents/state.md'),
+        '## Status\nWorking on the sync engine and fixing edge cases.'
+      )
+
+      const state = await readProjectState(projectDir, tempDir)
+      expect(state).not.toBeNull()
+      expect(state?.summaryFile).toBe('README.md')
+      expect(state?.currentStateFile).toBe('.agents/state.md')
+      expect(state?.stateFile).toBe('.agents/state.md')
+      expect(state?.summary).toContain('organize tasks')
+      expect(state?.currentState).toContain('sync engine')
     })
   })
 

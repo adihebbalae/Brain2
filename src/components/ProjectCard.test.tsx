@@ -12,6 +12,7 @@ describe('ProjectCard', () => {
     lastModified: new Date().toISOString(),
     staleDays: 5,
     summary: 'This is a test summary',
+    currentState: 'This is the current project state.',
     nextSteps: ['Step 1', 'Step 2', 'Step 3', 'Step 4'],
     todos: 3,
     openTodos: 3,
@@ -41,6 +42,11 @@ describe('ProjectCard', () => {
   it('renders summary text', () => {
     render(<ProjectCard project={mockProject} />)
     expect(screen.getByText('This is a test summary')).toBeTruthy()
+  })
+
+  it('renders current state text', () => {
+    render(<ProjectCard project={mockProject} />)
+    expect(screen.getByText('This is the current project state.')).toBeTruthy()
   })
 
   it('renders max 3 next steps', () => {

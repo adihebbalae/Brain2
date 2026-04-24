@@ -3,13 +3,15 @@
  */
 
 import express from 'express'
-import { buildIndex, scoreChunks, assembleContext, getUniqueSources } from '../lib/rag-engine.js'
+import { scoreChunks, assembleContext, getUniqueSources } from '../lib/rag-engine.js'
 import { getOllamaStatus } from '../lib/ollama-client.js'
+import { getRagIndex } from '../lib/rag-cache.js'
 
 const router = express.Router()
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b'
+const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || '30m'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -19,21 +21,6 @@ interface ChatMessage {
 interface ChatQueryBody {
   message: string
   history?: ChatMessage[]
-}
-
-// In-memory index cache (rebuild on server restart)
-let cachedIndex: ReturnType<typeof buildIndex> | null = null
-let indexTimestamp: number = 0
-const INDEX_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-
-async function getIndex() {
-  const now = Date.now()
-  if (!cachedIndex || (now - indexTimestamp) > INDEX_CACHE_TTL) {
-    console.log('[RAG] Building index...')
-    cachedIndex = buildIndex()
-    indexTimestamp = now
-  }
-  return cachedIndex
 }
 
 /**
@@ -59,7 +46,7 @@ router.post('/query', async (req, res) => {
 
   try {
     // Build index and assemble context
-    const index = await getIndex()
+    const index = await getRagIndex()
     const topChunks = scoreChunks(message, index, 20)
     const context = assembleContext(topChunks, 6000)
     const sources = getUniqueSources(topChunks)
@@ -98,6 +85,7 @@ Assistant:`
         model: OLLAMA_MODEL,
         prompt,
         stream: true,
+        keep_alive: OLLAMA_KEEP_ALIVE,
       }),
     })
 

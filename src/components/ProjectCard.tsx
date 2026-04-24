@@ -41,15 +41,12 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const borderClass = getBorderClass(project.staleDays)
   const statusBadgeClass = getStatusBadgeClasses(project.status)
   const vsCodeUrl = project.vscodeUrl
-
-  // Show max 3 next steps
   const displayedNextSteps = project.nextSteps.slice(0, 3)
 
   return (
     <div
       className={`bg-white rounded-lg border-2 ${borderClass} p-5 hover:shadow-md transition-shadow`}
     >
-      {/* Header with status badge */}
       <div className="flex items-start justify-between mb-3">
         <h3 className="text-xl font-bold text-gray-900">{project.name}</h3>
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}`}>
@@ -57,20 +54,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </span>
       </div>
 
-      {/* Summary */}
-      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+      <p className="text-gray-600 text-sm mb-2 line-clamp-2">
         {project.summary || 'No summary available'}
       </p>
 
-      {/* AI Summary */}
-      {project.aiSummary && (
-        <div className="mt-2 text-sm text-indigo-700 bg-indigo-50 rounded px-2 py-1">
-          <span className="font-medium text-xs uppercase tracking-wide text-indigo-400">AI · </span>
-          {project.aiSummary}
-        </div>
-      )}
+      <p className="text-gray-700 text-sm mb-4 line-clamp-2">
+        {project.currentState || 'No current state available'}
+      </p>
 
-      {/* Next steps */}
       {displayedNextSteps.length > 0 && (
         <div className="mb-4">
           <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
@@ -79,7 +70,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <ul className="space-y-1">
             {displayedNextSteps.map((step, idx) => (
               <li key={idx} className="text-sm text-gray-600 flex items-start">
-                <span className="mr-2 text-gray-400">•</span>
+                <span className="mr-2 text-gray-400">&bull;</span>
                 <span className="flex-1">{step}</span>
               </li>
             ))}
@@ -87,7 +78,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
       )}
 
-      {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-gray-100">
         <div className="flex items-center gap-3 text-sm text-gray-500">
           <span>{getRelativeTime(project.lastModified)}</span>

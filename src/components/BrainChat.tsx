@@ -119,9 +119,10 @@ export function BrainChat({ onClose }: BrainChatProps) {
               // Update sources
               setMessages(prev => {
                 const updated = [...prev]
-                const lastMsg = updated[updated.length - 1]
+                const lastIdx = updated.length - 1
+                const lastMsg = updated[lastIdx]
                 if (lastMsg && lastMsg.role === 'assistant') {
-                  lastMsg.sources = parsed.sources
+                  updated[lastIdx] = { ...lastMsg, sources: parsed.sources }
                 }
                 return updated
               })
@@ -131,9 +132,10 @@ export function BrainChat({ onClose }: BrainChatProps) {
               // Append token to assistant message
               setMessages(prev => {
                 const updated = [...prev]
-                const lastMsg = updated[updated.length - 1]
+                const lastIdx = updated.length - 1
+                const lastMsg = updated[lastIdx]
                 if (lastMsg && lastMsg.role === 'assistant') {
-                  lastMsg.content += parsed.chunk
+                  updated[lastIdx] = { ...lastMsg, content: lastMsg.content + parsed.chunk }
                 }
                 return updated
               })

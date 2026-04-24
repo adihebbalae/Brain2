@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx vitest *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k: d[k] for k in list\\(d.keys\\(\\)\\)[:8]}, indent=2\\)\\)\")",
+      "Bash(powershell -Command \"Get-Content '.agents/state.json' -Raw | ConvertFrom-Json | Select-Object -ExpandProperty current_task | ConvertTo-Json\")",
+      "Bash(powershell -Command \"Get-Content '.agents/state.json' -Raw | ConvertFrom-Json | Select-Object -ExpandProperty changelog | Select-Object -Last 3 | ConvertTo-Json\")",
+      "Bash(powershell -Command '\\(Get-Content '\\\\''.agents/state.json'\\\\'' -Raw | ConvertFrom-Json\\).tasks.PSObject.Properties | Where-Object { \\($_.Value.status -ne '\\\\''done'\\\\''\\) } | ForEach-Object { $_.Name + '\\\\'': '\\\\'' + $_.Value.title + '\\\\'' \\('\\\\'' + $_.Value.status + '\\\\''\\)'\\\\'' }')",
+      "Bash(powershell -Command ' *)",
+      "Bash(curl -s http://localhost:3001/api/projects)",
+      "Bash(npx tsc *)",
+      "Bash(curl -w \"Time: %{time_total}s\" -s -o /dev/null http://localhost:3001/api/projects)",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{time_total}s\" http://localhost:3001/api/wiki/pages)",
+      "Bash(curl -s http://localhost:3001/api/ai/status)",
+      "Bash(curl -s -w \"\\\\nTotal time: %{time_total}s\\\\n\" -X POST http://localhost:3001/api/ai/summarize-all -H \"Content-Type: application/json\" -d \"{\\\\\"projects\\\\\":[\\\\\"Brain2\\\\\"]}\")"
+    ]
+  }
+}

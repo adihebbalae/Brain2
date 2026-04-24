@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Deadline } from '../types'
 
+type DeadlineUpdates = Partial<Pick<Deadline, 'date' | 'description' | 'tag' | 'done'>> & { notes?: string | null }
+
 interface UseDeadlinesReturn {
   deadlines: Deadline[]
   loading: boolean
   error: string | null
   refetch: () => void
+  updateDeadline: (id: string, updates: DeadlineUpdates) => Promise<void>
 }
 
 export function useDeadlines(): UseDeadlinesReturn {
@@ -39,10 +42,24 @@ export function useDeadlines(): UseDeadlinesReturn {
     return () => clearInterval(intervalId)
   }, [fetchDeadlines])
 
+  const updateDeadline = useCallback(async (id: string, updates: DeadlineUpdates) => {
+    const response = await fetch(`/api/deadlines/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      throw new Error(body.error ?? 'Failed to update deadline')
+    }
+    await fetchDeadlines()
+  }, [fetchDeadlines])
+
   return {
     deadlines,
     loading,
     error,
-    refetch: fetchDeadlines
+    refetch: fetchDeadlines,
+    updateDeadline,
   }
 }

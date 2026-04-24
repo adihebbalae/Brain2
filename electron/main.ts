@@ -1,7 +1,8 @@
-﻿import { app, BrowserWindow, Tray, Menu, shell, nativeImage } from 'electron';
+﻿import { app, BrowserWindow, Tray, Menu, shell, nativeImage, session } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
+import { createHash } from 'crypto';
 import * as net from 'net';
 
 let mainWindow: BrowserWindow | null = null;
@@ -12,6 +13,13 @@ let ollamaProcess: ChildProcess | null = null;
 const isDev = process.env.NODE_ENV !== 'production';
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 5173;
+const viteReactRefreshPreamble = `import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;`;
+const viteReactRefreshPreambleHash = `'sha256-${createHash('sha256')
+  .update(viteReactRefreshPreamble)
+  .digest('base64')}'`;
 
 function waitForServer(port: number, maxRetries = 30): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -165,6 +173,36 @@ async function startBackendInProduction() {
 }
 
 app.on('ready', async () => {
+  // Set Content Security Policy
+  // In dev, Vite injects a small inline React refresh preamble into index.html.
+  // Allow only that exact script by hash so Electron doesn't block it.
+  const csp = isDev
+    ? [
+        "default-src 'self'",
+        `script-src 'self' ${viteReactRefreshPreambleHash}`,
+        "style-src 'self' 'unsafe-inline'",
+        `connect-src 'self' http://localhost:3001 http://localhost:5173 ws://localhost:5173 http://localhost:11434`,
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+      ].join('; ')
+    : [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        `connect-src 'self' http://localhost:3001 http://localhost:11434`,
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+      ].join('; ');
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+      },
+    });
+  });
+
   try {
     // Start Ollama first
     await startOllama();

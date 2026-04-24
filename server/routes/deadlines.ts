@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { readDeadlinesMultiVault, addDeadline, removeDeadline } from '../lib/deadline-reader.js'
+import { readDeadlinesMultiVault, addDeadline, removeDeadline, updateDeadline } from '../lib/deadline-reader.js'
 import { getVaultDirs } from '../lib/vault-config.js'
 import { config } from 'dotenv'
 
@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
   const { VAULT_DIR } = process.env
   if (!VAULT_DIR) return res.status(500).json({ error: 'VAULT_DIR not configured' })
 
-  const { date, description, tag } = req.body
+  const { date, description, tag, notes } = req.body
   if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'Invalid date. Use YYYY-MM-DD' })
   }
@@ -35,7 +35,12 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const item = await addDeadline(VAULT_DIR, { date, description, tag: tag ?? null })
+    const item = await addDeadline(VAULT_DIR, {
+      date,
+      description,
+      tag: tag ?? null,
+      notes: (typeof notes === 'string' && notes.trim()) ? notes : null,
+    })
     return res.status(201).json(item)
   } catch (err) {
     console.error('Failed to add deadline:', err)
@@ -60,6 +65,41 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error('Failed to delete deadline:', err)
     return res.status(500).json({ error: 'Failed to delete deadline' })
+  }
+})
+
+router.put('/:id', async (req, res) => {
+  const { VAULT_DIR } = process.env
+  if (!VAULT_DIR) return res.status(500).json({ error: 'VAULT_DIR not configured' })
+
+  const { id } = req.params
+  if (!/^[a-f0-9]{12}$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid deadline ID' })
+  }
+
+  const { date, description, tag, notes, done } = req.body
+  if (date !== undefined && (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    return res.status(400).json({ error: 'Invalid date. Use YYYY-MM-DD' })
+  }
+  if (description !== undefined && (typeof description !== 'string' || !description.trim())) {
+    return res.status(400).json({ error: 'Description cannot be empty' })
+  }
+
+  const updates: Record<string, unknown> = {}
+  if (date !== undefined) updates.date = date
+  if (description !== undefined) updates.description = description
+  if (tag !== undefined) updates.tag = tag ?? null
+  if (notes !== undefined) updates.notes = (typeof notes === 'string' && notes.trim()) ? notes : null
+  if (done !== undefined) updates.done = Boolean(done)
+
+  try {
+    const vaultDirs = await getVaultDirs()
+    const updated = await updateDeadline(vaultDirs, id, updates)
+    if (!updated) return res.status(404).json({ error: 'Deadline not found' })
+    return res.json(updated)
+  } catch (err) {
+    console.error('Failed to update deadline:', err)
+    return res.status(500).json({ error: 'Failed to update deadline' })
   }
 })
 

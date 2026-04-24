@@ -4,15 +4,16 @@
 
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
-- **Phase**: P6 — Fixes & Improvements
-- **Current Task**: None (TASK-036 complete)
+- **Phase**: P7 — Feature Expansion
+- **Current Task**: None (8 new tasks scaffolded: TASK-041 through TASK-048)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
+- **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
 - **Recent Completions**: 
-  - TASK-033 — Single unified startup command (610 total tests)
   - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
   - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
   - TASK-036 — Fix AI summaries: factual-only prompt, 404 error logging (613 tests passing, 2 pre-existing failures)
+  - TASK-038 — Fix Obsidian deep links: configurable VAULT_NAME (620 tests passing, 2 pre-existing failures)
 
 ## Project Brief
 
@@ -73,8 +74,37 @@
 | TASK-031 | Fix mcp-tools.test.ts stale hardcoded dates | done | P0 |
 | TASK-032 | Multi-page dashboard routing restructure | done | P4 |
 | TASK-033 | Single unified startup command | done | P5 |
-| TASK-034 | Electron desktop application packaging | pending | P5 |
+| TASK-034 | Electron desktop application packaging | done | P5 |
 | TASK-035 | Fix review queue — exclude project junctions | done | P6 |
+| TASK-036 | Fix AI summaries: factual-only prompt, 404 error logging | done | P6 |
+| TASK-037 | Wiki Scan Projects bulk-ingest feature | done | P6 |
+| TASK-038 | Fix Obsidian deep links — configurable VAULT_NAME | done | P6 |
+| **TASK-041** | **Zen/Focus Mode with Pomodoro Timer** | **pending** | **P7** |
+| **TASK-042** | **In-App Command Palette (Ctrl+K)** | **pending** | **P7** |
+| **TASK-043** | **Automated State Diffing (weekly git-summary)** | **pending** | **P7** |
+| **TASK-044** | **Velocity Tracking + Deadline Risk Scores** | **pending** | **P7** |
+| **TASK-045** | **Kanban Triage Board (checkbox drag-and-drop)** | **pending** | **P7** |
+| **TASK-046** | **Local Semantic Search (embeddings + SQLite-vss)** | **pending** | **P8** |
+| **TASK-047** | **Extend MCP Server with 3 new tools** | **pending** | **P7** |
+| **TASK-048** | **Electron Global Shortcut Overlay** | **pending** | **P8** |
+| **TASK-049** | **Context Switch Protocol (cognitive disengagement)** | **pending** | **P7** |
+
+## P7 Implementation Order
+```
+Tier 1 (Quick Wins):
+  TASK-041 (Focus Mode)      → standalone, S effort
+  TASK-042 (Command Palette) → standalone, M effort
+
+Tier 2 (Backend + Frontend):
+  TASK-047 (MCP extend)      → standalone, S effort
+  TASK-044 (Velocity)        → standalone, M effort
+  TASK-043 (State Diffing)   → standalone, M effort
+  TASK-045 (Kanban)          → standalone, L effort
+
+Tier 3 (Major):
+  TASK-046 (Semantic Search) → standalone, XL effort
+  TASK-048 (Electron Overlay) → after TASK-042, M effort
+```
 
 ## P3 Architecture Decisions
 - **Google Calendar**: OAuth2 read-only, tokens stored in `data/calendar-tokens.json` (gitignored). New .env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
@@ -90,9 +120,63 @@
 - **Web clipper**: Chrome Manifest V3 extension in `src/extension/`. Developer-mode install only.
 
 ## P3 Dependency Order
-```
-TASK-020 (Calendar) → standalone
-TASK-021 (YouTube) → standalone
+## Status
+- **Project**: Cortex — Local-only personal command center dashboard
+- **Phase**: P7 — Feature Expansion
+- **Current Task**: None (8 new tasks scaffolded: TASK-041 through TASK-048)
+- **Blocked On**: None
+- **Security**: Needs rescan before push (last scan 2026-04-06)
+- **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
+- **Recent Completions**: 
+  - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
+  - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
+  - TASK-036 — Fix AI summaries: factual-only prompt, 404 error logging (613 tests passing, 2 pre-existing failures)
+  - TASK-038 — Fix Obsidian deep links: configurable VAULT_NAME (620 tests passing, 2 pre-existing failures)
+
+## Project Brief
+
+**Product**: Cortex — a local-only personal command center that aggregates projects, deadlines, TODOs, and knowledge into a single web dashboard running on localhost.
+
+**User**: Adi — solo developer managing multiple side projects across `C:\Users\boomb\Documents\_Projects`, with deadlines from school, tutoring, and personal work.
+
+**Problem**: Project state scattered across dozens of folders, unstructured notes, Google Calendar, Apple Reminders. No single view of what's active, stale, due, or next.
+
+**Stack**: React + Vite + TypeScript, Tailwind CSS, Express.js (TS), pnpm
+
+**Paths**:
+- Projects: `C:\Users\boomb\Documents\_Projects`
+- Vault: `C:\Users\boomb\Documents\SecondBrain`
+- Notes corpus: `C:\Users\boomb\Documents\notes_corpus.txt.txt`
+
+**Architecture Decisions**:
+- Brain2 repo IS the dashboard (config-driven paths via .env)
+- Single package with concurrently for dev
+- Ollama (llama3.1:8b) for AI summarization — local, no API key (P1)
+- ntfy.sh for push notifications — no OAuth, single HTTP POST (P1)
+- Google Calendar dropped in favour of ntfy simplicity
+
+## Task Summary
+
+| ID | Title | Status | Priority |
+|----|-------|--------|----------|
+| TASK-001 | Scaffold project | done | P0 |
+| TASK-002 | Obsidian vault PARA structure | done | P0 |
+| TASK-003 | Backend: Project scanner | done | P0 |
+| TASK-004 | Backend: TODO extractor | done | P0 |
+| TASK-005 | Backend: Deadline reader | done | P0 |
+| TASK-006 | Backend: Quick capture + notes parser | done | P0 |
+| TASK-007 | Frontend: Dashboard + project cards | done | P0 |
+| TASK-008 | Frontend: TODO aggregator | done | P0 |
+| TASK-009 | Frontend: Deadline timeline | done | P0 |
+| TASK-010 | Frontend: Quick capture bar | done | P0 |
+| TASK-011 | Integration + E2E testing | done | P0 |
+| TASK-012 | ntfy push notifications (deadlines + stale + digest) | done | P1 |
+| TASK-013 | Ollama AI summarization (llama3.1:8b, auto on load) | done | P1 |
+| TASK-014 | Chat export viewer | done | P1 |
+| TASK-015 | Multi-vault support (VAULT_DIRS array) | done | P2 |
+| TASK-016 | LLM Wiki core: schema, ingest, index, log | done | P2 |
+| TASK-017 | LLM Wiki query + lint + dashboard panel | done | P2 |
+| TASK-018 | Self-learning: gap analysis + resource recommendations | done | P2 |
 TASK-022 (Bookmarks) → standalone
 TASK-024 (Knowledge graph) → standalone
 TASK-026 (Git activity) → standalone
@@ -578,3 +662,27 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **620 total tests passing** (up from 613, added 7 new route tests), 2 pre-existing failures (DeadlineTimeline, git-activity-parser) unrelated to this task
   - **Type-check clean**: No new TypeScript errors introduced (pre-existing mcp-tools.ts errors remain)
   - **All acceptance criteria met**: POST /api/wiki/ingest-projects endpoint works, uses state file priority, path traversal protection, checks Ollama, WikiPanel has Scan Projects button with progress feedback, comprehensive tests pass
+
+- 2026-04-21: TASK-038 completed — Fixed Obsidian deep links with configurable VAULT_NAME env var:
+  - **Root cause**: All obsidian:// deep links hardcoded to vault=SecondBrain, but user's registered vault name in Obsidian may differ, causing "Unable to find a vault for the URL" errors
+  - **Backend**: Created server/routes/config.ts with GET /api/config endpoint returning {vaultName: process.env.VAULT_NAME || 'SecondBrain', projectsDir: process.env.PROJECTS_DIR || ''}
+  - **Frontend hook**: Created src/hooks/useConfig.ts that fetches /api/config once on mount and returns {vaultName, projectsDir} with fallback defaults
+  - **Component updates**: Updated 4 components to use vaultName from useConfig() instead of hardcoded 'SecondBrain':
+    - CanvasPanel.tsx: openInObsidian function uses vaultName variable
+    - DailyPanel.tsx: resurfaced notes links use vaultName in obsidian:// URLs
+    - KnowledgeGraph.tsx: removed getVaultName() function, node click handler uses vaultName from hook
+    - ReviewPanel.tsx: both "Open in Obsidian" links (current note and surprise modal) use vaultName
+  - **Configuration**: Added VAULT_NAME to .env.example with comment "The name of your Obsidian vault (must match exactly what Obsidian shows in top-left)", default value SecondBrain
+  - **Validation**: grep confirms no hardcoded vault=SecondBrain in src/ directory, 620 tests passing (same count), no new TypeScript errors
+  - **All acceptance criteria met**: VAULT_NAME in .env.example, GET /api/config works, useConfig hook created, all 4 components updated, no hardcoded vault names remain in obsidian:// URLs
+
+- 2026-04-23: Electron dev CSP fix — restored Vite React refresh in the Electron renderer:
+  - **Root cause**: Electron was injecting `script-src 'self' 'unsafe-eval'`, which still blocked Vite's inline React refresh preamble. That prevented the preamble from running, triggered `@vitejs/plugin-react can't detect preamble`, and showed the Electron insecure-CSP warning because `unsafe-eval` was enabled.
+  - **Fix**: Updated `electron/main.ts` to hash the exact Vite React refresh preamble (`/@react-refresh`) and allow only that inline script in dev, while dropping `unsafe-eval` from the dev CSP.
+  - **Validation**: `npm run electron:compile` passes after the change.
+
+- 2026-04-23: Investigated project summaries:
+  - **Current source**: The dashboard summary shown on project cards comes from `project.summary`, not the AI summary box.
+  - **Selection order**: The backend picks exactly one root-level file by priority: `agent_state.md` → `Agent_State.json` → `state.md` → `Status.md` → `README.md`.
+  - **Extraction logic**: It prefers a `## Summary` or `## Overview` section, then `## Status`, and if none exist it falls back to the last 2-3 non-empty lines of the chosen file.
+  - **Gap**: It does not currently inspect `_dev` or any secondary summary files.

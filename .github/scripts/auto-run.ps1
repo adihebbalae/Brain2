@@ -171,9 +171,11 @@ function Invoke-Claude {
     }
 
     # Run Claude CLI and capture combined output
+    # Pipe empty string to explicitly close stdin — prevents Claude CLI's
+    # "no stdin data received in 3s" timeout which causes exit code -1.
     $output = $null
     try {
-        $output = & claude --agent $Agent -p --dangerously-skip-permissions $Prompt 2>&1 |
+        $output = "" | & claude --agent $Agent -p --dangerously-skip-permissions $Prompt 2>&1 |
                   Out-String
     }
     catch {

@@ -1,125 +1,75 @@
-# Handoff: Fix Obsidian deep links — configurable VAULT_NAME env var
-**Task ID**: TASK-038
+# Handoff: Zen/Focus Mode with Pomodoro Timer
+**Task ID**: TASK-041
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center dashboard. React+Vite+TypeScript frontend on :5173, Express.js TypeScript backend on :3001. Repo at `C:\Users\boomb\Documents\_Projects\Brain2`.
 
-**The bug**: Clicking "Open in Obsidian" links results in "Unable to find a vault for the URL" error. All `obsidian://` deep links are hardcoded with `vault=SecondBrain`, but the exact registered vault name in Obsidian may differ on the user's machine.
-
-**Current hardcoded locations** (all frontend, no backend URLs found):
-
-| File | Line | Current hardcode |
-|------|------|-----------------|
-| `src/components/CanvasPanel.tsx` | 32 | `const vault = 'SecondBrain'` |
-| `src/components/DailyPanel.tsx` | 192 | `` `obsidian://open?vault=SecondBrain&...` `` |
-| `src/components/KnowledgeGraph.tsx` | 19-21 | Returns hardcoded `'SecondBrain'` |
-| `src/components/ReviewPanel.tsx` | 182, 243 | `` `obsidian://open?vault=SecondBrain&...` `` |
+**What exists**: Multi-page routing (TASK-032) with pages: Home, Projects, Deadlines, Knowledge, Learning. TODO extraction (TASK-004) with GET /api/todos returning all TODOs across projects. Checkbox toggling via PATCH /api/todos/:id.
 
 ## Task
 
-### 1. Add VAULT_NAME to .env.example
+### 1. Create FocusMode component (`src/pages/FocusMode.tsx`)
 
-```
-# The name of your Obsidian vault (must match exactly what Obsidian shows in top-left)
-VAULT_NAME=SecondBrain
-```
+A full-screen, distraction-free view with:
+- **Dark background** (`bg-gray-900` or darker)
+- **Project name** at top (from slug param)
+- **Pomodoro timer**: Large digits showing `MM:SS`, centered
+  - States: WORK (25min), SHORT_BREAK (5min), LONG_BREAK (15min)
+  - Cycle: work → short → work → short → work → long → repeat
+  - Controls: Start, Pause, Reset buttons
+  - Use `useState` for time remaining + `useEffect` with `setInterval` (cleanup on unmount!)
+  - On timer completion: play a short beep using Web Audio API (synthesize a 440Hz tone for 200ms, no external files)
+- **TODO list**: Filtered client-side from GET /api/todos where `todo.project` matches the slug
+  - Checkboxes call PATCH /api/todos/:id to toggle
+- **"Exit Focus" button**: `useNavigate(-1)` to go back
 
-### 2. Create GET /api/config endpoint (server/routes/ — new file or add to existing)
+### 2. Add route to App.tsx
 
-Create `server/routes/config.ts`:
-
-```typescript
-import { Router } from 'express'
-import { config } from 'dotenv'
-config()
-
-const router = Router()
-
-router.get('/', (_req, res) => {
-  res.json({
-    vaultName: process.env.VAULT_NAME || 'SecondBrain',
-    projectsDir: process.env.PROJECTS_DIR || '',
-  })
-})
-
-export { router as configRouter }
+```tsx
+<Route path="/focus/:slug" element={<FocusMode />} />
 ```
 
-Mount in `server/index.ts`: `app.use('/api/config', configRouter)`
+### 3. Hide NavBar in focus mode
 
-### 3. Create useConfig hook (src/hooks/useConfig.ts)
+In App.tsx or NavBar component, check if current route matches `/focus/*` and hide the NavBar. Use `useLocation()` from react-router.
 
-```typescript
-import { useState, useEffect } from 'react'
+### 4. Add "Focus" button to ProjectDetailView
 
-interface Config {
-  vaultName: string
-  projectsDir: string
-}
-
-export function useConfig() {
-  const [config, setConfig] = useState<Config>({ vaultName: 'SecondBrain', projectsDir: '' })
-  
-  useEffect(() => {
-    fetch('/api/config')
-      .then(r => r.json())
-      .then(setConfig)
-      .catch(() => {}) // fall back to default
-  }, [])
-  
-  return config
-}
-```
-
-### 4. Update all frontend components
-
-Replace every hardcoded `'SecondBrain'` in `obsidian://` URLs with the value from `useConfig()`.
-
-**CanvasPanel.tsx**: Replace `const vault = 'SecondBrain'` with:
-```typescript
-const { vaultName } = useConfig()
-```
-And use `vaultName` in the URL.
-
-**DailyPanel.tsx**: Import `useConfig`, call it at the top of the component, replace `SecondBrain` in the URL.
-
-**KnowledgeGraph.tsx**: Replace the hardcoded `getVaultName()` function. Import and call `useConfig()` instead.
-
-**ReviewPanel.tsx**: Import `useConfig`, call at component top, replace both hardcoded instances.
+On the project detail page, add a button/link that navigates to `/focus/${slug}`.
 
 ### 5. Run tests and commit
 
 - `npm test -- --reporter=dot`
-- `git add -A && git commit -m "fix(TASK-038): configurable VAULT_NAME for obsidian:// deep links"`
+- `npx tsc --noEmit`
+- `git add -A && git commit -m "feat(TASK-041): zen/focus mode with pomodoro timer"`
 
 ## Acceptance Criteria
-- [ ] `VAULT_NAME` added to `.env.example` with comment
-- [ ] `GET /api/config` returns `{ vaultName, projectsDir }`
-- [ ] `useConfig` hook created in `src/hooks/useConfig.ts`
-- [ ] All 4 components use `vaultName` from `useConfig()` instead of hardcoded string
-- [ ] No hardcoded `'SecondBrain'` remains in `obsidian://` URLs in frontend components
-- [ ] `npm test -- --reporter=dot` passes (same count)
-- [ ] `npx tsc --noEmit` shows no new type errors
-- [ ] Committed
+- [ ] `/focus/:slug` route renders with project-scoped TODOs
+- [ ] Pomodoro timer counts down 25:00 → 0:00 with start/pause/reset controls
+- [ ] Timer cycles: work (25min) → short break (5min) → work → short break → work → long break (15min)
+- [ ] Audio beep on timer completion (Web Audio API, no files)
+- [ ] Checkbox toggles still call PATCH /api/todos/:id
+- [ ] NavBar hidden in focus mode
+- [ ] "Exit Focus" navigates back to previous page
+- [ ] Frontend-only — no backend changes needed
+- [ ] Tests for timer logic and route rendering
 
 ## Validation Gates
 - [ ] `npm test -- --reporter=dot` passes
 - [ ] `npx tsc --noEmit` no new errors
-- [ ] Grep: `grep -r "vault=SecondBrain" src/` returns no matches
 - [ ] `git commit` done
 
 ## Files to Read First
-- `src/components/CanvasPanel.tsx` — line 32, first hardcoded vault
-- `src/components/DailyPanel.tsx` — line 192, hardcoded vault in handler
-- `src/components/KnowledgeGraph.tsx` — lines 19-21, getVaultName function
-- `src/components/ReviewPanel.tsx` — lines 182 and 243, two hardcoded vaults
-- `server/index.ts` — where to mount the new configRouter
-- `.env.example` — where to add VAULT_NAME
+- `src/App.tsx` — routing setup
+- `src/components/NavBar.tsx` — to hide in focus mode
+- `src/pages/ProjectDetailView.tsx` — to add Focus button
+- `src/hooks/useTodos.ts` — existing TODO fetching hook (if it exists)
 
 ## Constraints
-- Do NOT change any obsidian:// URL structure except replacing the vault name
-- Do NOT add new test files for the config hook (keep scope small)
-- Do NOT install new packages
+- Frontend-only — do NOT create any new backend routes
+- Do NOT install any new npm packages
+- Use Web Audio API for the beep, not an audio file
+- Timer must clean up setInterval on unmount (no memory leaks)
 - Do NOT ask questions — make reasonable assumptions and document them

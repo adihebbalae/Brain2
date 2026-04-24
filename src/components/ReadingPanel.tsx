@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { useReading } from '../hooks/useReading'
 
+/** Only allow http/https URLs — strips javascript: bookmarklets and other dangerous protocols */
+function safeUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? url : null
+  } catch {
+    return null
+  }
+}
+
 type StatusFilter = 'all' | 'unread' | 'read'
 
 export function ReadingPanel() {
@@ -185,16 +195,24 @@ export function ReadingPanel() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`font-medium hover:text-blue-600 ${
+                  {safeUrl(item.url) ? (
+                    <a
+                      href={safeUrl(item.url)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`font-medium hover:text-blue-600 ${
+                        item.read ? 'text-gray-500 line-through' : 'text-gray-900'
+                      }`}
+                    >
+                      {item.title}
+                    </a>
+                  ) : (
+                    <span className={`font-medium ${
                       item.read ? 'text-gray-500 line-through' : 'text-gray-900'
-                    }`}
-                  >
-                    {item.title}
-                  </a>
+                    }`}>
+                      {item.title}
+                    </span>
+                  )}
                   <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
                     <span
                       className={`px-2 py-0.5 rounded text-xs ${

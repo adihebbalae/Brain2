@@ -7,7 +7,8 @@ import { deadlinesRouter } from './deadlines.js'
 vi.mock('../lib/deadline-reader.js', () => ({
   readDeadlinesMultiVault: vi.fn(),
   addDeadline: vi.fn(),
-  removeDeadline: vi.fn()
+  removeDeadline: vi.fn(),
+  updateDeadline: vi.fn(),
 }))
 
 // Mock the vault-config module
@@ -15,7 +16,7 @@ vi.mock('../lib/vault-config.js', () => ({
   getVaultDirs: vi.fn()
 }))
 
-import { addDeadline, removeDeadline } from '../lib/deadline-reader.js'
+import { addDeadline, removeDeadline, updateDeadline } from '../lib/deadline-reader.js'
 import { getVaultDirs } from '../lib/vault-config.js'
 
 describe('deadlines routes', () => {
@@ -66,7 +67,35 @@ describe('deadlines routes', () => {
       expect(addDeadline).toHaveBeenCalledWith('/test/vault', {
         date: '2026-05-01',
         description: 'Test deadline',
-        tag: null
+        tag: null,
+        notes: null,
+      })
+    })
+
+    it('passes notes when provided', async () => {
+      const mockDeadline = {
+        id: 'abc123def456',
+        date: '2026-05-01',
+        description: 'Test deadline',
+        tag: 'school',
+        notes: 'Submit via portal',
+        done: false,
+        urgency: 'green' as const,
+        daysUntil: 10
+      }
+
+      vi.mocked(addDeadline).mockResolvedValue(mockDeadline)
+
+      const response = await request(app)
+        .post('/api/deadlines')
+        .send({ date: '2026-05-01', description: 'Test deadline', tag: 'school', notes: 'Submit via portal' })
+
+      expect(response.status).toBe(201)
+      expect(addDeadline).toHaveBeenCalledWith('/test/vault', {
+        date: '2026-05-01',
+        description: 'Test deadline',
+        tag: 'school',
+        notes: 'Submit via portal',
       })
     })
 
@@ -92,7 +121,8 @@ describe('deadlines routes', () => {
       expect(addDeadline).toHaveBeenCalledWith('/test/vault', {
         date: '2026-05-01',
         description: 'Test deadline',
-        tag: 'school'
+        tag: 'school',
+        notes: null,
       })
     })
 
@@ -200,6 +230,113 @@ describe('deadlines routes', () => {
       expect(response.status).toBe(500)
       expect(response.body.error).toContain('VAULT_DIR not configured')
       expect(removeDeadline).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('PUT /api/deadlines/:id', () => {
+    it('returns 200 with updated DeadlineItem on success', async () => {
+      const mockUpdated = {
+        id: 'abc123def456',
+        date: '2026-05-01',
+        description: 'Updated description',
+        tag: 'school',
+        notes: 'A note',
+        done: false,
+        urgency: 'green' as const,
+        daysUntil: 10,
+      }
+
+      vi.mocked(updateDeadline).mockResolvedValue(mockUpdated)
+
+      const response = await request(app)
+        .put('/api/deadlines/abc123def456')
+        .send({ description: 'Updated description', notes: 'A note' })
+
+      expect(response.status).toBe(200)
+      expect(response.body).toEqual(mockUpdated)
+      expect(updateDeadline).toHaveBeenCalledWith(
+        ['/test/vault'],
+        'abc123def456',
+        expect.objectContaining({ description: 'Updated description', notes: 'A note' })
+      )
+    })
+
+    it('returns 404 when deadline ID not found', async () => {
+      vi.mocked(updateDeadline).mockResolvedValue(null)
+
+      const response = await request(app)
+        .put('/api/deadlines/abc123def456')
+        .send({ description: 'New' })
+
+      expect(response.status).toBe(404)
+      expect(response.body.error).toContain('Deadline not found')
+    })
+
+    it('returns 400 when ID format is invalid', async () => {
+      const response = await request(app)
+        .put('/api/deadlines/short')
+        .send({ description: 'New' })
+
+      expect(response.status).toBe(400)
+      expect(response.body.error).toContain('Invalid deadline ID')
+      expect(updateDeadline).not.toHaveBeenCalled()
+    })
+
+    it('returns 400 when date format is invalid', async () => {
+      const response = await request(app)
+        .put('/api/deadlines/abc123def456')
+        .send({ date: 'not-a-date' })
+
+      expect(response.status).toBe(400)
+      expect(response.body.error).toContain('Invalid date')
+      expect(updateDeadline).not.toHaveBeenCalled()
+    })
+
+    it('returns 400 when description is empty string', async () => {
+      const response = await request(app)
+        .put('/api/deadlines/abc123def456')
+        .send({ description: '   ' })
+
+      expect(response.status).toBe(400)
+      expect(response.body.error).toContain('Description cannot be empty')
+      expect(updateDeadline).not.toHaveBeenCalled()
+    })
+
+    it('returns 500 when VAULT_DIR is not set', async () => {
+      delete process.env.VAULT_DIR
+
+      const response = await request(app)
+        .put('/api/deadlines/abc123def456')
+        .send({ description: 'New' })
+
+      expect(response.status).toBe(500)
+      expect(response.body.error).toContain('VAULT_DIR not configured')
+      expect(updateDeadline).not.toHaveBeenCalled()
+    })
+
+    it('marks deadline as done via done: true', async () => {
+      const mockUpdated = {
+        id: 'abc123def456',
+        date: '2026-05-01',
+        description: 'Task',
+        tag: null,
+        done: true,
+        urgency: 'gray' as const,
+        daysUntil: 10,
+      }
+      vi.mocked(updateDeadline).mockResolvedValue(mockUpdated)
+
+      const response = await request(app)
+        .put('/api/deadlines/abc123def456')
+        .send({ done: true })
+
+      expect(response.status).toBe(200)
+      expect(response.body.done).toBe(true)
+      expect(updateDeadline).toHaveBeenCalledWith(
+        ['/test/vault'],
+        'abc123def456',
+        expect.objectContaining({ done: true })
+      )
     })
   })
 })

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Project } from '../types'
 
 interface ProjectDetailViewProps {
@@ -24,6 +25,7 @@ function getStaleBadge(staleDays: number): { label: string; className: string } 
 }
 
 export function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) {
+  const navigate = useNavigate()
   const [notes, setNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
   const [captureText, setCaptureText] = useState('')
@@ -129,15 +131,13 @@ export function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) 
               </p>
             </section>
 
-            {/* AI Summary */}
-            {project.aiSummary && (
-              <section>
-                <h3 className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-2">AI Summary</h3>
-                <p className="text-indigo-700 text-sm leading-relaxed bg-indigo-50 rounded-lg px-3 py-2">
-                  {project.aiSummary}
-                </p>
-              </section>
-            )}
+            {/* Current state */}
+            <section>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Current State</h3>
+              <p className="text-gray-700 text-sm leading-relaxed">
+                {project.currentState || 'No current state available.'}
+              </p>
+            </section>
 
             {/* Next Steps */}
             {project.nextSteps.length > 0 && (
@@ -202,15 +202,26 @@ export function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) 
           {/* Footer */}
           <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
             <span className="text-xs text-gray-400 font-mono truncate max-w-xs">{project.path}</span>
-            <a
-              href={project.vscodeUrl}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Open in VS Code
-            </a>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate(`/focus/${encodeURIComponent(project.name)}`)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Focus
+              </button>
+              <a
+                href={project.vscodeUrl}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Open in VS Code
+              </a>
+            </div>
           </div>
         </div>
       </div>

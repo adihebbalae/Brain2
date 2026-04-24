@@ -45,7 +45,8 @@ export function ProjectsPage() {
       const q = search.toLowerCase()
       list = list.filter(p =>
         p.name.toLowerCase().includes(q) ||
-        p.summary?.toLowerCase().includes(q)
+        p.summary?.toLowerCase().includes(q) ||
+        p.currentState?.toLowerCase().includes(q)
       )
     }
     return list
@@ -137,8 +138,11 @@ export function ProjectsPage() {
                   {project.status}
                 </span>
               </div>
-              <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+              <p className="text-sm text-gray-500 mb-2 line-clamp-2">
                 {project.summary || 'No summary available'}
+              </p>
+              <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                {project.currentState || 'No current state available'}
               </p>
               {project.nextSteps.length > 0 && (
                 <p className="text-xs text-gray-400 truncate">

@@ -1,24 +1,37 @@
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QuickCapture } from './components/QuickCapture'
 import { BrainChat } from './components/BrainChat'
-import { NavBar, Page } from './components/NavBar'
+import { NavBar } from './components/NavBar'
 import { HomePage } from './pages/HomePage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { DeadlinesPage } from './pages/DeadlinesPage'
 import { KnowledgePage } from './pages/KnowledgePage'
 import { LearningPage } from './pages/LearningPage'
+import { FocusMode } from './pages/FocusMode'
 import { useProjects } from './hooks/useProjects'
 import { useTodos } from './hooks/useTodos'
 import { useState } from 'react'
 
-function App() {
+function AppContent() {
+  const location = useLocation()
   const { refetch: refetchProjects } = useProjects()
   const { refetch: refetchTodos } = useTodos()
-  const [activePage, setActivePage] = useState<Page>('home')
   const [showBrainChat, setShowBrainChat] = useState(false)
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   })
+
+  // Hide NavBar and other UI elements in focus mode
+  const isFocusMode = location.pathname.startsWith('/focus/')
+
+  if (isFocusMode) {
+    return (
+      <Routes>
+        <Route path="/focus/:slug" element={<FocusMode />} />
+      </Routes>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -42,7 +55,7 @@ function App() {
       </header>
 
       {/* Navigation */}
-      <NavBar activePage={activePage} onNavigate={setActivePage} />
+      <NavBar />
 
       {/* Quick capture (always visible) */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
@@ -53,16 +66,26 @@ function App() {
 
       {/* Page content */}
       <main>
-        {activePage === 'home' && <HomePage />}
-        {activePage === 'projects' && <ProjectsPage />}
-        {activePage === 'deadlines' && <DeadlinesPage />}
-        {activePage === 'learning' && <LearningPage />}
-        {activePage === 'knowledge' && <KnowledgePage />}
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/deadlines" element={<DeadlinesPage />} />
+          <Route path="/learning" element={<LearningPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
+        </Routes>
       </main>
 
       {/* BrainChat overlay */}
       {showBrainChat && <BrainChat onClose={() => setShowBrainChat(false)} />}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   )
 }
 

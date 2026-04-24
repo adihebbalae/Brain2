@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { readDeadlines, addDeadline, removeDeadline } from './deadline-reader.js'
+import { readDeadlines, addDeadline, removeDeadline, updateDeadline } from './deadline-reader.js'
 
 describe('deadline-reader', () => {
   let testDir: string
@@ -60,6 +60,42 @@ describe('deadline-reader', () => {
         done: false
       })
       expect(deadlines[0].id).toHaveLength(12)
+    })
+
+    it('parses notes from 4th pipe field', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        '- [ ] 2026-04-10 | ECE319H Lab 8 due | school | Submit via portal by midnight\n'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+
+      expect(deadlines).toHaveLength(1)
+      expect(deadlines[0].notes).toBe('Submit via portal by midnight')
+    })
+
+    it('sets notes to undefined when not provided', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        '- [ ] 2026-04-10 | ECE319H Lab 8 due | school\n'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+
+      expect(deadlines).toHaveLength(1)
+      expect(deadlines[0].notes).toBeUndefined()
+    })
+
+    it('sets notes to undefined when 4th field is empty', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        '- [ ] 2026-04-10 | ECE319H Lab 8 due | school | \n'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+
+      expect(deadlines).toHaveLength(1)
+      expect(deadlines[0].notes).toBeUndefined()
     })
 
     it('sets tag to null when not provided', async () => {
@@ -464,6 +500,34 @@ describe('deadline-reader', () => {
       expect(typeof result.daysUntil).toBe('number')
     })
 
+    it('appends with optional notes', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      const result = await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test deadline',
+        tag: 'school',
+        notes: 'Submit via the portal',
+      })
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('- [ ] 2026-05-01 | Test deadline | school | Submit via the portal\n')
+      expect(result.notes).toBe('Submit via the portal')
+    })
+
+    it('writes empty tag placeholder when notes present but no tag', async () => {
+      await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
+
+      await addDeadline(vaultDir, {
+        date: '2026-05-01',
+        description: 'Test deadline',
+        notes: 'A note',
+      })
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('- [ ] 2026-05-01 | Test deadline |  | A note\n')
+    })
+
     it('sanitizes pipe characters in description', async () => {
       await fs.writeFile(deadlinesPath, '# Deadlines\n\n', 'utf-8')
 
@@ -633,6 +697,129 @@ describe('deadline-reader', () => {
 
       const result = await removeDeadline([vaultDir], 'some-id-123')
       expect(result).toBe(false)
+    })
+  })
+
+  describe('updateDeadline', () => {
+    it('updates description and returns new item', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        ['# Deadlines', '', '- [ ] 2026-05-01 | Old description | school'].join('\n'),
+        'utf-8'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+      const id = deadlines[0].id
+
+      const result = await updateDeadline([vaultDir], id, { description: 'New description' })
+
+      expect(result).not.toBeNull()
+      expect(result?.description).toBe('New description')
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('New description')
+      expect(content).not.toContain('Old description')
+    })
+
+    it('updates date and recalculates urgency', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        ['# Deadlines', '', '- [ ] 2026-05-01 | Task | school'].join('\n'),
+        'utf-8'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+      const id = deadlines[0].id
+      const futureDate = dateFromToday(30)
+
+      const result = await updateDeadline([vaultDir], id, { date: futureDate })
+
+      expect(result?.date).toBe(futureDate)
+      expect(result?.urgency).toBe('green')
+    })
+
+    it('marks deadline as done', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        ['# Deadlines', '', '- [ ] 2026-05-01 | Task | school'].join('\n'),
+        'utf-8'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+      const id = deadlines[0].id
+
+      const result = await updateDeadline([vaultDir], id, { done: true })
+
+      expect(result?.done).toBe(true)
+      expect(result?.urgency).toBe('gray')
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('- [x]')
+    })
+
+    it('adds notes to an existing deadline', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        ['# Deadlines', '', '- [ ] 2026-05-01 | Task | school'].join('\n'),
+        'utf-8'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+      const id = deadlines[0].id
+
+      const result = await updateDeadline([vaultDir], id, { notes: 'Submit via portal' })
+
+      expect(result?.notes).toBe('Submit via portal')
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('Submit via portal')
+    })
+
+    it('clears notes when set to null', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        ['# Deadlines', '', '- [ ] 2026-05-01 | Task | school | Existing note'].join('\n'),
+        'utf-8'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+      const id = deadlines[0].id
+
+      const result = await updateDeadline([vaultDir], id, { notes: null })
+
+      expect(result?.notes).toBeUndefined()
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).not.toContain('Existing note')
+    })
+
+    it('returns null when ID not found', async () => {
+      await fs.writeFile(deadlinesPath, '- [ ] 2026-05-01 | Task | school\n', 'utf-8')
+
+      const result = await updateDeadline([vaultDir], 'nonexistent000', { description: 'New' })
+
+      expect(result).toBeNull()
+    })
+
+    it('leaves other lines intact', async () => {
+      await fs.writeFile(
+        deadlinesPath,
+        [
+          '# Deadlines',
+          '',
+          '- [ ] 2026-05-01 | Task A | school',
+          '- [ ] 2026-05-02 | Task B | project',
+          '- [ ] 2026-05-03 | Task C | personal',
+        ].join('\n'),
+        'utf-8'
+      )
+
+      const deadlines = await readDeadlines(vaultDir)
+      const idB = deadlines[1].id
+
+      await updateDeadline([vaultDir], idB, { description: 'Updated B' })
+
+      const content = await fs.readFile(deadlinesPath, 'utf-8')
+      expect(content).toContain('Task A')
+      expect(content).toContain('Updated B')
+      expect(content).toContain('Task C')
+      expect(content).not.toContain('Task B')
     })
   })
 })

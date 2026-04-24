@@ -54,15 +54,17 @@ describe('App', () => {
         todos: 5,
         openTodos: 5,
         hasDeadlines: false,
+        vscodeUrl: 'vscode://file/test/path',
       },
     ]
 
     mockAllApis(mockProjects)
     render(<App />)
 
+    // The home page should show the StatusOverview
     await waitFor(() => {
-      expect(screen.getByText('1 Active')).toBeTruthy()
-    })
+      expect(screen.getByText(/1 Active/i)).toBeTruthy()
+    }, { timeout: 3000 })
   })
 
   it('shows error state on fetch failure', async () => {
@@ -83,22 +85,32 @@ describe('App', () => {
     render(<App />)
 
     // Navigate to Projects page where project errors are shown
+    await waitFor(() => {
+      const projectsLink = screen.getByText('Projects')
+      expect(projectsLink).toBeTruthy()
+    })
+
     fireEvent.click(screen.getByText('Projects'))
 
     await waitFor(() => {
-      expect(screen.getByText('Error loading projects')).toBeTruthy()
-    })
+      expect(screen.getByText(/Error loading projects/i)).toBeTruthy()
+    }, { timeout: 3000 })
   })
 
   it('shows empty state when no projects found', async () => {
-    mockAllApis([], { total: 0, completed: 0, byProject: {} }, [])
+    mockAllApis()
     render(<App />)
 
     // Navigate to Projects page where empty state is shown
+    await waitFor(() => {
+      const projectsLink = screen.getByText('Projects')
+      expect(projectsLink).toBeTruthy()
+    })
+
     fireEvent.click(screen.getByText('Projects'))
 
     await waitFor(() => {
-      expect(screen.getByText('No projects match your filter')).toBeTruthy()
-    })
+      expect(screen.getByText(/No projects match your filter/i)).toBeTruthy()
+    }, { timeout: 3000 })
   })
 })

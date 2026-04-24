@@ -21,7 +21,9 @@ import { dailyRouter } from './routes/daily.js'
 import { weeklyRouter, autoTriggerWeeklyReview } from './routes/weekly.js'
 import chatQueryRouter from './routes/chat-query.js'
 import { configRouter } from './routes/config.js'
+import { warmOllamaModel } from './lib/ollama-client.js'
 import { startNotificationService } from './lib/notification-service.js'
+import { startRagIndexBackgroundRefresh } from './lib/rag-cache.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
 
@@ -94,6 +96,10 @@ if (process.env.SERVE_STATIC === 'true') {
 app.listen(PORT, () => {
   console.log(`🚀 Cortex backend running on http://localhost:${PORT}`)
 })
+
+// Prewarm background caches (non-blocking)
+startRagIndexBackgroundRefresh()
+void warmOllamaModel()
 
 // Start notification service (after routes)
 startNotificationService()

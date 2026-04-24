@@ -6,11 +6,11 @@ export interface Project {
   lastModified: string
   staleDays: number
   summary: string
+  currentState?: string
   nextSteps: string[]
   todos: number
   openTodos: number
   hasDeadlines: boolean
-  aiSummary?: string | null
   stateFile?: string
 }
 
@@ -29,6 +29,7 @@ export interface Deadline {
   date: string
   description: string
   tag: string | null
+  notes?: string
   done: boolean
   urgency: 'red' | 'amber' | 'green' | 'gray'
   daysUntil: number

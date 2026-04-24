@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { getOllamaStatus, summarizeProject, clearCache } from './ollama-client.js';
+import { getOllamaStatus, summarizeProject, summarizeProjectAspect, clearCache } from './ollama-client.js';
 
 describe('Ollama Client', () => {
   beforeEach(() => {
@@ -62,6 +62,27 @@ describe('Ollama Client', () => {
   });
 
   describe('summarizeProject', () => {
+    it('keeps overview and current-state cache entries separate', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({ response: 'Summary from Ollama' }),
+      };
+
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+        .mockResolvedValueOnce(mockResponse)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+        .mockResolvedValueOnce(mockResponse)
+      );
+
+      const overview = await summarizeProjectAspect('TestProject', 'Overview content', 'README.md', 12345, 'overview');
+      const currentState = await summarizeProjectAspect('TestProject', 'State content', '.agents/state.md', 12345, 'current_state');
+
+      expect(overview.cached).toBe(false);
+      expect(currentState.cached).toBe(false);
+      expect(fetch).toHaveBeenCalledTimes(4);
+    });
+
     it('returns cached result on second call with same key', async () => {
       const mockResponse = {
         ok: true,
@@ -223,7 +244,7 @@ describe('Ollama Client', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('sends correct prompt format to Ollama', async () => {
+    it('sends correct current-state prompt format to Ollama', async () => {
       let capturedBody: any;
 
       vi.stubGlobal('fetch', vi.fn()
@@ -242,8 +263,31 @@ describe('Ollama Client', () => {
       expect(capturedBody.model).toBe('llama3.1:8b');
       expect(capturedBody.stream).toBe(false);
       expect(capturedBody.prompt).toContain('My state content');
-      expect(capturedBody.prompt).toContain('based ONLY on what is written in this file');
-      expect(capturedBody.prompt).toContain('Do not invent details');
+      expect(capturedBody.prompt).toContain('active task tracking file');
+      expect(capturedBody.prompt).toContain('Do not invent anything not listed');
+    });
+
+    it('sends correct overview prompt format to Ollama', async () => {
+      let capturedBody: any;
+
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+        .mockImplementationOnce(async (_url, options: any) => {
+          capturedBody = JSON.parse(options.body);
+          return {
+            ok: true,
+            json: async () => ({ response: 'Summary' }),
+          };
+        })
+      );
+
+      await summarizeProjectAspect('TestProject', 'README content', 'README.md', 12345, 'overview');
+
+      expect(capturedBody.model).toBe('llama3.1:8b');
+      expect(capturedBody.stream).toBe(false);
+      expect(capturedBody.prompt).toContain('README or overview file');
+      expect(capturedBody.prompt).toContain('README content');
+      expect(capturedBody.prompt).toContain('Do not invent anything not listed');
     });
   });
 });
