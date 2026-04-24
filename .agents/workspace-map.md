@@ -52,6 +52,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   ├── types.ts                     # ✓ Shared TypeScript interfaces: Project, Todo, Deadline (TASK-007, TASK-008, TASK-009)
 │   ├── hooks/
 │   │   ├── useProjects.ts           # ✓ Data fetching hook for projects (TASK-007)
+│   │   ├── useProjects.test.ts      # ✓ Shared-store dedupe tests for the projects hook
 │   │   ├── useTodos.ts              # ✓ Data fetching hook for todos with optimistic updates (TASK-008)
 │   │   ├── useTodos.test.ts         # ✓ useTodos hook tests (TASK-008)
 │   │   ├── useDeadlines.ts          # ✓ Data fetching hook for deadlines (TASK-009)
@@ -149,6 +150,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── reading-log-parser.ts    # ✓ ReadingLog.md parser: parseReadingLog, appendToReadingLog (TASK-022)
         ├── reading-log-parser.test.ts  # ✓ 12 unit tests for reading-log parser (TASK-022)
         ├── git-activity-parser.ts   # ✓ Git activity scanner: getGitActivity, runs git log across all projects, builds heatmap and per-project stats (TASK-026)
+        ├── git-activity-cache.ts    # ✓ Shared in-memory git activity cache used by multiple routes
         ├── git-activity-parser.test.ts  # ✓ 9 unit tests for git activity parser (TASK-026)
         ├── canvas-parser.ts         # ✓ JSON Canvas parser: parseCanvas, addNodeToCanvas with color support (TASK-027)
         ├── canvas-parser.test.ts    # ✓ 19 unit tests for canvas parser (TASK-027)
@@ -157,6 +159,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── review-queue.ts          # ✓ Review queue logic: getReviewQueue, getRandomNote with priority sorting (TASK-028)
         ├── review-queue.test.ts     # ✓ 17 unit tests for review-queue (TASK-028)
         ├── rag-engine.ts            # ✓ RAG context assembly: keyword extraction, chunk scoring, context building from 5 sources (TASK-023)
+        ├── rag-cache.ts             # ✓ Shared background-refresh cache for the RAG index
         ├── rag-engine.test.ts       # ✓ 21 unit tests for RAG engine (TASK-023)
         ├── mcp-tools.ts             # ✓ MCP tool handlers: registers 8 tools wrapping existing lib functions with Zod schemas (TASK-030)
         ├── mcp-tools.test.ts        # ✓ 24 unit tests for MCP tools (TASK-030)

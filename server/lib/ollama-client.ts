@@ -202,35 +202,3 @@ export async function summarizeProject(
 export function clearCache(): void {
   summaryCache.clear();
 }
-
-export async function warmOllamaModel(): Promise<void> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60_000);
-
-    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        keep_alive: OLLAMA_KEEP_ALIVE,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.warn(`[ollama] Failed to warm model: ${response.status}`);
-      return;
-    }
-
-    await response.arrayBuffer().catch(() => {});
-    console.log(`[ollama] Warmed model ${OLLAMA_MODEL} (keep_alive=${OLLAMA_KEEP_ALIVE})`);
-  } catch (error) {
-    console.warn('[ollama] Failed to warm model on startup:', error);
-  }
-}

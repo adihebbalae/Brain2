@@ -21,7 +21,7 @@ describe('QuickCapture', () => {
 
     expect(input).toBeTruthy()
     expect(button).toBeTruthy()
-    expect((input as HTMLInputElement).placeholder).toBe('Capture a thought... (Ctrl+K)')
+    expect((input as HTMLInputElement).placeholder).toBe('Capture a thought...')
   })
 
   it('should disable button when input is empty', () => {
@@ -228,31 +228,7 @@ describe('QuickCapture', () => {
     }, { timeout: 500 })
   })
 
-  it('should focus input on Ctrl+K', () => {
-    render(<QuickCapture />)
-
-    const input = screen.getByTestId('capture-input') as HTMLInputElement
-
-    // Blur the input first
-    input.blur()
-    expect(document.activeElement).not.toBe(input)
-
-    // Press Ctrl+K
-    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
-
-    expect(document.activeElement).toBe(input)
-  })
-
-  it('should prevent default behavior on Ctrl+K', () => {
-    render(<QuickCapture />)
-
-    const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })
-    const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
-
-    document.dispatchEvent(event)
-
-    expect(preventDefaultSpy).toHaveBeenCalled()
-  })
+  // Note: Ctrl+K behavior is now handled by CommandPalette component
 
   it('should call onCapture callback after successful submission', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
@@ -361,15 +337,5 @@ describe('QuickCapture', () => {
       },
       { timeout: 3000 }
     )
-  })
-
-  it('should cleanup keyboard event listener on unmount', () => {
-    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener')
-
-    const { unmount } = render(<QuickCapture />)
-
-    unmount()
-
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function))
   })
 })

@@ -1,60 +1,72 @@
-# Handoff: Zen/Focus Mode with Pomodoro Timer
-**Task ID**: TASK-041
+# Handoff: In-App Command Palette (Ctrl+K)
+**Task ID**: TASK-042
 **Mode**: autonomous (no user interaction available)
 
 ## Context
 
 **Project**: Cortex — local-only personal command center dashboard. React+Vite+TypeScript frontend on :5173, Express.js TypeScript backend on :3001. Repo at `C:\Users\boomb\Documents\_Projects\Brain2`.
 
-**What exists**: Multi-page routing (TASK-032) with pages: Home, Projects, Deadlines, Knowledge, Learning. TODO extraction (TASK-004) with GET /api/todos returning all TODOs across projects. Checkbox toggling via PATCH /api/todos/:id.
+**What exists**: QuickCapture component with Ctrl+K focus behavior. Multi-page routing with react-router (Home, Projects, Deadlines, Knowledge, Learning pages). POST /api/capture for quick capture. GET /api/projects for project list. Various action endpoints (POST /api/wiki/lint, POST /api/weekly/generate, etc.).
 
 ## Task
 
-### 1. Create FocusMode component (`src/pages/FocusMode.tsx`)
+### 1. Install cmdk
 
-A full-screen, distraction-free view with:
-- **Dark background** (`bg-gray-900` or darker)
-- **Project name** at top (from slug param)
-- **Pomodoro timer**: Large digits showing `MM:SS`, centered
-  - States: WORK (25min), SHORT_BREAK (5min), LONG_BREAK (15min)
-  - Cycle: work → short → work → short → work → long → repeat
-  - Controls: Start, Pause, Reset buttons
-  - Use `useState` for time remaining + `useEffect` with `setInterval` (cleanup on unmount!)
-  - On timer completion: play a short beep using Web Audio API (synthesize a 440Hz tone for 200ms, no external files)
-- **TODO list**: Filtered client-side from GET /api/todos where `todo.project` matches the slug
-  - Checkboxes call PATCH /api/todos/:id to toggle
-- **"Exit Focus" button**: `useNavigate(-1)` to go back
-
-### 2. Add route to App.tsx
-
-```tsx
-<Route path="/focus/:slug" element={<FocusMode />} />
+```bash
+npm install cmdk
 ```
 
-### 3. Hide NavBar in focus mode
+### 2. Create CommandPalette component (`src/components/CommandPalette.tsx`)
 
-In App.tsx or NavBar component, check if current route matches `/focus/*` and hide the NavBar. Use `useLocation()` from react-router.
+Use the `cmdk` React library (Command component):
 
-### 4. Add "Focus" button to ProjectDetailView
+```tsx
+import { Command } from 'cmdk'
+```
 
-On the project detail page, add a button/link that navigates to `/focus/${slug}`.
+Build the palette with:
+- **Trigger**: Ctrl+K (or Cmd+K on Mac) opens the palette. Register a global `keydown` listener in App.tsx.
+- **Search input**: cmdk handles fuzzy matching automatically
+- **Result groups**:
+  - **Navigate**: "Go to Projects", "Go to Deadlines", "Go to Knowledge", "Go to Learning", "Go to Home"
+  - **Projects**: Dynamically loaded from GET /api/projects — "Open {projectName}" items. On select: `navigate('/projects/${slug}')`
+  - **Actions**: "Run Wiki Lint" (POST /api/wiki/lint), "Generate Weekly Review" (POST /api/weekly/generate), "Capture to Inbox" (focus a capture input)
+- **"Capture: {text}" shortcut**: If the search input starts with "Capture: ", pressing Enter sends the text after the prefix to POST /api/capture and shows a brief confirmation toast
+- **Keyboard navigation**: cmdk handles arrow keys + Enter natively
+- **Close**: Escape or clicking the backdrop
+
+### 3. Style the palette
+
+Add styles in `src/components/CommandPalette.css` or inline. cmdk provides CSS variables. Style it with:
+- Dark semi-transparent backdrop
+- Centered modal (max-width 640px)
+- Rounded corners, shadow, dark background matching Cortex theme
+- Group headers in muted color
+- Highlighted selected item
+
+### 4. Wire into App.tsx
+
+- Import CommandPalette, render it at the app root level (outside routes)
+- Manage open state with useState, toggled by Ctrl+K keydown listener
+- Remove the old Ctrl+K focus behavior from QuickCapture (if it exists as a separate keybinding)
 
 ### 5. Run tests and commit
 
 - `npm test -- --reporter=dot`
 - `npx tsc --noEmit`
-- `git add -A && git commit -m "feat(TASK-041): zen/focus mode with pomodoro timer"`
+- `git add -A && git commit -m "feat(TASK-042): command palette with cmdk (Ctrl+K)"`
 
 ## Acceptance Criteria
-- [ ] `/focus/:slug` route renders with project-scoped TODOs
-- [ ] Pomodoro timer counts down 25:00 → 0:00 with start/pause/reset controls
-- [ ] Timer cycles: work (25min) → short break (5min) → work → short break → work → long break (15min)
-- [ ] Audio beep on timer completion (Web Audio API, no files)
-- [ ] Checkbox toggles still call PATCH /api/todos/:id
-- [ ] NavBar hidden in focus mode
-- [ ] "Exit Focus" navigates back to previous page
-- [ ] Frontend-only — no backend changes needed
-- [ ] Tests for timer logic and route rendering
+- [ ] Ctrl+K opens command palette modal with search input
+- [ ] Fuzzy search matches page routes, project names, and action names
+- [ ] Arrow keys navigate results, Enter executes selected item
+- [ ] "Capture: {text}" shortcut sends to POST /api/capture and shows confirmation
+- [ ] Results grouped by type (Navigate / Projects / Actions)
+- [ ] Escape closes palette, clicking backdrop closes palette
+- [ ] Navigate actions use react-router useNavigate
+- [ ] Action items trigger correct API calls
+- [ ] QuickCapture Ctrl+K behavior replaced (not duplicated)
+- [ ] Tests for fuzzy matching logic and keyboard navigation
 
 ## Validation Gates
 - [ ] `npm test -- --reporter=dot` passes
@@ -62,14 +74,11 @@ On the project detail page, add a button/link that navigates to `/focus/${slug}`
 - [ ] `git commit` done
 
 ## Files to Read First
-- `src/App.tsx` — routing setup
-- `src/components/NavBar.tsx` — to hide in focus mode
-- `src/pages/ProjectDetailView.tsx` — to add Focus button
-- `src/hooks/useTodos.ts` — existing TODO fetching hook (if it exists)
+- `src/App.tsx` — routing and global key listeners
+- `src/components/QuickCapture.tsx` — existing Ctrl+K behavior to replace
+- `server/routes/` — available action endpoints
 
 ## Constraints
-- Frontend-only — do NOT create any new backend routes
-- Do NOT install any new npm packages
-- Use Web Audio API for the beep, not an audio file
-- Timer must clean up setInterval on unmount (no memory leaks)
+- Use `cmdk` library — do NOT build a custom fuzzy search from scratch
+- Do NOT remove the QuickCapture component entirely (it may still be used for inline capture), just remove its Ctrl+K keybinding
 - Do NOT ask questions — make reasonable assumptions and document them

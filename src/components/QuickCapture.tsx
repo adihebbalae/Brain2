@@ -15,18 +15,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
   const [toast, setToast] = useState<Toast | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Ctrl+K keyboard shortcut to focus input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'k') {
-        e.preventDefault()
-        inputRef.current?.focus()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  // Note: Ctrl+K is now handled by CommandPalette component
 
   // Auto-dismiss toast after 2 seconds
   useEffect(() => {
@@ -89,7 +78,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
           onChange={(e) => setText(e.target.value)}
           disabled={isSubmitting}
           maxLength={2000}
-          placeholder="Capture a thought... (Ctrl+K)"
+          placeholder="Capture a thought..."
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           data-testid="capture-input"
         />

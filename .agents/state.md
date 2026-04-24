@@ -14,6 +14,7 @@
   - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
   - TASK-036 — Fix AI summaries: factual-only prompt, 404 error logging (613 tests passing, 2 pre-existing failures)
   - TASK-038 — Fix Obsidian deep links: configurable VAULT_NAME (620 tests passing, 2 pre-existing failures)
+  - DEVFIX — Reduced page/chat latency by deduping `useProjects`, caching daily context + shared git activity, and background-refreshing the RAG index (2026-04-24)
 
 ## Project Brief
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import App from './App'
+import { resetProjectsStoreForTests } from './hooks/useProjects'
 
 // Mock the fetch function
 global.fetch = vi.fn()
@@ -8,6 +9,7 @@ global.fetch = vi.fn()
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetProjectsStoreForTests()
   })
 
   const mockAllApis = (projects: any[] = [], todos: any = { total: 0, completed: 0, byProject: {} }, deadlines: any[] = []) => {
@@ -21,7 +23,46 @@ describe('App', () => {
       if (url.includes('/api/deadlines')) {
         return Promise.resolve({ ok: true, json: async () => deadlines })
       }
-      return Promise.reject(new Error('Unknown URL'))
+      // Return empty/default responses for other endpoints to avoid breaking tests
+      if (url.includes('/api/git-activity')) {
+        return Promise.resolve({ ok: true, json: async () => ({ projects: [], heatmap: [], totalCommits: 0 }) })
+      }
+      if (url.includes('/api/chats')) {
+        return Promise.resolve({ ok: true, json: async () => [] })
+      }
+      if (url.includes('/api/wiki')) {
+        return Promise.resolve({ ok: true, json: async () => ({ pages: [] }) })
+      }
+      if (url.includes('/api/calendar')) {
+        return Promise.resolve({ ok: true, json: async () => ({ events: [], authUrl: null }) })
+      }
+      if (url.includes('/api/youtube-history')) {
+        return Promise.resolve({ ok: true, json: async () => ({ videos: [], stats: {} }) })
+      }
+      if (url.includes('/api/reading')) {
+        return Promise.resolve({ ok: true, json: async () => ({ items: [] }) })
+      }
+      if (url.includes('/api/canvases')) {
+        return Promise.resolve({ ok: true, json: async () => [] })
+      }
+      if (url.includes('/api/review')) {
+        return Promise.resolve({ ok: true, json: async () => ({ queue: [] }) })
+      }
+      if (url.includes('/api/daily-context')) {
+        return Promise.resolve({ ok: true, json: async () => ({
+          date: new Date().toISOString(),
+          deadlines: [],
+          staleProjects: [],
+          calendarEvents: [],
+          randomNotes: [],
+          gitActivity: { projects: [], heatmap: [], totalCommits: 0 }
+        }) })
+      }
+      if (url.includes('/api/config')) {
+        return Promise.resolve({ ok: true, json: async () => ({ vaultName: 'SecondBrain', projectsDir: 'C:\\Projects' }) })
+      }
+      // Return empty success for any other unknown endpoint
+      return Promise.resolve({ ok: true, json: async () => ({}) })
     })
   }
 
@@ -79,7 +120,25 @@ describe('App', () => {
       if (url.includes('/api/deadlines')) {
         return Promise.resolve({ ok: true, json: async () => [] })
       }
-      return Promise.reject(new Error('Unknown URL'))
+      // Return empty/default responses for other endpoints
+      if (url.includes('/api/git-activity')) {
+        return Promise.resolve({ ok: true, json: async () => ({ projects: [], heatmap: [], totalCommits: 0 }) })
+      }
+      if (url.includes('/api/daily-context')) {
+        return Promise.resolve({ ok: true, json: async () => ({
+          date: new Date().toISOString(),
+          deadlines: [],
+          staleProjects: [],
+          calendarEvents: [],
+          randomNotes: [],
+          gitActivity: { projects: [], heatmap: [], totalCommits: 0 }
+        }) })
+      }
+      if (url.includes('/api/config')) {
+        return Promise.resolve({ ok: true, json: async () => ({ vaultName: 'SecondBrain', projectsDir: 'C:\\Projects' }) })
+      }
+      // Return empty success for any other unknown endpoint
+      return Promise.resolve({ ok: true, json: async () => ({}) })
     })
 
     render(<App />)

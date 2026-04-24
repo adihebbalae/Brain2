@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QuickCapture } from './components/QuickCapture'
 import { BrainChat } from './components/BrainChat'
+import { CommandPalette } from './components/CommandPalette'
 import { NavBar } from './components/NavBar'
 import { HomePage } from './pages/HomePage'
 import { ProjectsPage } from './pages/ProjectsPage'
@@ -10,17 +11,31 @@ import { LearningPage } from './pages/LearningPage'
 import { FocusMode } from './pages/FocusMode'
 import { useProjects } from './hooks/useProjects'
 import { useTodos } from './hooks/useTodos'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 function AppContent() {
   const location = useLocation()
   const { refetch: refetchProjects } = useProjects()
   const { refetch: refetchTodos } = useTodos()
   const [showBrainChat, setShowBrainChat] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   })
+
+  // Global Ctrl+K / Cmd+K listener for command palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCommandPalette(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Hide NavBar and other UI elements in focus mode
   const isFocusMode = location.pathname.startsWith('/focus/')
@@ -77,6 +92,9 @@ function AppContent() {
 
       {/* BrainChat overlay */}
       {showBrainChat && <BrainChat onClose={() => setShowBrainChat(false)} />}
+
+      {/* Command Palette */}
+      <CommandPalette open={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
     </div>
   )
 }
