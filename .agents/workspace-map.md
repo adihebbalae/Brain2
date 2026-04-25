@@ -1,11 +1,15 @@
 # Workspace Map
 
-> Recent addition: `scripts/dev-runner.cjs` replaces the concurrently-based launcher for local dev and reuses running services instead of spawning duplicate frontend/backend/Ollama processes.
+> Recent addition: `electron/overlay.html` — Minimal standalone global shortcut overlay for quick capture (Ctrl+Shift+Space), dark theme with auto-focused input, submits to POST /api/capture (TASK-048).
 
 > Updated by agents whenever files are created, moved, or deleted.
 > Agents read this to orient themselves instead of scanning the entire codebase.
 
 ## Recent Additions
+
+- `electron/overlay.html` — Minimal standalone HTML for global shortcut overlay (Ctrl+Shift+Space quick capture, TASK-048)
+- `electron/main.ts` — Updated with globalShortcut registration, createOverlayWindow(), and IPC handler (TASK-048)
+- `electron/preload.ts` — Updated with contextBridge exposing hideOverlay API (TASK-048)
 
 - `server/lib/embedding-index.ts` — Local semantic search using nomic-embed-text via Ollama, SQLite with JSON-stored embeddings, pure JS cosine similarity (TASK-046)
 - `server/lib/embedding-index.test.ts` — Tests for chunking logic, cosine similarity, and embeddings (TASK-046)

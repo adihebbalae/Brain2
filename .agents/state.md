@@ -2,6 +2,8 @@
 
 > Auto-updated by agents. Human-readable view of `.agents/state.json`.
 
+> Latest local update (2026-04-24): TASK-048 — Electron global shortcut overlay (Ctrl+Shift+Space) summons frameless always-on-top capture window from any app. Created electron/overlay.html, updated main.ts with globalShortcut registration, updated preload.ts with contextBridge hideOverlay API. Submits to POST /api/capture, shows checkmark, auto-hides on success/blur/Escape.
+
 > Latest local update (2026-04-24): TASK-047 — Extended MCP server with 3 new tools: run_wiki_lint (wiki health check), generate_weekly_review (Ollama-based review), get_project_detail (project info + todos + AI summary). 11 tools total, comprehensive tests (33/33 passing).
 
 > Latest local update (2026-04-24): TASK-046 — Local semantic search with nomic-embed-text embeddings via Ollama, SQLite with JSON-stored embeddings, pure JS cosine similarity, semantic/keyword mode toggle in BrainChat (698 tests passing, 2 pre-existing failures).
@@ -102,7 +104,7 @@
 | TASK-045 | Kanban Triage Board (checkbox drag-and-drop) | done | P7 |
 | TASK-046 | Local Semantic Search (embeddings + SQLite-vss) | done | P8 |
 | TASK-047 | Extend MCP Server with 3 new tools | done | P7 |
-| **TASK-048** | **Electron Global Shortcut Overlay** | **pending** | **P8** |
+| TASK-048 | Electron Global Shortcut Overlay | done | P8 |
 | **TASK-049** | **Context Switch Protocol (cognitive disengagement)** | **pending** | **P7** |
 
 ## P7 Implementation Order
@@ -759,6 +761,18 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **Files modified**: server/routes/todos.ts (+PATCH endpoint), server/index.ts (+kanban router), src/App.tsx (+route), src/components/NavBar.tsx (+link), src/types.ts (+status field)
   - **47 tests passing** (2 pre-existing failures in git-activity-parser and DeadlineTimeline unrelated to this task), type-check has pre-existing errors unrelated to this task
   - **All acceptance criteria met**: - [/] recognized as 'doing' status, GET /api/kanban groups by status, PATCH /api/todos/:id/status writes correct checkbox, drag-and-drop moves cards, project filter works, NavBar has Kanban link
+
+- 2026-04-24: TASK-048 completed — Electron global shortcut overlay (Ctrl+Shift+Space):
+  - **electron/overlay.html**: Minimal standalone HTML page (not full dashboard) with dark theme (#1f2937), auto-focused text input, Enter submits to POST /api/capture, green checkmark on success, auto-hide after 500ms, Escape dismisses, red border on error
+  - **electron/main.ts**: Imported globalShortcut, screen, ipcMain; createOverlayWindow() creates frameless 500x80 always-on-top window; registered Ctrl+Shift+Space (configurable via GLOBAL_SHORTCUT env var); shows overlay centered 200px from top of primary display; IPC handler 'hide-overlay' resets input state; hides on blur (click outside); unregisters shortcut on will-quit
+  - **electron/preload.ts**: Updated from minimal comment-only file to expose electronAPI.hideOverlay() via contextBridge, sends 'hide-overlay' IPC message to main process
+  - **Global shortcut**: Ctrl+Shift+Space summons overlay from any application (no conflict with Windows IME or macOS Spotlight)
+  - **Overlay behavior**: Input auto-focused on show, Enter submits and shows ✓, Escape hides without submitting, window hides on blur (click outside), works when main window hidden in system tray
+  - **Configurable**: GLOBAL_SHORTCUT env var allows customization (default: Ctrl+Shift+Space)
+  - **Files created**: electron/overlay.html (1.6KB)
+  - **Files modified**: electron/main.ts (+createOverlayWindow, +IPC handler, +globalShortcut registration), electron/preload.ts (+contextBridge.exposeInMainWorld)
+  - **Compilation verified**: npm run electron:compile passes with no errors (dist-electron/main.cjs 9.4KB, dist-electron/preload.cjs 265B)
+  - **All acceptance criteria met**: Ctrl+Shift+Space works from any app, frameless always-on-top overlay centered on display, input auto-focused, Enter submits + shows ✓ + auto-hides, Escape dismisses, blur hides, no IME conflict, works from system tray, shortcut configurable via env var
 
 - 2026-04-24: TASK-047 completed — Extended MCP server with 3 new tools:
   - **run_wiki_lint**: Wraps lintWiki() from wiki-manager.ts, returns {healthScore, orphans[], stale[], gaps[]} with error handling
