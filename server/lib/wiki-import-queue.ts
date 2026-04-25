@@ -42,6 +42,7 @@ export async function enqueueImportJob(request: ImportJobRequest): Promise<Impor
     updatedAt: timestamp,
     datasetIds: normalizeDatasetIds(request.datasetIds),
     mode: request.mode,
+    force: request.force,
     progress: {
       phase: 'queued',
       total: request.datasetIds?.length ?? 0,
@@ -191,7 +192,7 @@ async function executeImportJob(jobId: string): Promise<void> {
             logs: appendLogLine(current.logs, `Normalizing ${dataset.id} (${index + 1}/${total})`),
           }))
         },
-        onDatasetComplete: async (dataset) => {
+        onDatasetComplete: async (dataset, result) => {
           processedCount += 1
           await updateImportJob(jobId, current => ({
             ...current,
@@ -202,7 +203,10 @@ async function executeImportJob(jobId: string): Promise<void> {
               completed: processedCount,
               current: dataset.title,
             },
-            logs: appendLogLine(current.logs, `Normalized ${dataset.id}`),
+            logs: appendLogLine(
+              current.logs,
+              result.skipped ? `Skipped normalize ${dataset.id}: ${result.skipReason ?? 'unchanged'}` : `Normalized ${dataset.id}`,
+            ),
           }))
         },
         onDatasetError: async (dataset, error) => {
@@ -221,7 +225,7 @@ async function executeImportJob(jobId: string): Promise<void> {
             logs: appendLogLine(current.logs, `Failed to normalize ${dataset.id}: ${error.message}`),
           }))
         },
-      })
+      }, { force: job.force })
 
       await finalizeImportJob(
         jobId,
@@ -252,7 +256,7 @@ async function executeImportJob(jobId: string): Promise<void> {
           logs: appendLogLine(current.logs, `Ingesting ${dataset.id} (${index + 1}/${total})`),
         }))
       },
-      onDatasetComplete: async (dataset) => {
+      onDatasetComplete: async (dataset, result) => {
         processedCount += 1
         await updateImportJob(jobId, current => ({
           ...current,
@@ -263,7 +267,10 @@ async function executeImportJob(jobId: string): Promise<void> {
             completed: processedCount,
             current: dataset.title,
           },
-          logs: appendLogLine(current.logs, `Ingested ${dataset.id}`),
+          logs: appendLogLine(
+            current.logs,
+            result.skipped ? `Skipped ingest ${dataset.id}: ${result.skipReason ?? 'unchanged'}` : `Ingested ${dataset.id}`,
+          ),
         }))
       },
       onDatasetError: async (dataset, error) => {
@@ -282,7 +289,7 @@ async function executeImportJob(jobId: string): Promise<void> {
           logs: appendLogLine(current.logs, `Failed to ingest ${dataset.id}: ${error.message}`),
         }))
       },
-    })
+    }, { force: job.force })
 
     await finalizeImportJob(
       jobId,

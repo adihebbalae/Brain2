@@ -15,8 +15,10 @@ export interface ImportDataset {
   id: string
   kind: ImportKind
   title: string
+  defaultIngestMode: Exclude<ImportIngestMode, 'default'>
   sourceRoot: string
   sourcePaths: string[]
+  sourceSnapshotHash: string
   sizeBytes: number
   fileCount: number
   warnings: string[]
@@ -25,9 +27,14 @@ export interface ImportDataset {
   lastScannedAt: string
   lastNormalizedAt?: string
   lastIngestedAt?: string
+  lastNormalizedSnapshotHash?: string
+  lastIngestedSnapshotHash?: string
+  lastIngestedMode?: Exclude<ImportIngestMode, 'default'>
   mirrorPath?: string
   normalized: boolean
   ingested: boolean
+  needsNormalization: boolean
+  needsIngest: boolean
 }
 
 export interface ImportCatalog {
@@ -53,6 +60,7 @@ export interface ImportJob {
   completedAt?: string
   datasetIds?: string[]
   mode?: ImportIngestMode
+  force?: boolean
   progress: ImportJobProgress
   logs: string[]
   result?: Record<string, unknown>
@@ -63,6 +71,7 @@ export interface ImportJobRequest {
   type: ImportJobType
   datasetIds?: string[]
   mode?: ImportIngestMode
+  force?: boolean
 }
 
 export interface NormalizeDatasetResult {
@@ -70,6 +79,8 @@ export interface NormalizeDatasetResult {
   counts: Record<string, number>
   warnings: string[]
   mirrorFiles: string[]
+  skipped?: boolean
+  skipReason?: string
 }
 
 export interface IngestDatasetResult {
@@ -78,4 +89,6 @@ export interface IngestDatasetResult {
   createdPages: string[]
   updatedPages: string[]
   skippedFiles: string[]
+  skipped?: boolean
+  skipReason?: string
 }

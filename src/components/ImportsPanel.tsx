@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useWikiImports } from '../hooks/useWikiImports'
-import type { ImportDataset, ImportJob } from '../types'
+import type { ImportDataset, ImportIngestMode, ImportJob } from '../types'
 
 interface ImportsPanelProps {
   onWikiUpdated?: () => void
@@ -22,12 +22,32 @@ export function ImportsPanel({ onWikiUpdated }: ImportsPanelProps) {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  const selectableDatasets = useMemo(
-    () => datasets.filter(dataset => !dataset.catalogOnly),
+  const actionableDatasets = useMemo(
+    () => datasets.filter(dataset => isActionableDataset(dataset)),
     [datasets],
   )
+  const actionableIds = useMemo(
+    () => new Set(actionableDatasets.map(dataset => dataset.id)),
+    [actionableDatasets],
+  )
+  const selectedActionableIds = useMemo(
+    () => selectedIds.filter(id => actionableIds.has(id)),
+    [actionableIds, selectedIds],
+  )
+  const allActionableSelected = actionableDatasets.length > 0 && actionableDatasets.every(dataset => selectedActionableIds.includes(dataset.id))
 
-  const allSelectableSelected = selectableDatasets.length > 0 && selectableDatasets.every(dataset => selectedIds.includes(dataset.id))
+  const normalizeTargets = selectedActionableIds.length > 0
+    ? selectedActionableIds
+    : actionableDatasets.map(dataset => dataset.id)
+  const ingestTargets = (selectedActionableIds.length > 0
+    ? datasets.filter(dataset => selectedActionableIds.includes(dataset.id))
+    : actionableDatasets)
+    .filter(dataset => dataset.needsIngest && !dataset.needsNormalization)
+    .map(dataset => dataset.id)
+
+  useEffect(() => {
+    setSelectedIds(current => current.filter(id => actionableIds.has(id)))
+  }, [actionableIds])
 
   const toggleDataset = (datasetId: string) => {
     setSelectedIds(current => current.includes(datasetId)
@@ -36,28 +56,36 @@ export function ImportsPanel({ onWikiUpdated }: ImportsPanelProps) {
   }
 
   const handleSelectAll = () => {
-    if (allSelectableSelected) {
+    if (allActionableSelected) {
       setSelectedIds([])
       return
     }
 
-    setSelectedIds(selectableDatasets.map(dataset => dataset.id))
-  }
-
-  const handleScan = async () => {
-    await scan()
+    setSelectedIds(actionableDatasets.map(dataset => dataset.id))
   }
 
   const handleNormalize = async () => {
-    await normalize(selectedIds.length > 0 ? selectedIds : undefined)
-  }
-
-  const handleIngest = async () => {
-    if (selectedIds.length === 0) {
+    if (normalizeTargets.length === 0) {
       return
     }
 
-    await ingest(selectedIds, 'default')
+    await normalize(normalizeTargets)
+  }
+
+  const handleIngest = async () => {
+    if (ingestTargets.length === 0) {
+      return
+    }
+
+    await ingest(ingestTargets, 'default')
+  }
+
+  const handleForceNormalize = async (datasetId: string) => {
+    await normalize([datasetId], { force: true })
+  }
+
+  const handleForceIngest = async (datasetId: string, mode: ImportIngestMode = 'default') => {
+    await ingest([datasetId], mode, { force: true })
   }
 
   return (
@@ -81,20 +109,21 @@ export function ImportsPanel({ onWikiUpdated }: ImportsPanelProps) {
             Refresh
           </button>
           <button
-            onClick={() => void handleScan()}
+            onClick={() => void scan()}
             className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
           >
             Scan
           </button>
           <button
             onClick={() => void handleNormalize()}
-            className="px-3 py-2 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600"
+            disabled={normalizeTargets.length === 0}
+            className="px-3 py-2 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:opacity-50"
           >
             Normalize
           </button>
           <button
             onClick={() => void handleIngest()}
-            disabled={selectedIds.length === 0}
+            disabled={ingestTargets.length === 0}
             className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
           >
             Add To Wiki
@@ -106,16 +135,20 @@ export function ImportsPanel({ onWikiUpdated }: ImportsPanelProps) {
         <label className="inline-flex items-center gap-2 text-gray-700">
           <input
             type="checkbox"
-            checked={allSelectableSelected}
+            checked={allActionableSelected}
             onChange={handleSelectAll}
+            disabled={actionableDatasets.length === 0}
           />
-          Select all importable datasets
+          Select all datasets that still need work
         </label>
         <span className="text-gray-500">
-          {selectedIds.length} selected
+          {selectedActionableIds.length} selected
         </span>
         <span className="text-gray-500">
-          Ingest mode: automatic per-dataset defaults
+          {actionableDatasets.length} actionable
+        </span>
+        <span className="text-gray-500">
+          Greyed out = already current
         </span>
       </div>
 
@@ -147,7 +180,7 @@ export function ImportsPanel({ onWikiUpdated }: ImportsPanelProps) {
         <div className="text-center py-10 border border-dashed border-gray-300 rounded-md">
           <p className="text-gray-600">No import datasets discovered yet.</p>
           <button
-            onClick={() => void handleScan()}
+            onClick={() => void scan()}
             className="mt-3 px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
           >
             Scan data directory
@@ -159,8 +192,10 @@ export function ImportsPanel({ onWikiUpdated }: ImportsPanelProps) {
             <DatasetCard
               key={dataset.id}
               dataset={dataset}
-              checked={selectedIds.includes(dataset.id)}
+              checked={selectedActionableIds.includes(dataset.id)}
               onToggle={() => toggleDataset(dataset.id)}
+              onForceNormalize={() => void handleForceNormalize(dataset.id)}
+              onForceIngest={() => void handleForceIngest(dataset.id, dataset.defaultIngestMode)}
             />
           ))}
         </div>
@@ -173,21 +208,29 @@ function DatasetCard({
   dataset,
   checked,
   onToggle,
+  onForceNormalize,
+  onForceIngest,
 }: {
   dataset: ImportDataset
   checked: boolean
   onToggle: () => void
+  onForceNormalize: () => void
+  onForceIngest: () => void
 }) {
   const counts = Object.entries(dataset.counts).filter(([, value]) => value > 0)
+  const isActionable = isActionableDataset(dataset)
+  const isCurrent = !dataset.catalogOnly && !dataset.needsNormalization && !dataset.needsIngest
+  const disabled = dataset.catalogOnly || !isActionable
+  const statusText = getDatasetStatusText(dataset)
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4">
+    <div className={`border rounded-lg p-4 transition-colors ${isCurrent ? 'border-gray-200 bg-gray-50 opacity-70' : 'border-gray-200 bg-white'}`}>
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-3">
           <input
             type="checkbox"
             checked={checked}
-            disabled={dataset.catalogOnly}
+            disabled={disabled}
             onChange={onToggle}
             className="mt-1"
           />
@@ -196,6 +239,9 @@ function DatasetCard({
               <h3 className="text-base font-semibold text-gray-900">{dataset.title}</h3>
               <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs uppercase tracking-wide">
                 {dataset.kind}
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusBadgeClasses(dataset)}`}>
+                {statusText}
               </span>
               {dataset.catalogOnly && (
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs">
@@ -218,7 +264,7 @@ function DatasetCard({
               {dataset.sourceRoot}
             </p>
             <p className="mt-2 text-xs text-gray-500">
-              {dataset.fileCount.toLocaleString()} files • {formatBytes(dataset.sizeBytes)}
+              {dataset.fileCount.toLocaleString()} files • {formatBytes(dataset.sizeBytes)} • default mode {dataset.defaultIngestMode}
             </p>
           </div>
         </div>
@@ -255,6 +301,47 @@ function DatasetCard({
           ))}
         </div>
       )}
+
+      {!dataset.catalogOnly && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {dataset.needsNormalization && (
+            <span className="text-xs text-gray-600">
+              Normalize this dataset before it can be refreshed in the wiki.
+            </span>
+          )}
+          {!dataset.needsNormalization && dataset.needsIngest && (
+            <span className="text-xs text-gray-600">
+              Mirror is current. This dataset is ready to be added to the wiki.
+            </span>
+          )}
+          {isCurrent && (
+            <span className="text-xs text-gray-600">
+              Mirror and wiki pages already match the latest scanned source snapshot.
+            </span>
+          )}
+        </div>
+      )}
+
+      {!dataset.catalogOnly && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(dataset.needsNormalization || dataset.normalized) && (
+            <button
+              onClick={onForceNormalize}
+              className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              {dataset.normalized ? (isCurrent ? 'Re-normalize' : 'Force normalize') : 'Normalize'}
+            </button>
+          )}
+          {dataset.normalized && (
+            <button
+              onClick={onForceIngest}
+              className="px-3 py-1.5 text-xs bg-white text-green-700 border border-green-200 rounded-md hover:bg-green-50"
+            >
+              {dataset.ingested ? 'Re-ingest' : 'Add To Wiki'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -275,6 +362,11 @@ function JobCard({ job, accent = 'border-blue-200' }: { job: ImportJob; accent?:
             <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-xs text-gray-700 uppercase">
               {job.status}
             </span>
+            {job.force && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs uppercase">
+                forced
+              </span>
+            )}
           </div>
           <p className="mt-1 text-xs text-gray-600">
             {job.progress.phase} • {job.progress.completed}/{job.progress.total} processed • {job.progress.errors} errors
@@ -289,7 +381,7 @@ function JobCard({ job, accent = 'border-blue-200' }: { job: ImportJob; accent?:
           )}
           {failures.length > 0 && (
             <div className="mt-2 space-y-1 text-xs text-red-700">
-              {failures.slice(0, 3).map(failure => (
+              {failures.slice(-3).map(failure => (
                 <p key={`${failure.datasetId}-${failure.error}`}>
                   {failure.datasetId}: {failure.error}
                 </p>
@@ -322,6 +414,42 @@ function JobCard({ job, accent = 'border-blue-200' }: { job: ImportJob; accent?:
       )}
     </div>
   )
+}
+
+function isActionableDataset(dataset: ImportDataset): boolean {
+  return !dataset.catalogOnly && (dataset.needsNormalization || dataset.needsIngest)
+}
+
+function getDatasetStatusText(dataset: ImportDataset): string {
+  if (dataset.catalogOnly) {
+    return 'Catalog only'
+  }
+
+  if (dataset.needsNormalization) {
+    return dataset.normalized ? 'Source changed' : 'Needs normalize'
+  }
+
+  if (dataset.needsIngest) {
+    return dataset.ingested ? 'Ready to refresh wiki' : 'Ready for wiki'
+  }
+
+  return 'Up to date'
+}
+
+function getStatusBadgeClasses(dataset: ImportDataset): string {
+  if (dataset.catalogOnly) {
+    return 'bg-amber-100 text-amber-800'
+  }
+
+  if (dataset.needsNormalization) {
+    return 'bg-red-100 text-red-800'
+  }
+
+  if (dataset.needsIngest) {
+    return 'bg-blue-100 text-blue-800'
+  }
+
+  return 'bg-emerald-100 text-emerald-800'
 }
 
 function formatTimestamp(value?: string | null): string {

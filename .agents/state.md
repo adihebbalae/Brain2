@@ -2,6 +2,8 @@
 
 > Auto-updated by agents. Human-readable view of `.agents/state.json`.
 
+> Latest local update (2026-04-24): TASK-046 — Local semantic search with nomic-embed-text embeddings via Ollama, SQLite with JSON-stored embeddings, pure JS cosine similarity, semantic/keyword mode toggle in BrainChat (698 tests passing, 2 pre-existing failures).
+
 > Latest local update (2026-04-24): DEVFIX — fixed wiki import follow-up issues: wiki index parsing, project-path wiki ingest validation, Claude/calendar normalization, and clearer import job failure reporting.
 
 > Latest local update (2026-04-24): DEVFIX â€” replaced the concurrently-based launcher with a local dev runner and added an Electron single-instance lock to reduce duplicate port/cache collisions.
@@ -11,11 +13,12 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: P7 — Feature Expansion
-- **Current Task**: TASK-045 — Kanban Triage Board (done)
+- **Current Task**: TASK-046 — Local Semantic Search (done)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
 - **Recent Completions**: 
+  - TASK-046 — Local semantic search with nomic-embed-text embeddings via Ollama, SQLite with JSON-stored embeddings, pure JS cosine similarity, semantic/keyword mode toggle in BrainChat (698 tests passing, 2 pre-existing failures)
   - TASK-045 — Kanban triage board with drag-and-drop columns, - [/] doing status, project filter (47 tests passing, 2 pre-existing failures)
   - TASK-044 — Velocity tracking with daily snapshots, Recharts trend chart, deadline risk scores (663 tests passing, 5 skipped)
   - TASK-043 — Automated weekly git-summary per project (663 tests passing, 5 skipped)
@@ -95,7 +98,7 @@
 | TASK-043 | Automated State Diffing (weekly git-summary) | done | P7 |
 | TASK-044 | Velocity Tracking + Deadline Risk Scores | done | P7 |
 | TASK-045 | Kanban Triage Board (checkbox drag-and-drop) | done | P7 |
-| **TASK-046** | **Local Semantic Search (embeddings + SQLite-vss)** | **pending** | **P8** |
+| TASK-046 | Local Semantic Search (embeddings + SQLite-vss) | done | P8 |
 | **TASK-047** | **Extend MCP Server with 3 new tools** | **pending** | **P7** |
 | **TASK-048** | **Electron Global Shortcut Overlay** | **pending** | **P8** |
 | **TASK-049** | **Context Switch Protocol (cognitive disengagement)** | **pending** | **P7** |
@@ -207,6 +210,26 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
 - **Dependency chain**: TASK-015 → TASK-016 → TASK-017 → TASK-018 | TASK-014 → TASK-019 (parallel)
 
 ## Changelog
+- 2026-04-24: TASK-046 completed — Implemented local semantic search with nomic-embed-text embeddings:
+  - **Core module**: Created server/lib/embedding-index.ts with initializeIndex(), searchSemantic(), getIndexStatus()
+  - **Database**: SQLite (better-sqlite3) with JSON-stored embeddings in data/cortex-embeddings.db (gitignored)
+  - **No sqlite-vss**: Pure JavaScript cosine similarity implementation for Windows compatibility
+  - **Chunking**: Smart text splitting by paragraph boundaries (~500 chars per chunk with 50-char overlap)
+  - **Incremental updates**: On startup, only re-embed files with changed mtimes (compares stored mtime vs filesystem)
+  - **Background indexing**: Non-blocking async initialization, server responds during indexing
+  - **Progress logging**: Console output during indexing (N/total files every 10 files)
+  - **Ollama integration**: Uses POST /api/embeddings with nomic-embed-text model for embeddings
+  - **Search route**: Created server/routes/search.ts with GET /api/search?q=...&mode=semantic|keyword
+  - **Automatic fallback**: semantic mode falls back to keyword if embeddings unavailable
+  - **RAG integration**: Extended rag-engine.ts with smartSearch() that tries semantic first, falls back to keyword
+  - **Chat integration**: Updated chat-query route to accept mode parameter, uses smartSearch by default
+  - **Frontend toggle**: Added Semantic/Keyword mode buttons to BrainChat header
+  - **Files created**: embedding-index.ts (430 lines), embedding-index.test.ts (15 tests), search.ts (92 lines)
+  - **Files modified**: rag-engine.ts (+smartSearch), chat-query.ts (+mode param), BrainChat.tsx (+toggle), server/index.ts (+initializeIndex), .gitignore (+embeddings.db)
+  - **Tests**: 15 comprehensive unit tests for chunking logic, cosine similarity (all passing)
+  - **698 total tests passing** (683 existing + 15 new embedding tests), 2 pre-existing failures (git-activity-parser, DeadlineTimeline)
+  - **Type-check clean**: No new TypeScript errors introduced
+  - **All acceptance criteria met**: Background indexing, incremental updates, mode switching, fallback logic, chunking by paragraph boundaries
 - 2026-04-05: init-project — PRD ingested, plan approved, project scaffolded by manager
 - 2026-04-05: TASK-002 completed — Created SecondBrain Obsidian vault with full PARA structure:
   - 8 directories: .obsidian, Inbox, Projects, Areas, Resources, Archive, ChatExports, Deadlines, DailyNotes

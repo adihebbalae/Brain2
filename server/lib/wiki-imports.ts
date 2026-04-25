@@ -50,6 +50,18 @@ interface SourceFingerprint {
   sizeBytes: number
 }
 
+interface DatasetManifest {
+  datasetId: string
+  kind: ImportKind
+  title: string
+  normalizedAt: string
+  sourceSnapshotHash?: string
+  sourceFingerprints: SourceFingerprint[]
+  counts: Record<string, number>
+  warnings: string[]
+  mirrorFiles: string[]
+}
+
 interface ClaudeConversation {
   uuid: string
   name?: string
@@ -79,6 +91,14 @@ interface NormalizeContext {
   seenClaudeConversationIds: Set<string>
 }
 
+interface NormalizeOptions {
+  force?: boolean
+}
+
+interface IngestOptions {
+  force?: boolean
+}
+
 export async function readImportCatalog(): Promise<ImportCatalog> {
   await ensureImportDirectories()
 
@@ -87,7 +107,7 @@ export async function readImportCatalog(): Promise<ImportCatalog> {
     const parsed = JSON.parse(content) as ImportCatalog
     return {
       lastScannedAt: parsed.lastScannedAt ?? null,
-      datasets: Array.isArray(parsed.datasets) ? parsed.datasets : [],
+      datasets: Array.isArray(parsed.datasets) ? parsed.datasets.map(hydrateImportDataset) : [],
     }
   } catch {
     return {
@@ -183,16 +203,30 @@ export async function scanImportDatasets(): Promise<ImportCatalog> {
   const mergedDatasets = datasets.map(dataset => {
     const previous = previousById.get(dataset.id)
     if (!previous) {
-      return dataset
+      return {
+        ...dataset,
+        needsNormalization: !dataset.catalogOnly,
+        needsIngest: !dataset.catalogOnly,
+      }
     }
+
+    const normalized = previous.normalized && Boolean(previous.mirrorPath)
+    const ingested = previous.ingested
+    const lastNormalizedSnapshotHash = previous.lastNormalizedSnapshotHash
+    const lastIngestedSnapshotHash = previous.lastIngestedSnapshotHash
 
     return {
       ...dataset,
       lastNormalizedAt: previous.lastNormalizedAt,
       lastIngestedAt: previous.lastIngestedAt,
+      lastNormalizedSnapshotHash,
+      lastIngestedSnapshotHash,
+      lastIngestedMode: previous.lastIngestedMode,
       mirrorPath: previous.mirrorPath,
-      normalized: previous.normalized && Boolean(previous.mirrorPath),
-      ingested: previous.ingested,
+      normalized,
+      ingested,
+      needsNormalization: !dataset.catalogOnly && (!normalized || lastNormalizedSnapshotHash !== dataset.sourceSnapshotHash),
+      needsIngest: !dataset.catalogOnly && (!ingested || lastIngestedSnapshotHash !== dataset.sourceSnapshotHash),
     }
   })
 
@@ -208,6 +242,7 @@ export async function scanImportDatasets(): Promise<ImportCatalog> {
 export async function normalizeImportDatasets(
   datasetIds?: string[],
   hooks: ImportExecutionHooks = {},
+  options: NormalizeOptions = {},
 ): Promise<{ catalog: ImportCatalog; results: NormalizeDatasetResult[] }> {
   let catalog = await readImportCatalog()
   if (catalog.datasets.length === 0) {
@@ -225,7 +260,7 @@ export async function normalizeImportDatasets(
     await hooks.onDatasetStart?.(dataset, index, datasets.length)
 
     try {
-      const result = await normalizeDataset(dataset, context)
+      const result = await normalizeDataset(dataset, context, options)
       results.push(result)
 
       updateCatalogDataset(catalog, dataset.id, current => ({
@@ -234,7 +269,10 @@ export async function normalizeImportDatasets(
         counts: result.counts,
         mirrorPath: getDatasetMirrorDir(dataset.id),
         lastNormalizedAt: new Date().toISOString(),
+        lastNormalizedSnapshotHash: current.sourceSnapshotHash,
         normalized: true,
+        needsNormalization: false,
+        needsIngest: !current.ingested || current.lastIngestedSnapshotHash !== current.sourceSnapshotHash,
       }))
 
       await writeImportCatalog(catalog)
@@ -252,6 +290,7 @@ export async function ingestImportDatasets(
   datasetIds: string[],
   mode: ImportIngestMode = 'default',
   hooks: ImportExecutionHooks = {},
+  options: IngestOptions = {},
 ): Promise<{ catalog: ImportCatalog; results: IngestDatasetResult[] }> {
   let catalog = await readImportCatalog()
   if (catalog.datasets.length === 0) {
@@ -265,13 +304,16 @@ export async function ingestImportDatasets(
     await hooks.onDatasetStart?.(dataset, index, datasets.length)
 
     try {
-      const result = await ingestDataset(dataset, mode)
+      const result = await ingestDataset(dataset, mode, options)
       results.push(result)
 
       updateCatalogDataset(catalog, dataset.id, current => ({
         ...current,
         lastIngestedAt: new Date().toISOString(),
-        ingested: result.createdPages.length + result.updatedPages.length > 0 || current.ingested,
+        lastIngestedSnapshotHash: current.sourceSnapshotHash,
+        lastIngestedMode: result.mode === 'default' ? current.defaultIngestMode : result.mode,
+        ingested: result.createdPages.length + result.updatedPages.length > 0 || current.ingested || Boolean(result.skipped),
+        needsIngest: false,
       }))
 
       await writeImportCatalog(catalog)
@@ -334,8 +376,10 @@ async function discoverClaudeDataset(folderName: string, datasetRoot: string, sc
     id: `claude:${folderName}`,
     kind: 'claude',
     title: `Claude Export ${folderName}`,
+    defaultIngestMode: getDefaultModeForDataset('claude'),
     sourceRoot: datasetRoot,
     sourcePaths: joinExistingPaths(datasetRoot, ['conversations.json', 'memories.json', 'projects.json', 'users.json']),
+    sourceSnapshotHash: stats.snapshotHash,
     sizeBytes: stats.sizeBytes,
     fileCount: stats.fileCount,
     warnings: counts.conversations === 0 ? ['No conversations found in export'] : [],
@@ -344,6 +388,8 @@ async function discoverClaudeDataset(folderName: string, datasetRoot: string, sc
     lastScannedAt: scanTimestamp,
     normalized: false,
     ingested: false,
+    needsNormalization: true,
+    needsIngest: true,
   }
 }
 
@@ -392,8 +438,10 @@ async function discoverTakeoutProductDataset(
     id: `takeout:${folderName}:${kind}`,
     kind,
     title: `${capitalize(kind)} Export ${folderName}`,
+    defaultIngestMode: getDefaultModeForDataset(kind),
     sourceRoot: datasetRoot,
     sourcePaths: [datasetRoot],
+    sourceSnapshotHash: stats.snapshotHash,
     sizeBytes: stats.sizeBytes,
     fileCount: stats.fileCount,
     warnings,
@@ -402,6 +450,8 @@ async function discoverTakeoutProductDataset(
     lastScannedAt: scanTimestamp,
     normalized: false,
     ingested: false,
+    needsNormalization: true,
+    needsIngest: true,
   }
 }
 
@@ -427,8 +477,10 @@ async function discoverNotebookDataset(
     id: `takeout:${folderName}:notebooklm:${slugify(notebookName)}`,
     kind: 'notebooklm',
     title: `NotebookLM ${notebookName}`,
+    defaultIngestMode: getDefaultModeForDataset('notebooklm'),
     sourceRoot: datasetRoot,
     sourcePaths: [datasetRoot],
+    sourceSnapshotHash: stats.snapshotHash,
     sizeBytes: stats.sizeBytes,
     fileCount: stats.fileCount,
     warnings,
@@ -437,15 +489,33 @@ async function discoverNotebookDataset(
     lastScannedAt: scanTimestamp,
     normalized: false,
     ingested: false,
+    needsNormalization: true,
+    needsIngest: true,
   }
 }
 
-async function normalizeDataset(dataset: ImportDataset, context: NormalizeContext): Promise<NormalizeDatasetResult> {
+async function normalizeDataset(
+  dataset: ImportDataset,
+  context: NormalizeContext,
+  options: NormalizeOptions = {},
+): Promise<NormalizeDatasetResult> {
   const mirrorDir = getDatasetMirrorDir(dataset.id)
+  const fingerprints = await fingerprintDatasetSources(dataset)
+  const existingManifest = await readDatasetManifest(mirrorDir)
+  if (!options.force && existingManifest && await canReuseMirror(existingManifest, mirrorDir, fingerprints)) {
+    return {
+      datasetId: dataset.id,
+      counts: existingManifest.counts,
+      warnings: dedupeStrings([...dataset.warnings, ...existingManifest.warnings]),
+      mirrorFiles: existingManifest.mirrorFiles,
+      skipped: true,
+      skipReason: 'Source fingerprints unchanged',
+    }
+  }
+
   await fs.rm(mirrorDir, { recursive: true, force: true })
   await fs.mkdir(mirrorDir, { recursive: true })
 
-  const fingerprints = await fingerprintDatasetSources(dataset)
   const warnings = [...dataset.warnings]
 
   let result: NormalizeDatasetResult
@@ -475,11 +545,12 @@ async function normalizeDataset(dataset: ImportDataset, context: NormalizeContex
       throw new Error(`Unsupported dataset kind: ${dataset.kind satisfies never}`)
   }
 
-  const manifest = {
+  const manifest: DatasetManifest = {
     datasetId: dataset.id,
     kind: dataset.kind,
     title: dataset.title,
     normalizedAt: new Date().toISOString(),
+    sourceSnapshotHash: dataset.sourceSnapshotHash,
     sourceFingerprints: fingerprints,
     counts: result.counts,
     warnings: dedupeStrings([...warnings, ...result.warnings]),
@@ -892,19 +963,42 @@ async function normalizeGeminiDataset(dataset: ImportDataset, mirrorDir: string)
   }
 }
 
-async function ingestDataset(dataset: ImportDataset, requestedMode: ImportIngestMode): Promise<IngestDatasetResult> {
+async function ingestDataset(
+  dataset: ImportDataset,
+  requestedMode: ImportIngestMode,
+  options: IngestOptions = {},
+): Promise<IngestDatasetResult> {
   const mirrorDir = getDatasetMirrorDir(dataset.id)
   if (!await exists(mirrorDir)) {
     throw new Error(`Dataset ${dataset.id} has not been normalized yet`)
   }
 
-  const effectiveMode = requestedMode === 'default' ? getDefaultModeForDataset(dataset.kind) : requestedMode
+  const effectiveMode = requestedMode === 'default' ? dataset.defaultIngestMode : requestedMode
   const markdownFiles = await resolveMirrorMarkdownFiles(mirrorDir, effectiveMode)
   const wikiDir = path.join(getPrimaryVaultDir(), 'Wiki')
   await ensureWikiExists(wikiDir)
 
   const existingPages = await listPages(wikiDir)
   const existingPageNames = new Set(existingPages.map(page => page.name))
+
+  if (
+    !options.force
+    && dataset.ingested
+    && !dataset.needsIngest
+    && dataset.lastIngestedMode === effectiveMode
+    && markdownFiles.every(filePath => existingPageNames.has(buildImportedPageName(dataset, filePath, effectiveMode)))
+  ) {
+    return {
+      datasetId: dataset.id,
+      mode: effectiveMode,
+      createdPages: [],
+      updatedPages: [],
+      skippedFiles: markdownFiles.map(filePath => relativePathFrom(mirrorDir, filePath)),
+      skipped: true,
+      skipReason: 'Dataset already ingested for this source snapshot',
+    }
+  }
+
   const createdPages: string[] = []
   const updatedPages: string[] = []
   const skippedFiles: string[] = []
@@ -1026,6 +1120,54 @@ function extractWikiSummary(content: string): string {
   return body[0]?.slice(0, 140) || 'Imported wiki page.'
 }
 
+async function readDatasetManifest(mirrorDir: string): Promise<DatasetManifest | null> {
+  const value = await readJsonUnknown(path.join(mirrorDir, 'manifest.json'))
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const record = value as Partial<DatasetManifest>
+  if (
+    typeof record.datasetId !== 'string'
+    || typeof record.kind !== 'string'
+    || typeof record.title !== 'string'
+    || !Array.isArray(record.sourceFingerprints)
+    || !Array.isArray(record.mirrorFiles)
+  ) {
+    return null
+  }
+
+  return {
+    datasetId: record.datasetId,
+    kind: record.kind as ImportKind,
+    title: record.title,
+    normalizedAt: typeof record.normalizedAt === 'string' ? record.normalizedAt : '',
+    sourceSnapshotHash: typeof record.sourceSnapshotHash === 'string' ? record.sourceSnapshotHash : undefined,
+    sourceFingerprints: record.sourceFingerprints,
+    counts: typeof record.counts === 'object' && record.counts ? record.counts as Record<string, number> : {},
+    warnings: Array.isArray(record.warnings) ? record.warnings : [],
+    mirrorFiles: record.mirrorFiles,
+  }
+}
+
+async function canReuseMirror(
+  manifest: DatasetManifest,
+  mirrorDir: string,
+  fingerprints: SourceFingerprint[],
+): Promise<boolean> {
+  if (!sameSourceFingerprints(manifest.sourceFingerprints, fingerprints)) {
+    return false
+  }
+
+  for (const relativeFile of manifest.mirrorFiles) {
+    if (!await exists(path.join(mirrorDir, relativeFile))) {
+      return false
+    }
+  }
+
+  return true
+}
+
 async function fingerprintDatasetSources(dataset: ImportDataset): Promise<SourceFingerprint[]> {
   const targets = dataset.sourcePaths.length > 0 ? dataset.sourcePaths : [dataset.sourceRoot]
   const files = await gatherFiles(targets)
@@ -1046,6 +1188,30 @@ async function fingerprintDatasetSources(dataset: ImportDataset): Promise<Source
   }
 
   return fingerprints
+}
+
+function sameSourceFingerprints(left: SourceFingerprint[], right: SourceFingerprint[]): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  const normalize = (fingerprints: SourceFingerprint[]) => fingerprints
+    .map(fingerprint => ({
+      path: fingerprint.path.replace(/\\/g, '/'),
+      hash: fingerprint.hash,
+      sizeBytes: fingerprint.sizeBytes,
+    }))
+    .sort((a, b) => a.path.localeCompare(b.path))
+
+  const normalizedLeft = normalize(left)
+  const normalizedRight = normalize(right)
+
+  return normalizedLeft.every((fingerprint, index) => {
+    const other = normalizedRight[index]
+    return fingerprint.path === other.path
+      && fingerprint.hash === other.hash
+      && fingerprint.sizeBytes === other.sizeBytes
+  })
 }
 
 async function gatherFiles(targets: string[]): Promise<string[]> {
@@ -1121,18 +1287,25 @@ async function countBookmarkLinks(filePath: string): Promise<number> {
   return html ? parseChromeBookmarksHtml(html).length : 0
 }
 
-async function collectDirectoryStats(root: string): Promise<{ sizeBytes: number; fileCount: number }> {
+async function collectDirectoryStats(root: string): Promise<{ sizeBytes: number; fileCount: number; snapshotHash: string }> {
   let sizeBytes = 0
   let fileCount = 0
+  const snapshot = crypto.createHash('sha256')
 
   const files = await listFiles(root, () => true)
   for (const filePath of files) {
     const stat = await fs.stat(filePath)
     sizeBytes += stat.size
     fileCount += 1
+    const relative = path.relative(root, filePath).replace(/\\/g, '/')
+    snapshot.update(`${relative}:${stat.size}:${Math.trunc(stat.mtimeMs)}\n`)
   }
 
-  return { sizeBytes, fileCount }
+  return {
+    sizeBytes,
+    fileCount,
+    snapshotHash: snapshot.digest('hex'),
+  }
 }
 
 async function findNotebookMetadataPath(datasetRoot: string): Promise<string | null> {
@@ -1510,6 +1683,25 @@ function capitalize(value: string): string {
 
 function dedupeStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)))
+}
+
+function hydrateImportDataset(value: ImportDataset): ImportDataset {
+  const defaultIngestMode = value.defaultIngestMode ?? getDefaultModeForDataset(value.kind)
+  const sourceSnapshotHash = value.sourceSnapshotHash ?? ''
+  const normalized = Boolean(value.normalized && value.mirrorPath)
+  const ingested = Boolean(value.ingested)
+  const needsNormalization = value.needsNormalization ?? (!value.catalogOnly && (!normalized || value.lastNormalizedSnapshotHash !== sourceSnapshotHash))
+  const needsIngest = value.needsIngest ?? (!value.catalogOnly && (!ingested || value.lastIngestedSnapshotHash !== sourceSnapshotHash))
+
+  return {
+    ...value,
+    defaultIngestMode,
+    sourceSnapshotHash,
+    normalized,
+    ingested,
+    needsNormalization,
+    needsIngest,
+  }
 }
 
 function chromeTimestampToDate(rawValue: number): Date {

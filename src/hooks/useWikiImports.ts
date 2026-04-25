@@ -7,6 +7,10 @@ interface UseWikiImportsOptions {
   onIngestComplete?: () => void
 }
 
+interface QueueJobOptions {
+  force?: boolean
+}
+
 interface ImportsResponse {
   datasets: ImportDataset[]
   activeJobs: ImportJob[]
@@ -104,12 +108,28 @@ export function useWikiImports(options: UseWikiImportsOptions = {}) {
 
   const scan = useCallback(async () => queueJob('/api/wiki/imports/scan'), [queueJob])
 
-  const normalize = useCallback(async (datasetIds?: string[]) => {
-    return queueJob('/api/wiki/imports/normalize', datasetIds && datasetIds.length > 0 ? { datasetIds } : {})
+  const normalize = useCallback(async (datasetIds?: string[], options: QueueJobOptions = {}) => {
+    const body: Record<string, unknown> = {}
+    if (datasetIds && datasetIds.length > 0) {
+      body.datasetIds = datasetIds
+    }
+    if (options.force) {
+      body.force = true
+    }
+
+    return queueJob('/api/wiki/imports/normalize', body)
   }, [queueJob])
 
-  const ingest = useCallback(async (datasetIds: string[], mode: ImportIngestMode = 'default') => {
-    return queueJob('/api/wiki/imports/ingest', { datasetIds, mode })
+  const ingest = useCallback(async (
+    datasetIds: string[],
+    mode: ImportIngestMode = 'default',
+    options: QueueJobOptions = {},
+  ) => {
+    return queueJob('/api/wiki/imports/ingest', {
+      datasetIds,
+      mode,
+      ...(options.force ? { force: true } : {}),
+    })
   }, [queueJob])
 
   useEffect(() => {

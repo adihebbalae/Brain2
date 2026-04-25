@@ -16,6 +16,8 @@ import { getVaultDirs, getPrimaryVaultDir } from './vault-config.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { extractKeywords } from './rag-engine.js'
+import { lintWiki } from './wiki-manager.js'
+import type { TodoItem } from './todo-extractor.js'
 
 /**
  * Search notes across vault directories using keyword matching
@@ -151,6 +153,311 @@ async function getDailyContext(): Promise<any> {
     }
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to get daily context' }
+  }
+}
+
+/**
+ * Run wiki lint and return health score and issue lists
+ */
+async function runWikiLint(): Promise<any> {
+  try {
+    const vaultDir = getPrimaryVaultDir()
+    if (!vaultDir) {
+      return { error: 'No vault directory configured' }
+    }
+
+    const wikiDir = path.join(vaultDir, 'Wiki')
+
+    // Check if Wiki directory exists
+    try {
+      await fs.access(wikiDir)
+    } catch {
+      return { error: 'Wiki directory not found' }
+    }
+
+    const result = await lintWiki(wikiDir)
+
+    return {
+      healthScore: result.healthScore,
+      orphans: result.orphans,
+      stale: result.stale,
+      gaps: result.gaps,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to lint wiki' }
+  }
+}
+
+/**
+ * Generate weekly review and save to vault
+ */
+async function generateWeeklyReview(weekOffset = 0): Promise<any> {
+  try {
+    // Get ISO week
+    function getISOWeek(date: Date = new Date()): string {
+      const year = date.getFullYear()
+      const jan4 = new Date(year, 0, 4)
+      const msPerDay = 86400000
+      const dayNum = Math.floor((date.getTime() - jan4.getTime()) / msPerDay)
+      const weekNum = Math.floor((dayNum + jan4.getDay() + 1) / 7) + 1
+      return `${year}-W${String(weekNum).padStart(2, '0')}`
+    }
+
+    // Gather data for weekly review
+    const now = new Date()
+    if (weekOffset !== 0) {
+      now.setDate(now.getDate() + (weekOffset * 7))
+    }
+
+    const today = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const week = getISOWeek(now)
+
+    // Gather git commits
+    let gitCommits = { count: 0, projects: [] as string[] }
+    try {
+      const { getGitActivity } = await import('./git-activity-parser.js')
+      const projectsDir = process.env.PROJECTS_DIR
+      if (projectsDir) {
+        const activity = await getGitActivity(projectsDir)
+        const sevenDaysAgo = new Date(now)
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().substring(0, 10)
+
+        let count = 0
+        const projectSet = new Set<string>()
+        for (const project of activity.projects) {
+          if (project.lastCommitDate && project.lastCommitDate >= sevenDaysAgoStr) {
+            count += project.commitsLast30Days
+            projectSet.add(project.name)
+          }
+        }
+        gitCommits = { count, projects: Array.from(projectSet) }
+      }
+    } catch {
+      // Git activity is optional
+    }
+
+    // Gather todos completed
+    let todosCompleted: string[] = []
+    try {
+      const projectsDir = process.env.PROJECTS_DIR || ''
+      const vaultDirs = await getVaultDirs()
+      const todosResult = await extractTodosMultiVault(projectsDir, vaultDirs)
+      const completed: string[] = []
+      for (const project in todosResult.byProject) {
+        for (const todo of todosResult.byProject[project]) {
+          if (todo.done) {
+            completed.push(todo.text)
+          }
+        }
+      }
+      todosCompleted = completed.slice(0, 10)
+    } catch {
+      // Todos optional
+    }
+
+    // Gather articles saved
+    let articlesSaved: string[] = []
+    try {
+      const vaultDir = getPrimaryVaultDir()
+      const items = await parseReadingLog(vaultDir)
+      const sevenDaysAgo = new Date(now)
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().substring(0, 10)
+      const thisWeek = items.filter(item => item.date && item.date >= sevenDaysAgoStr)
+      articlesSaved = thisWeek.map(item => item.title).slice(0, 5)
+    } catch {
+      // Articles optional
+    }
+
+    // Gather upcoming deadlines
+    let upcomingDeadlines: Array<{ date: string; description: string }> = []
+    try {
+      const vaultDirs = await getVaultDirs()
+      const deadlines = await readDeadlinesMultiVault(vaultDirs)
+      const fourteenDaysLater = new Date(now)
+      fourteenDaysLater.setDate(fourteenDaysLater.getDate() + 14)
+      const fourteenDaysStr = fourteenDaysLater.toISOString().substring(0, 10)
+      const upcoming = deadlines
+        .filter(d => !d.done && d.date <= fourteenDaysStr)
+        .slice(0, 5)
+      upcomingDeadlines = upcoming.map(d => ({ date: d.date, description: d.description }))
+    } catch {
+      // Deadlines optional
+    }
+
+    // Gather stale projects
+    let staleProjects: string[] = []
+    try {
+      const projectsDir = process.env.PROJECTS_DIR
+      if (projectsDir) {
+        const projects = await scanProjects(projectsDir)
+        const stale = projects.filter(p => p.staleDays >= 30)
+        staleProjects = stale.map(p => p.name).slice(0, 5)
+      }
+    } catch {
+      // Stale projects optional
+    }
+
+    // Build prompt
+    const parts: string[] = []
+    parts.push(`Generate a concise weekly review for a developer's personal dashboard. Today is ${today}.`)
+    parts.push('')
+
+    if (gitCommits.count > 0) {
+      parts.push(`This week: ${gitCommits.count} git commits across projects: ${gitCommits.projects.join(', ')}.`)
+    }
+
+    if (todosCompleted.length > 0) {
+      parts.push(`Todos closed: ${todosCompleted.slice(0, 5).join('; ')}.`)
+    }
+
+    if (articlesSaved.length > 0) {
+      parts.push(`Articles saved: ${articlesSaved.join('; ')}.`)
+    }
+
+    if (upcomingDeadlines.length > 0) {
+      const deadlineStr = upcomingDeadlines.map(d => `${d.description} on ${d.date}`).join('; ')
+      parts.push(`Upcoming deadlines: ${deadlineStr}.`)
+    }
+
+    if (staleProjects.length > 0) {
+      parts.push(`Stale projects needing attention: ${staleProjects.join(', ')}.`)
+    }
+
+    parts.push('')
+    parts.push('Write a 200-word markdown weekly review. Include: what was accomplished, what to focus on next week, any concerning stale items. Be direct and actionable.')
+
+    const prompt = parts.join('\n')
+
+    // Call Ollama
+    const { getOllamaStatus } = await import('./ollama-client.js')
+    const status = await getOllamaStatus()
+    if (!status.available) {
+      return { error: 'Ollama unavailable' }
+    }
+
+    const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
+    const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b'
+
+    let generatedContent: string | null = null
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000)
+
+      const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          prompt,
+          stream: false
+        }),
+        signal: controller.signal
+      })
+
+      clearTimeout(timeout)
+
+      if (response.ok) {
+        const data = await response.json()
+        generatedContent = data.response?.trim() || null
+      }
+    } catch {
+      return { error: 'Ollama request failed' }
+    }
+
+    if (!generatedContent) {
+      return { error: 'Ollama returned empty response' }
+    }
+
+    // Save to vault
+    const vaultDir = getPrimaryVaultDir()
+    if (!vaultDir) {
+      return { error: 'No vault directory configured' }
+    }
+
+    const dailyNotesDir = path.join(vaultDir, 'DailyNotes')
+    try {
+      await fs.mkdir(dailyNotesDir, { recursive: true })
+    } catch {
+      // Directory might already exist
+    }
+
+    const filename = `${week}-weekly-review.md`
+    const filePath = path.join(dailyNotesDir, filename)
+    const finalContent = `# Weekly Review — ${week}\n\n${generatedContent}\n`
+
+    await fs.writeFile(filePath, finalContent, 'utf-8')
+
+    return {
+      summary: generatedContent,
+      savedTo: filePath,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to generate weekly review' }
+  }
+}
+
+/**
+ * Get project detail by slug or name
+ */
+async function getProjectDetail(projectName: string): Promise<any> {
+  try {
+    const projectsDir = process.env.PROJECTS_DIR
+    if (!projectsDir) {
+      return { error: 'PROJECTS_DIR not configured' }
+    }
+
+    // Scan all projects
+    const projects = await scanProjects(projectsDir)
+
+    // Find project by name (case-insensitive) or slug
+    const normalizedName = projectName.toLowerCase()
+    const project = projects.find(p =>
+      p.name.toLowerCase() === normalizedName ||
+      path.basename(p.path).toLowerCase() === normalizedName
+    )
+
+    if (!project) {
+      return { error: 'Project not found' }
+    }
+
+    // Read state file content
+    let stateContent = ''
+    try {
+      stateContent = await fs.readFile(project.stateFile, 'utf-8')
+    } catch {
+      // State file might not be readable
+    }
+
+    // Get todos for this project
+    const vaultDirs = await getVaultDirs()
+    const todosResult = await extractTodosMultiVault(projectsDir, vaultDirs)
+    const projectTodos: TodoItem[] = todosResult.byProject[project.name] || []
+
+    // Get AI summary if available
+    let aiSummary: string | null = null
+    if (project.summaryFile) {
+      try {
+        const summaryPath = path.join(project.path, '.cortex-weekly-summary.md')
+        aiSummary = await fs.readFile(summaryPath, 'utf-8')
+      } catch {
+        // No AI summary available
+      }
+    }
+
+    return {
+      name: project.name,
+      slug: path.basename(project.path),
+      status: project.status,
+      stateContent,
+      todos: projectTodos,
+      aiSummary,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to get project detail' }
   }
 }
 
@@ -543,6 +850,141 @@ export function registerTools(server: McpServer): void {
             {
               type: 'text',
               text: JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to get reading log' }),
+            },
+          ],
+          isError: true,
+        }
+      }
+    }
+  )
+
+  // Tool 9: run_wiki_lint
+  server.tool(
+    'run_wiki_lint',
+    'Run wiki lint to check health score, orphans, stale pages, and gaps',
+    z.object({
+      verbose: z.boolean().optional().default(false).describe('Verbose output'),
+    }),
+    async (args) => {
+      try {
+        const result = await runWikiLint(args.verbose || false)
+
+        if ('error' in result) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: result.error }),
+              },
+            ],
+            isError: true,
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to run wiki lint' }),
+            },
+          ],
+          isError: true,
+        }
+      }
+    }
+  )
+
+  // Tool 10: generate_weekly_review
+  server.tool(
+    'generate_weekly_review',
+    'Generate and save weekly review using Ollama',
+    z.object({
+      weekOffset: z.number().optional().default(0).describe('Week offset (0 = this week, -1 = last week)'),
+    }),
+    async (args) => {
+      try {
+        const result = await generateWeeklyReview(args.weekOffset || 0)
+
+        if ('error' in result) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: result.error }),
+              },
+            ],
+            isError: true,
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to generate weekly review' }),
+            },
+          ],
+          isError: true,
+        }
+      }
+    }
+  )
+
+  // Tool 11: get_project_detail
+  server.tool(
+    'get_project_detail',
+    'Get detailed information about a project by name or slug',
+    z.object({
+      projectName: z.string().describe('Project name or slug'),
+    }),
+    async (args) => {
+      try {
+        const result = await getProjectDetail(args.projectName)
+
+        if ('error' in result) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: result.error }),
+              },
+            ],
+            isError: true,
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to get project detail' }),
             },
           ],
           isError: true,

@@ -26,7 +26,7 @@ async function main() {
     version: '1.0.0',
   })
 
-  // Register all 8 tools
+  // Register all 11 tools
   registerTools(server)
 
   // Create stdio transport
@@ -37,7 +37,7 @@ async function main() {
 
   // Log to stderr (stdout is used for MCP protocol)
   console.error('Cortex MCP server started')
-  console.error('Registered tools: list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log')
+  console.error('Registered tools: list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log, run_wiki_lint, generate_weekly_review, get_project_detail')
 }
 
 // Run server

@@ -8,7 +8,8 @@
       "env": {
         "PROJECTS_DIR": "C:/Users/boomb/Documents/_Projects",
         "VAULT_DIR": "C:/Users/boomb/Documents/SecondBrain"
-      }
+      },
+      "description": "Cortex MCP server with 11 tools: list_todos, get_deadlines, list_projects, search_notes, add_capture, get_daily_context, search_wiki, get_reading_log, run_wiki_lint, generate_weekly_review, get_project_detail"
     }
   }
 }

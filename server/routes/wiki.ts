@@ -10,11 +10,13 @@ import {
   ingestSource,
   readIndex,
   listPages,
+  readPage,
   ensureWikiExists,
   queryWiki,
   lintWiki,
   analyzeGaps,
 } from '../lib/wiki-manager.js';
+import { synthesizeWikiProfile } from '../lib/wiki-synthesizer.js';
 import { getOllamaStatus } from '../lib/ollama-client.js';
 import {
   enqueueImportJob,
@@ -144,6 +146,32 @@ router.get('/pages', async (_req, res) => {
 });
 
 /**
+ * GET /api/wiki/pages/:pageName
+ * Return a single wiki page with body content and link context.
+ */
+router.get('/pages/:pageName', async (req, res) => {
+  try {
+    const pageName = req.params.pageName;
+    if (!pageName || pageName !== path.basename(pageName)) {
+      return res.status(400).json({ error: 'Invalid page name' });
+    }
+
+    const primaryVault = getPrimaryVaultDir();
+    const wikiDir = path.join(primaryVault, 'Wiki');
+    const page = await readPage(wikiDir, pageName);
+
+    if (!page) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    return res.json(page);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ error: message });
+  }
+});
+
+/**
  * POST /api/wiki/query
  * Query the wiki with a question
  * Body: { question: string }
@@ -256,6 +284,32 @@ router.post('/gaps', async (_req, res) => {
 });
 
 /**
+ * POST /api/wiki/synthesize
+ * Build or refresh canonical profile pages from the current wiki.
+ */
+router.post('/synthesize', async (_req, res) => {
+  try {
+    const primaryVault = getPrimaryVaultDir();
+    const wikiDir = path.join(primaryVault, 'Wiki');
+    const result = await synthesizeWikiProfile(wikiDir);
+
+    if (result.error) {
+      return res.json(result);
+    }
+
+    return res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.json({
+      pagesCreated: [],
+      pagesUpdated: [],
+      pageNames: [],
+      error: message,
+    });
+  }
+});
+
+/**
  * GET /api/wiki/imports
  * Return discovered datasets plus any active background jobs.
  */
@@ -297,7 +351,7 @@ router.post('/imports/scan', async (_req, res) => {
  */
 router.post('/imports/normalize', async (req, res) => {
   try {
-    const { datasetIds } = req.body ?? {};
+    const { datasetIds, force } = req.body ?? {};
 
     if (datasetIds !== undefined && !Array.isArray(datasetIds)) {
       return res.status(400).json({ error: 'datasetIds must be an array when provided' });
@@ -307,9 +361,14 @@ router.post('/imports/normalize', async (req, res) => {
       return res.status(400).json({ error: 'datasetIds must contain non-empty strings only' });
     }
 
+    if (force !== undefined && typeof force !== 'boolean') {
+      return res.status(400).json({ error: 'force must be a boolean when provided' });
+    }
+
     const job = await enqueueImportJob({
       type: 'normalize',
       datasetIds,
+      force,
     });
 
     return res.json({ jobId: job.id });
@@ -325,7 +384,7 @@ router.post('/imports/normalize', async (req, res) => {
  */
 router.post('/imports/ingest', async (req, res) => {
   try {
-    const { datasetIds, mode } = req.body ?? {};
+    const { datasetIds, mode, force } = req.body ?? {};
 
     if (!Array.isArray(datasetIds) || datasetIds.length === 0) {
       return res.status(400).json({ error: 'datasetIds is required' });
@@ -339,10 +398,15 @@ router.post('/imports/ingest', async (req, res) => {
       return res.status(400).json({ error: 'mode must be default, rollups, or full-mirror' });
     }
 
+    if (force !== undefined && typeof force !== 'boolean') {
+      return res.status(400).json({ error: 'force must be a boolean when provided' });
+    }
+
     const job = await enqueueImportJob({
       type: 'ingest',
       datasetIds,
       mode,
+      force,
     });
 
     return res.json({ jobId: job.id });

@@ -72,8 +72,10 @@ export interface ImportDataset {
   id: string
   kind: ImportKind
   title: string
+  defaultIngestMode: Exclude<ImportIngestMode, 'default'>
   sourceRoot: string
   sourcePaths: string[]
+  sourceSnapshotHash: string
   sizeBytes: number
   fileCount: number
   warnings: string[]
@@ -82,9 +84,14 @@ export interface ImportDataset {
   lastScannedAt: string
   lastNormalizedAt?: string
   lastIngestedAt?: string
+  lastNormalizedSnapshotHash?: string
+  lastIngestedSnapshotHash?: string
+  lastIngestedMode?: Exclude<ImportIngestMode, 'default'>
   mirrorPath?: string
   normalized: boolean
   ingested: boolean
+  needsNormalization: boolean
+  needsIngest: boolean
 }
 
 export interface ImportJobProgress {
@@ -105,8 +112,21 @@ export interface ImportJob {
   completedAt?: string
   datasetIds?: string[]
   mode?: ImportIngestMode
+  force?: boolean
   progress: ImportJobProgress
   logs: string[]
   result?: Record<string, unknown>
   error?: string
+}
+
+export interface WikiPageDetail {
+  name: string
+  title: string
+  status: string
+  sources: string[]
+  lastUpdated: string
+  summary: string
+  content: string
+  backlinks: string[]
+  outboundLinks: string[]
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import type { WikiPageDetail } from '../types'
 
 const API_BASE = 'http://localhost:3001'
 
@@ -64,12 +65,21 @@ interface IngestProjectsResult {
   errors: string[]
 }
 
+interface SynthesisResult {
+  pagesCreated: string[]
+  pagesUpdated: string[]
+  pageNames: string[]
+  error?: string
+}
+
 export function useWiki(): WikiState & {
   query: (question: string) => Promise<QueryResult>
   lint: () => Promise<LintResult>
   ingest: (sourcePath: string) => Promise<IngestResult>
   ingestProjects: () => Promise<IngestProjectsResult>
   analyzeGaps: () => Promise<GapAnalysisResult>
+  getPage?: (pageName: string) => Promise<WikiPageDetail | null>
+  synthesize?: () => Promise<SynthesisResult>
   refetch: () => void
 } {
   const [wikiExists, setWikiExists] = useState(false)
@@ -247,6 +257,55 @@ export function useWiki(): WikiState & {
     }
   }, [])
 
+  const getPage = useCallback(async (pageName: string): Promise<WikiPageDetail | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/wiki/pages/${encodeURIComponent(pageName)}`)
+
+      if (response.status === 404) {
+        return null
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch wiki page: ${response.statusText}`)
+      }
+
+      return await response.json() as WikiPageDetail
+    } catch (err) {
+      console.error('Error fetching wiki page:', err)
+      return null
+    }
+  }, [])
+
+  const synthesize = useCallback(async (): Promise<SynthesisResult> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/wiki/synthesize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to synthesize wiki: ${response.statusText}`)
+      }
+
+      const data = await response.json() as SynthesisResult
+      if (!data.error) {
+        await fetchIndex()
+      }
+
+      return data
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to synthesize wiki'
+      return {
+        pagesCreated: [],
+        pagesUpdated: [],
+        pageNames: [],
+        error: errorMessage,
+      }
+    }
+  }, [fetchIndex])
+
   return {
     wikiExists,
     pages,
@@ -259,6 +318,8 @@ export function useWiki(): WikiState & {
     ingest,
     ingestProjects,
     analyzeGaps,
+    getPage,
+    synthesize,
     refetch: fetchIndex,
   }
 }

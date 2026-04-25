@@ -22,6 +22,12 @@ export interface WikiPage {
   summary: string;        // from index.md one-liner
 }
 
+export interface WikiPageDetail extends WikiPage {
+  content: string;
+  backlinks: string[];
+  outboundLinks: string[];
+}
+
 export interface IngestResult {
   pagesCreated: string[];
   pagesUpdated: string[];
@@ -628,6 +634,56 @@ export async function listPages(wikiDir: string): Promise<WikiPage[]> {
   }
 }
 
+export async function readPage(
+  wikiDir: string,
+  pageName: string
+): Promise<WikiPageDetail | null> {
+  const normalizedName = pageName.trim();
+  if (!normalizedName || normalizedName !== path.basename(normalizedName)) {
+    return null;
+  }
+
+  const pages = await listPages(wikiDir);
+  const page = pages.find((candidate) => candidate.name === normalizedName);
+  if (!page) {
+    return null;
+  }
+
+  const [rawContent, indexPages] = await Promise.all([
+    fs.readFile(page.path, 'utf-8'),
+    readIndex(wikiDir),
+  ]);
+
+  const body = stripFrontmatter(rawContent).trim();
+  const outboundLinks = extractWikiLinks(body);
+  const backlinks: string[] = [];
+
+  for (const candidate of pages) {
+    if (candidate.name === page.name) {
+      continue;
+    }
+
+    try {
+      const candidateContent = await fs.readFile(candidate.path, 'utf-8');
+      if (candidateContent.includes(`[[${page.name}]]`)) {
+        backlinks.push(candidate.name);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  const indexedSummary = indexPages.find((candidate) => candidate.name === page.name)?.summary;
+
+  return {
+    ...page,
+    summary: indexedSummary || summarizeWikiBody(body),
+    content: body,
+    backlinks: Array.from(new Set(backlinks)).sort(),
+    outboundLinks,
+  };
+}
+
 /**
  * Appends an entry to log.md.
  */
@@ -675,6 +731,27 @@ function parseIndexEntry(line: string): { name: string; summary: string; sourceC
     summary: match[2],
     sourceCount: Number.parseInt(match[3], 10),
   };
+}
+
+function stripFrontmatter(content: string): string {
+  return content.replace(/^---\n[\s\S]+?\n---\s*/m, '');
+}
+
+function summarizeWikiBody(body: string): string {
+  const lines = body
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'));
+
+  return lines[0]?.slice(0, 140) || 'Wiki page.';
+}
+
+function extractWikiLinks(content: string): string[] {
+  const links = Array.from(content.matchAll(/\[\[(.+?)\]\]/g))
+    .map((match) => match[1]?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return Array.from(new Set(links)).sort();
 }
 
 /**
