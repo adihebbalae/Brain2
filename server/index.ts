@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { config } from 'dotenv'
 import { projectsRouter } from './routes/projects.js'
 import { todosRouter } from './routes/todos.js'
+import { kanbanRouter } from './routes/kanban.js'
 import { deadlinesRouter } from './routes/deadlines.js'
 import { captureRouter } from './routes/capture.js'
 import { aiRouter } from './routes/ai.js'
@@ -26,6 +27,7 @@ import { startNotificationService } from './lib/notification-service.js'
 import { startRagIndexBackgroundRefresh } from './lib/rag-cache.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
+import { initWikiImportQueue } from './lib/wiki-import-queue.js'
 import { recordDailySnapshot } from './lib/velocity-tracker.js'
 
 config()
@@ -68,6 +70,7 @@ app.get('/health', (_req, res) => {
 // API Routes
 app.use('/api/projects', projectsRouter)
 app.use('/api/todos', todosRouter)
+app.use('/api/kanban', kanbanRouter)
 app.use('/api/deadlines', deadlinesRouter)
 app.use('/api/capture', captureRouter)
 app.use('/api/ai', aiRouter)
@@ -101,6 +104,9 @@ app.listen(PORT, () => {
 
 // Prewarm background caches (non-blocking)
 startRagIndexBackgroundRefresh()
+initWikiImportQueue().catch(err => {
+  console.error('[startup] Failed to initialize wiki import queue:', err)
+})
 
 // Start notification service (after routes)
 startNotificationService()

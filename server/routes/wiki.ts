@@ -16,6 +16,12 @@ import {
   analyzeGaps,
 } from '../lib/wiki-manager.js';
 import { getOllamaStatus } from '../lib/ollama-client.js';
+import {
+  enqueueImportJob,
+  getActiveImportJobs,
+  getImportJob,
+} from '../lib/wiki-import-queue.js';
+import { listWikiImportsState } from '../lib/wiki-imports.js';
 
 const router = Router();
 
@@ -246,6 +252,121 @@ router.post('/gaps', async (_req, res) => {
       generatedAt: new Date().toISOString(),
       error: message,
     });
+  }
+});
+
+/**
+ * GET /api/wiki/imports
+ * Return discovered datasets plus any active background jobs.
+ */
+router.get('/imports', async (_req, res) => {
+  try {
+    const [state, activeJobs] = await Promise.all([
+      listWikiImportsState(),
+      getActiveImportJobs(),
+    ]);
+
+    res.json({
+      datasets: state.datasets,
+      activeJobs,
+      lastScannedAt: state.lastScannedAt,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/wiki/imports/scan
+ * Queue a background scan job.
+ */
+router.post('/imports/scan', async (_req, res) => {
+  try {
+    const job = await enqueueImportJob({ type: 'scan' });
+    res.json({ jobId: job.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/wiki/imports/normalize
+ * Queue a background normalize job.
+ */
+router.post('/imports/normalize', async (req, res) => {
+  try {
+    const { datasetIds } = req.body ?? {};
+
+    if (datasetIds !== undefined && !Array.isArray(datasetIds)) {
+      return res.status(400).json({ error: 'datasetIds must be an array when provided' });
+    }
+
+    if (Array.isArray(datasetIds) && datasetIds.some(id => typeof id !== 'string' || id.trim().length === 0)) {
+      return res.status(400).json({ error: 'datasetIds must contain non-empty strings only' });
+    }
+
+    const job = await enqueueImportJob({
+      type: 'normalize',
+      datasetIds,
+    });
+
+    return res.json({ jobId: job.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/wiki/imports/ingest
+ * Queue a background ingest job.
+ */
+router.post('/imports/ingest', async (req, res) => {
+  try {
+    const { datasetIds, mode } = req.body ?? {};
+
+    if (!Array.isArray(datasetIds) || datasetIds.length === 0) {
+      return res.status(400).json({ error: 'datasetIds is required' });
+    }
+
+    if (datasetIds.some(id => typeof id !== 'string' || id.trim().length === 0)) {
+      return res.status(400).json({ error: 'datasetIds must contain non-empty strings only' });
+    }
+
+    if (mode !== undefined && !['default', 'rollups', 'full-mirror'].includes(mode)) {
+      return res.status(400).json({ error: 'mode must be default, rollups, or full-mirror' });
+    }
+
+    const job = await enqueueImportJob({
+      type: 'ingest',
+      datasetIds,
+      mode,
+    });
+
+    return res.json({ jobId: job.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * GET /api/wiki/import-jobs/:jobId
+ * Return a persisted job snapshot.
+ */
+router.get('/import-jobs/:jobId', async (req, res) => {
+  try {
+    const job = await getImportJob(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    return res.json(job);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ error: message });
   }
 });
 

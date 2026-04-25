@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import path from 'node:path'
-import { extractTodosMultiVault, toggleTodo } from '../lib/todo-extractor.js'
+import { extractTodosMultiVault, toggleTodo, updateTodoStatus } from '../lib/todo-extractor.js'
 import { getVaultDirs } from '../lib/vault-config.js'
 import { config } from 'dotenv'
 
@@ -79,6 +79,43 @@ router.patch('/:id', async (req, res) => {
     }
     console.error('Failed to toggle todo:', err)
     return res.status(500).json({ error: 'Failed to toggle todo' })
+  }
+})
+
+router.patch('/:id/status', async (req, res) => {
+  const { PROJECTS_DIR, VAULT_DIR } = process.env
+  const { id } = req.params
+  const { status } = req.body
+
+  if (!PROJECTS_DIR || !VAULT_DIR) {
+    return res.status(500).json({ error: 'PROJECTS_DIR or VAULT_DIR not configured' })
+  }
+
+  // Validate id format (16 hex chars)
+  if (!/^[0-9a-f]{16}$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid todo ID' })
+  }
+
+  // Validate status
+  if (!status || !['todo', 'doing', 'done'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status. Must be "todo", "doing", or "done"' })
+  }
+
+  try {
+    const vaultDirs = await getVaultDirs()
+    const extraVaultDirs = vaultDirs.slice(1)
+    await updateTodoStatus(id, status, PROJECTS_DIR, VAULT_DIR, extraVaultDirs)
+    return res.json({ success: true })
+  } catch (err) {
+    const error = err as Error
+    if (error.message === 'TODO item not found') {
+      return res.status(404).json({ error: 'TODO item not found' })
+    }
+    if (error.message === 'Only checkbox TODOs can have their status changed') {
+      return res.status(400).json({ error: 'Only checkbox TODOs can have their status changed' })
+    }
+    console.error('Failed to update todo status:', err)
+    return res.status(500).json({ error: 'Failed to update todo status' })
   }
 })
 

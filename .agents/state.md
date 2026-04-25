@@ -2,21 +2,28 @@
 
 > Auto-updated by agents. Human-readable view of `.agents/state.json`.
 
+> Latest local update (2026-04-24): DEVFIX — fixed wiki import follow-up issues: wiki index parsing, project-path wiki ingest validation, Claude/calendar normalization, and clearer import job failure reporting.
+
+> Latest local update (2026-04-24): DEVFIX â€” replaced the concurrently-based launcher with a local dev runner and added an Electron single-instance lock to reduce duplicate port/cache collisions.
+
+> Latest local update (2026-04-24): DEVFIX â€” Wiki Builder V2 import catalog with persisted scan/normalize/ingest jobs, mirrored `data/imports/`, Imports tab UI, and YouTube Takeout HTML auto-detect.
+
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: P7 — Feature Expansion
-- **Current Task**: TASK-043 — Automated State Diffing (done)
+- **Current Task**: TASK-044 — Velocity Tracking + Deadline Risk Scores (done)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
 - **Recent Completions**: 
+  - TASK-044 — Velocity tracking with daily snapshots, Recharts trend chart, deadline risk scores (663 tests passing, 5 skipped)
   - TASK-043 — Automated weekly git-summary per project (663 tests passing, 5 skipped)
   - TASK-042 — In-app command palette with cmdk (Ctrl+K for fuzzy search navigation, 657 tests passing)
   - TASK-034 — Electron desktop app packaging (608 tests passing, 2 pre-existing failures)
   - TASK-035 — Review queue bug fix: exclude project junctions (612 tests passing, 2 pre-existing failures)
   - TASK-036 — Fix AI summaries: factual-only prompt, 404 error logging (613 tests passing, 2 pre-existing failures)
-  - TASK-038 — Fix Obsidian deep links: configurable VAULT_NAME (620 tests passing, 2 pre-existing failures)
   - DEVFIX — Reduced page/chat latency by deduping `useProjects`, caching daily context + shared git activity, and background-refreshing the RAG index (2026-04-24)
+  - DEVFIX — Fixed wiki import follow-up regressions so existing wiki pages load again, project scan accepts project files, Claude/calendar datasets normalize, and import jobs show dataset-level failures (2026-04-24)
 
 ## Project Brief
 
@@ -85,7 +92,7 @@
 | **TASK-041** | **Zen/Focus Mode with Pomodoro Timer** | **pending** | **P7** |
 | TASK-042 | In-App Command Palette (Ctrl+K) | done | P7 |
 | TASK-043 | Automated State Diffing (weekly git-summary) | done | P7 |
-| **TASK-044** | **Velocity Tracking + Deadline Risk Scores** | **pending** | **P7** |
+| TASK-044 | Velocity Tracking + Deadline Risk Scores | done | P7 |
 | **TASK-045** | **Kanban Triage Board (checkbox drag-and-drop)** | **pending** | **P7** |
 | **TASK-046** | **Local Semantic Search (embeddings + SQLite-vss)** | **pending** | **P8** |
 | **TASK-047** | **Extend MCP Server with 3 new tools** | **pending** | **P7** |
@@ -698,4 +705,16 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **File output**: Summary written to .cortex-weekly-summary.md in each project directory with date header
   - **Error handling**: Graceful no-op when Ollama unavailable, no git repository, or no commits in last 7 days
   - **Tests**: 6 unit tests for git-summary-generator covering error paths (5 integration tests skipped due to complex mocking requirements)
+  - **663 tests passing** (5 skipped), type-check clean (pre-existing errors unrelated to this task)
+
+- 2026-04-24: TASK-044 completed — Velocity tracking with daily snapshots, trend chart, and deadline risk scores:
+  - **Backend**: Created server/lib/velocity-tracker.ts that records daily snapshots of TODOs (open/closed) and commits using simple-git
+  - **Daily snapshot**: Auto-records on server startup (3s delay, deduplicates by date), appends to VAULT_DIR/.cortex-velocity.json
+  - **API endpoint**: Added GET /api/velocity returning {snapshots: DailySnapshot[], trend: {todosDirection, commitsDirection}} with week-over-week trend calculation
+  - **Deadline risk scores**: Extended GET /api/deadlines to include riskScore field per deadline, formula: `remainingTodos / (avgTodosPerWeek * weeksUntilDeadline)`, matches deadline tags to project names for TODO counts
+  - **Frontend**: Created VelocityPanel component with Recharts bar chart (last 30 days, two series: todos closed in green + commits in blue), trend arrows showing week-over-week direction (↑/↓/→)
+  - **Risk badges**: Updated DeadlineTimeline to show color-coded risk badges (🔴 At Risk >1.0, 🟡 Tight 0.7-1.0, 🟢 On Track <0.7), null when no velocity data or no tag
+  - **Integration**: Added VelocityPanel to HomePage left column after GitActivityPanel, velocity route mounted at /api/velocity
+  - **Dependencies**: Installed simple-git (for git log operations) and recharts (for bar chart visualization)
+  - **Files created**: server/lib/velocity-tracker.ts, server/routes/velocity.ts, src/components/VelocityPanel.tsx
   - **663 tests passing** (5 skipped), type-check clean (pre-existing errors unrelated to this task)

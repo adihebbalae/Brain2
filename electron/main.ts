@@ -20,6 +20,11 @@ window.$RefreshSig$ = () => (type) => type;`;
 const viteReactRefreshPreambleHash = `'sha256-${createHash('sha256')
   .update(viteReactRefreshPreamble)
   .digest('base64')}'`;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
 
 function waitForServer(port: number, maxRetries = 30): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -112,6 +117,22 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+}
+
+if (hasSingleInstanceLock) {
+  app.on('second-instance', () => {
+    if (!mainWindow) {
+      createWindow();
+      return;
+    }
+
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+
+    mainWindow.show();
+    mainWindow.focus();
   });
 }
 

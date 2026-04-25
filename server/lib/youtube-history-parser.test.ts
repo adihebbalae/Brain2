@@ -11,13 +11,22 @@ import {
 
 describe('YouTube History Parser', () => {
   let tempDir: string
+  let originalDataDir: string | undefined
 
   beforeEach(async () => {
     // Create temp directory for test files
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'youtube-history-test-'))
+    originalDataDir = process.env.DATA_DIR
+    process.env.DATA_DIR = tempDir
   })
 
   afterEach(async () => {
+    if (originalDataDir === undefined) {
+      delete process.env.DATA_DIR
+    } else {
+      process.env.DATA_DIR = originalDataDir
+    }
+
     // Clean up temp directory
     await fs.rm(tempDir, { recursive: true, force: true })
   })

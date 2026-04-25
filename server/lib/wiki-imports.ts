@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import path from 'node:path'
 import { promises as fs, type Dirent } from 'node:fs'
 import { parse as parseCsv } from 'csv-parse/sync'
-import * as ical from 'node-ical'
+import ical from 'node-ical'
 import {
   ensureImportDirectories,
   getDataDir,
@@ -41,6 +41,7 @@ const STOPWORDS = new Set([
 const IMPORT_INDEX_SEPARATOR = 'â€”'
 
 const NORMALIZED_IMPORT_INDEX_SEPARATOR = IMPORT_INDEX_SEPARATOR.includes('â') ? 'â€”' : IMPORT_INDEX_SEPARATOR
+const IMPORT_INDEX_SEPARATOR_FIXED = NORMALIZED_IMPORT_INDEX_SEPARATOR.replace(/.*/, '--')
 const CHROME_WEBKIT_EPOCH_OFFSET_MICROSECONDS = 11644473600000000
 
 interface SourceFingerprint {
@@ -59,8 +60,8 @@ interface ClaudeConversation {
   chat_messages?: Array<{
     uuid?: string
     sender?: string
-    text?: string
-    content?: string
+    text?: unknown
+    content?: unknown
     created_at?: string
   }>
 }
@@ -1007,7 +1008,7 @@ async function rebuildWikiIndex(wikiDir: string): Promise<void> {
     const content = await fs.readFile(page.path, 'utf-8')
     const summary = extractWikiSummary(content)
     const sourceCount = page.sources.length
-    entries.push(`- [[${page.name}]] ${NORMALIZED_IMPORT_INDEX_SEPARATOR} ${summary} (sources: ${sourceCount})`)
+    entries.push(`- [[${page.name}]] ${IMPORT_INDEX_SEPARATOR_FIXED} ${summary} (sources: ${sourceCount})`)
   }
 
   entries.sort((left, right) => left.localeCompare(right))
@@ -1531,8 +1532,46 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
-function normalizeConversationText(value: string): string {
-  return value.replace(/\r/g, '').trim()
+function normalizeConversationText(value: unknown, depth = 0): string {
+  if (depth > 4 || value == null) {
+    return ''
+  }
+
+  if (typeof value === 'string') {
+    return value.replace(/\r/g, '').trim()
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value)
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map(item => normalizeConversationText(item, depth + 1))
+      .filter(Boolean)
+      .join('\n\n')
+      .trim()
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const prioritizedKeys = ['text', 'content', 'value', 'message', 'parts', 'children']
+
+    for (const key of prioritizedKeys) {
+      const normalized = normalizeConversationText(record[key], depth + 1)
+      if (normalized) {
+        return normalized
+      }
+    }
+
+    try {
+      return JSON.stringify(record, null, 2)?.replace(/\r/g, '').trim() ?? ''
+    } catch {
+      return ''
+    }
+  }
+
+  return ''
 }
 
 function objectSize(value: unknown): number {

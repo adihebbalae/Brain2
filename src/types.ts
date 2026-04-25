@@ -22,6 +22,7 @@ export interface Todo {
   line: number
   project: string
   type: 'checkbox' | 'TODO' | 'FIXME' | 'HACK'
+  status: 'todo' | 'doing' | 'done'
 }
 
 export interface Deadline {
@@ -52,4 +53,60 @@ export interface ReadingResponse {
   read: number
   items: ReadingItem[]
   topTopics: Array<{ topic: string; count: number }>
+}
+
+export type ImportKind =
+  | 'claude'
+  | 'chrome'
+  | 'youtube'
+  | 'calendar'
+  | 'discover'
+  | 'gemini'
+  | 'notebooklm'
+
+export type ImportStatus = 'queued' | 'running' | 'completed' | 'failed' | 'interrupted'
+export type ImportJobType = 'scan' | 'normalize' | 'ingest'
+export type ImportIngestMode = 'default' | 'rollups' | 'full-mirror'
+
+export interface ImportDataset {
+  id: string
+  kind: ImportKind
+  title: string
+  sourceRoot: string
+  sourcePaths: string[]
+  sizeBytes: number
+  fileCount: number
+  warnings: string[]
+  catalogOnly: boolean
+  counts: Record<string, number>
+  lastScannedAt: string
+  lastNormalizedAt?: string
+  lastIngestedAt?: string
+  mirrorPath?: string
+  normalized: boolean
+  ingested: boolean
+}
+
+export interface ImportJobProgress {
+  phase: string
+  total: number
+  completed: number
+  current?: string
+  errors: number
+}
+
+export interface ImportJob {
+  id: string
+  type: ImportJobType
+  status: ImportStatus
+  createdAt: string
+  updatedAt: string
+  startedAt?: string
+  completedAt?: string
+  datasetIds?: string[]
+  mode?: ImportIngestMode
+  progress: ImportJobProgress
+  logs: string[]
+  result?: Record<string, unknown>
+  error?: string
 }

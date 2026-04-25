@@ -26,6 +26,16 @@ vi.mock('../lib/ollama-client.js', () => ({
   getOllamaStatus: vi.fn(),
 }))
 
+vi.mock('../lib/wiki-import-queue.js', () => ({
+  enqueueImportJob: vi.fn(),
+  getActiveImportJobs: vi.fn(),
+  getImportJob: vi.fn(),
+}))
+
+vi.mock('../lib/wiki-imports.js', () => ({
+  listWikiImportsState: vi.fn(),
+}))
+
 import { getPrimaryVaultDir } from '../lib/vault-config.js'
 import { ingestSource, ensureWikiExists } from '../lib/wiki-manager.js'
 import { getOllamaStatus } from '../lib/ollama-client.js'

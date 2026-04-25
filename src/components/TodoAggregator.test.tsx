@@ -19,7 +19,8 @@ describe('TodoAggregator', () => {
       file: 'src/auth/login.ts',
       line: 42,
       project: 'auth-service',
-      type: 'FIXME'
+      type: 'FIXME',
+      status: 'todo'
     },
     {
       id: '2',
@@ -28,7 +29,8 @@ describe('TodoAggregator', () => {
       file: 'src/utils/helpers.ts',
       line: 10,
       project: 'auth-service',
-      type: 'TODO'
+      type: 'TODO',
+      status: 'todo'
     },
     {
       id: '3',
@@ -37,7 +39,8 @@ describe('TodoAggregator', () => {
       file: 'docs/api.md',
       line: 5,
       project: 'docs',
-      type: 'checkbox'
+      type: 'checkbox',
+      status: 'todo'
     },
     {
       id: '4',
@@ -46,7 +49,8 @@ describe('TodoAggregator', () => {
       file: 'src/done.ts',
       line: 1,
       project: 'auth-service',
-      type: 'checkbox'
+      type: 'checkbox',
+      status: 'done'
     }
   ]
 
@@ -269,7 +273,8 @@ describe('TodoAggregator', () => {
         file: 'src/temp.ts',
         line: 1,
         project: 'test',
-        type: 'HACK'
+        type: 'HACK',
+        status: 'todo'
       }
     ]
 
@@ -295,7 +300,8 @@ describe('TodoAggregator', () => {
         file: 'very/long/path/to/some/deep/nested/file.ts',
         line: 1,
         project: 'test',
-        type: 'checkbox'
+        type: 'checkbox',
+        status: 'todo'
       }
     ]
 

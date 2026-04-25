@@ -11,6 +11,7 @@ export interface TodoItem {
   line: number         // 1-based line number
   project: string      // derived from folder name relative to PROJECTS_DIR or VAULT_DIR
   type: 'checkbox' | 'todo_comment' | 'fixme' | 'hack'
+  status: 'todo' | 'doing' | 'done'  // for checkbox items: - [ ] = todo, - [/] = doing, - [x] = done
 }
 
 export interface TodosResult {
@@ -81,11 +82,22 @@ async function extractTodosFromFile(
     const line = lines[i]
     const lineNumber = i + 1
 
-    // Match checkbox: - [ ] or - [x]
-    const checkboxMatch = line.match(/^(\s*)-\s\[([ xX])\]\s+(.+)$/)
+    // Match checkbox: - [ ] or - [/] or - [x]
+    const checkboxMatch = line.match(/^(\s*)-\s\[([ xX\/])\]\s+(.+)$/)
     if (checkboxMatch) {
       const text = checkboxMatch[3].trim()
-      const done = checkboxMatch[2].toLowerCase() === 'x'
+      const marker = checkboxMatch[2]
+      const done = marker.toLowerCase() === 'x'
+
+      let status: 'todo' | 'doing' | 'done'
+      if (marker.toLowerCase() === 'x') {
+        status = 'done'
+      } else if (marker === '/') {
+        status = 'doing'
+      } else {
+        status = 'todo'
+      }
+
       todos.push({
         id: generateTodoId(filePath, lineNumber, text),
         text,
@@ -93,7 +105,8 @@ async function extractTodosFromFile(
         file: filePath,
         line: lineNumber,
         project,
-        type: 'checkbox'
+        type: 'checkbox',
+        status
       })
       continue
     }
@@ -109,7 +122,8 @@ async function extractTodosFromFile(
         file: filePath,
         line: lineNumber,
         project,
-        type: 'todo_comment'
+        type: 'todo_comment',
+        status: 'todo'
       })
       continue
     }
@@ -125,7 +139,8 @@ async function extractTodosFromFile(
         file: filePath,
         line: lineNumber,
         project,
-        type: 'fixme'
+        type: 'fixme',
+        status: 'todo'
       })
       continue
     }
@@ -141,7 +156,8 @@ async function extractTodosFromFile(
         file: filePath,
         line: lineNumber,
         project,
-        type: 'hack'
+        type: 'hack',
+        status: 'todo'
       })
     }
   }
@@ -291,6 +307,85 @@ export async function toggleTodo(
   const newLine = todo.done
     ? line.replace(/- \[x\]/i, '- [ ]')
     : line.replace(/- \[ \]/, '- [x]')
+
+  lines[lineIndex] = newLine
+
+  // Write atomically: write to temp file, then rename
+  const tmpFile = path.join(os.tmpdir(), `todo-${Date.now()}-${Math.random().toString(36).substring(7)}.md`)
+
+  try {
+    await fs.writeFile(tmpFile, lines.join('\n'), 'utf-8')
+    await fs.rename(tmpFile, todo.file)
+  } catch (error) {
+    // Clean up temp file if it exists
+    try {
+      await fs.unlink(tmpFile)
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw error
+  }
+}
+
+/**
+ * Update a checkbox TODO's status in its source file
+ */
+export async function updateTodoStatus(
+  itemId: string,
+  newStatus: 'todo' | 'doing' | 'done',
+  projectsDir: string,
+  vaultDir: string,
+  extraVaultDirs?: string[]
+): Promise<void> {
+  // Find the TODO item
+  const allVaultDirs = extraVaultDirs ? [vaultDir, ...extraVaultDirs] : [vaultDir]
+  const result = await extractTodosMultiVault(projectsDir, allVaultDirs)
+  let todo: TodoItem | null = null
+  for (const todos of Object.values(result.byProject)) {
+    const found = todos.find(t => t.id === itemId)
+    if (found) { todo = found; break }
+  }
+
+  if (!todo) {
+    throw new Error('TODO item not found')
+  }
+
+  // Only checkboxes can have their status changed
+  if (todo.type !== 'checkbox') {
+    throw new Error('Only checkbox TODOs can have their status changed')
+  }
+
+  // Validate file path
+  const allowedDirs = [projectsDir, ...allVaultDirs]
+  if (!validatePath(todo.file, allowedDirs)) {
+    throw new Error('File path is not within allowed directories')
+  }
+
+  // Read the file
+  const content = await fs.readFile(todo.file, 'utf-8')
+  const lines = content.split('\n')
+
+  // Validate line number
+  if (todo.line < 1 || todo.line > lines.length) {
+    throw new Error('Invalid line number')
+  }
+
+  // Determine the new checkbox marker based on status
+  let newMarker: string
+  if (newStatus === 'done') {
+    newMarker = '[x]'
+  } else if (newStatus === 'doing') {
+    newMarker = '[/]'
+  } else {
+    newMarker = '[ ]'
+  }
+
+  // Replace the checkbox marker on the specific line
+  const lineIndex = todo.line - 1
+  const line = lines[lineIndex]
+
+  // Replace any checkbox marker with the new one
+  const newLine = line.replace(/- \[([ xX\/])\]/, `- ${newMarker}`)
 
   lines[lineIndex] = newLine
 

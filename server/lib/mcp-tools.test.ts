@@ -95,10 +95,10 @@ describe('MCP Tools', () => {
         completed: 0,
         byProject: {
           'Project1': [
-            { id: '1', text: 'Todo 1', done: false, file: 'test.md', line: 1, project: 'Project1', type: 'checkbox' }
+            { id: '1', text: 'Todo 1', done: false, file: 'test.md', line: 1, project: 'Project1', type: 'checkbox', status: 'todo' }
           ],
           'Project2': [
-            { id: '2', text: 'Todo 2', done: false, file: 'test2.md', line: 5, project: 'Project2', type: 'checkbox' }
+            { id: '2', text: 'Todo 2', done: false, file: 'test2.md', line: 5, project: 'Project2', type: 'checkbox', status: 'todo' }
           ]
         }
       }
@@ -119,8 +119,8 @@ describe('MCP Tools', () => {
         completed: 1,
         byProject: {
           'Project1': [
-            { id: '1', text: 'Todo 1', done: true, file: 'test.md', line: 1, project: 'Project1', type: 'checkbox' },
-            { id: '2', text: 'Todo 2', done: false, file: 'test.md', line: 2, project: 'Project1', type: 'checkbox' }
+            { id: '1', text: 'Todo 1', done: true, file: 'test.md', line: 1, project: 'Project1', type: 'checkbox', status: 'done' },
+            { id: '2', text: 'Todo 2', done: false, file: 'test.md', line: 2, project: 'Project1', type: 'checkbox', status: 'todo' }
           ]
         }
       }
@@ -140,8 +140,8 @@ describe('MCP Tools', () => {
         completed: 1,
         byProject: {
           'Project1': [
-            { id: '1', text: 'Todo 1', done: true, file: 'test.md', line: 1, project: 'Project1', type: 'checkbox' },
-            { id: '2', text: 'Todo 2', done: false, file: 'test.md', line: 2, project: 'Project1', type: 'checkbox' }
+            { id: '1', text: 'Todo 1', done: true, file: 'test.md', line: 1, project: 'Project1', type: 'checkbox', status: 'done' },
+            { id: '2', text: 'Todo 2', done: false, file: 'test.md', line: 2, project: 'Project1', type: 'checkbox', status: 'todo' }
           ]
         }
       }

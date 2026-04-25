@@ -1,7 +1,20 @@
 # Workspace Map
 
+> Recent addition: `scripts/dev-runner.cjs` replaces the concurrently-based launcher for local dev and reuses running services instead of spawning duplicate frontend/backend/Ollama processes.
+
 > Updated by agents whenever files are created, moved, or deleted.
 > Agents read this to orient themselves instead of scanning the entire codebase.
+
+## Recent Additions
+
+- `server/lib/wiki-imports.test.ts` â€” normalization regression coverage for Claude structured-message exports and Calendar ICS imports
+
+- `server/lib/wiki-import-queue.ts` â€” persisted single-worker background queue for wiki import scan/normalize/ingest jobs
+- `server/lib/wiki-import-parsers.test.ts` â€” parser coverage for Chrome bookmark HTML and YouTube Takeout HTML
+- `server/routes/wiki-imports.test.ts` â€” route coverage for `/api/wiki/imports*` and `/api/wiki/import-jobs/:jobId`
+- `src/hooks/useWikiImports.ts` â€” frontend polling hook for import datasets and background jobs
+- `src/components/ImportsPanel.tsx` â€” Knowledge page Imports tab UI for scan, normalize, and wiki ingest
+- `src/components/ImportsPanel.test.tsx` â€” UI coverage for imports dataset cards and job progress
 
 ## Project Structure
 
@@ -88,6 +101,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── DailyPanel.tsx           # ✓ Daily context panel with today's date, calendar, deadlines, stale projects, random notes, git activity (TASK-025)
 │       ├── CanvasPanel.tsx          # ✓ Obsidian Canvas panel with grid cards, Open in Obsidian, add-node form (TASK-027)
 │       ├── ReviewPanel.tsx          # ✓ Review queue panel with progress ring, mark/skip buttons, Surprise Me modal (TASK-028)
+│       ├── VelocityPanel.tsx        # ✓ Velocity tracking panel with Recharts bar chart, trend arrows, 30-day snapshot view (TASK-044)
 │       └── BrainChat.tsx            # ✓ Full-panel RAG chat overlay with SSE streaming, source chips, session history (TASK-023)
 └── server/                          # Express.js backend
     ├── index.ts                     # ✓ Express server entry with all API routes + notification service (TASK-012)
@@ -96,7 +110,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects, POST /api/projects/:slug/auto-summary, GET /api/projects/:slug/weekly-summary (TASK-003, TASK-043)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
-    │   ├── deadlines.ts             # ✓ GET /api/deadlines (TASK-005)
+    │   ├── deadlines.ts             # ✓ GET /api/deadlines with riskScore field (TASK-005, TASK-044)
+    │   ├── velocity.ts              # ✓ GET /api/velocity with snapshots and trend data (TASK-044)
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)
     │   ├── config.ts                # ✓ GET /api/config (vaultName, projectsDir) (TASK-038)
     │   ├── ai.ts                    # ✓ GET /api/ai/status, GET /api/ai/summarize/:project, POST /api/ai/summarize-all (TASK-013)
@@ -156,6 +171,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
         ├── git-activity-parser.test.ts  # ✓ 9 unit tests for git activity parser (TASK-026)
         ├── git-summary-generator.ts # ✓ Weekly git summary generator: runs git log --since=7.days, generates Ollama summaries, writes to .cortex-weekly-summary.md (TASK-043)
         ├── git-summary-generator.test.ts  # ✓ 6 unit tests for git-summary-generator (TASK-043)
+        ├── velocity-tracker.ts      # ✓ Daily velocity snapshots: records TODOs and commits, writes to .cortex-velocity.json, calculates weekly averages (TASK-044)
         ├── canvas-parser.ts         # ✓ JSON Canvas parser: parseCanvas, addNodeToCanvas with color support (TASK-027)
         ├── canvas-parser.test.ts    # ✓ 19 unit tests for canvas parser (TASK-027)
         ├── review-log.ts            # ✓ Review log manager: loadReviewLog, saveReviewLog, markReviewed, syncNewNotes (TASK-028)

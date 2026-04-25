@@ -9,6 +9,9 @@ import path from 'node:path';
 import { getOllamaStatus } from './ollama-client.js';
 import { isPathInVault } from './vault-config.js';
 
+const INDEX_ENTRY_SEPARATOR = '--';
+const INDEX_ENTRY_PATTERN = /^-\s+\[\[(.+?)\]\]\s+(?:--|—|â€”|Ã¢â‚¬â€)\s+(.+)\s+\(sources:\s+(\d+)\)$/;
+
 export interface WikiPage {
   name: string;           // filename without .md
   path: string;           // absolute path
@@ -153,13 +156,12 @@ export async function ingestSource(
   sourcePath: string,
   wikiDir: string
 ): Promise<IngestResult> {
-  // Validate source path is in a vault
-  const isValid = await isPathInVault(sourcePath);
+  const isValid = await isPathInAllowedRoots(sourcePath);
   if (!isValid) {
     return {
       pagesCreated: [],
       pagesUpdated: [],
-      error: 'Source path must be inside a configured vault directory',
+      error: 'Source path must be inside a configured vault or projects directory',
     };
   }
 
@@ -488,17 +490,15 @@ async function updateIndex(
   const indexPath = path.join(wikiDir, 'index.md');
 
   // Read existing index
-  let indexContent = await fs.readFile(indexPath, 'utf-8');
+  const indexContent = await fs.readFile(indexPath, 'utf-8');
 
   // Parse existing entries
   const entries = new Map<string, string>();
   const lines = indexContent.split('\n');
-
   for (const line of lines) {
-    const match = line.match(/^-\s+\[\[(.+?)\]\]\s+—\s+(.+)\s+\(sources:\s+(\d+)\)/);
+    const match = parseIndexEntry(line);
     if (match) {
-      const pageName = match[1];
-      entries.set(pageName, line);
+      entries.set(match.name, line);
     }
   }
 
@@ -507,7 +507,7 @@ async function updateIndex(
     const summary = `Brief summary of ${page.title}.`;
     const sourceCount = page.sources.length;
     const entry = `- [[${page.name}]] — ${summary} (sources: ${sourceCount})`;
-    entries.set(page.name, entry);
+    entries.set(page.name, entry.replace(/â€”|Ã¢â‚¬â€|—/g, INDEX_ENTRY_SEPARATOR));
   }
 
   // Rebuild index
@@ -527,24 +527,27 @@ export async function readIndex(wikiDir: string): Promise<WikiPage[]> {
     const content = await fs.readFile(indexPath, 'utf-8');
     const pages: WikiPage[] = [];
     const lines = content.split('\n');
-
     for (const line of lines) {
-      const match = line.match(/^-\s+\[\[(.+?)\]\]\s+—\s+(.+)\s+\(sources:\s+(\d+)\)/);
+      const match = parseIndexEntry(line);
       if (match) {
-        const name = match[1];
-        const summary = match[2];
-        const sourceCount = parseInt(match[3], 10);
-
         pages.push({
-          name,
-          path: path.join(wikiDir, `${name}.md`),
-          title: name,
+          name: match.name,
+          path: path.join(wikiDir, `${match.name}.md`),
+          title: match.name,
           status: 'unknown',
-          sources: Array(sourceCount).fill(''),
+          sources: Array(match.sourceCount).fill(''),
           lastUpdated: '',
-          summary,
+          summary: match.summary,
         });
       }
+    }
+
+    if (pages.length === 0) {
+      const fallbackPages = await listPages(wikiDir);
+      return fallbackPages.map((page) => ({
+        ...page,
+        summary: '',
+      }));
     }
 
     return pages;
@@ -644,6 +647,34 @@ export async function appendLog(
   } catch (error) {
     console.error('Failed to append to log:', error);
   }
+}
+
+async function isPathInAllowedRoots(filePath: string): Promise<boolean> {
+  if (await isPathInVault(filePath)) {
+    return true;
+  }
+
+  const projectsDir = process.env.PROJECTS_DIR?.trim();
+  if (!projectsDir) {
+    return false;
+  }
+
+  const resolvedPath = path.resolve(filePath);
+  const resolvedProjectsDir = path.resolve(projectsDir);
+  return resolvedPath.startsWith(resolvedProjectsDir + path.sep) || resolvedPath === resolvedProjectsDir;
+}
+
+function parseIndexEntry(line: string): { name: string; summary: string; sourceCount: number } | null {
+  const match = line.match(INDEX_ENTRY_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    name: match[1],
+    summary: match[2],
+    sourceCount: Number.parseInt(match[3], 10),
+  };
 }
 
 /**

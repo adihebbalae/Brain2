@@ -9,6 +9,7 @@ import { DeadlinesPage } from './pages/DeadlinesPage'
 import { KnowledgePage } from './pages/KnowledgePage'
 import { LearningPage } from './pages/LearningPage'
 import { FocusMode } from './pages/FocusMode'
+import { KanbanBoard } from './pages/KanbanBoard'
 import { useProjects } from './hooks/useProjects'
 import { useTodos } from './hooks/useTodos'
 import { useState, useEffect } from 'react'
@@ -85,6 +86,7 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
+          <Route path="/kanban" element={<KanbanBoard />} />
           <Route path="/learning" element={<LearningPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
         </Routes>

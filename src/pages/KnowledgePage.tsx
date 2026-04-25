@@ -4,12 +4,14 @@ import { WikiPanel } from '../components/WikiPanel'
 import { KnowledgeGraph } from '../components/KnowledgeGraph'
 import { CanvasPanel } from '../components/CanvasPanel'
 import { ChatExplorer } from '../components/ChatExplorer'
+import { ImportsPanel } from '../components/ImportsPanel'
 import { useProjects } from '../hooks/useProjects'
 
-type KnowledgeTab = 'wiki' | 'graph' | 'canvases' | 'chats'
+type KnowledgeTab = 'wiki' | 'imports' | 'graph' | 'canvases' | 'chats'
 
 const TABS: { id: KnowledgeTab; label: string }[] = [
   { id: 'wiki', label: 'Wiki' },
+  { id: 'imports', label: 'Imports' },
   { id: 'graph', label: 'Knowledge Graph' },
   { id: 'canvases', label: 'Canvases' },
   { id: 'chats', label: 'Chat Exports' },
@@ -17,6 +19,7 @@ const TABS: { id: KnowledgeTab; label: string }[] = [
 
 export function KnowledgePage() {
   const [activeTab, setActiveTab] = useState<KnowledgeTab>('wiki')
+  const [wikiRefreshKey, setWikiRefreshKey] = useState(0)
   const { projects } = useProjects()
   const projectNames = projects.map(p => p.name)
 
@@ -42,7 +45,12 @@ export function KnowledgePage() {
       {/* Tab content */}
       {activeTab === 'wiki' && (
         <ErrorBoundary fallbackMessage="Error loading wiki">
-          <WikiPanel />
+          <WikiPanel key={wikiRefreshKey} />
+        </ErrorBoundary>
+      )}
+      {activeTab === 'imports' && (
+        <ErrorBoundary fallbackMessage="Error loading imports">
+          <ImportsPanel onWikiUpdated={() => setWikiRefreshKey(current => current + 1)} />
         </ErrorBoundary>
       )}
       {activeTab === 'graph' && (

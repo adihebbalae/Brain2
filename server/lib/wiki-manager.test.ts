@@ -140,7 +140,28 @@ describe('wiki-manager', () => {
 
       expect(result.pagesCreated).toEqual([]);
       expect(result.pagesUpdated).toEqual([]);
-      expect(result.error).toContain('must be inside a configured vault');
+      expect(result.error).toContain('must be inside a configured vault or projects directory');
+    });
+
+    it('should allow source paths inside PROJECTS_DIR', async () => {
+      const originalProjectsDir = process.env.PROJECTS_DIR;
+      try {
+        process.env.PROJECTS_DIR = testDir;
+        vi.mocked(isPathInVault).mockResolvedValue(false);
+
+        await fs.writeFile(sourceFile, '# Test Source\n\nSome content.', 'utf-8');
+        vi.mocked(getOllamaStatus).mockResolvedValue({
+          available: false,
+          model: 'llama3.1:8b',
+          url: 'http://localhost:11434',
+        });
+
+        const result = await ingestSource(sourceFile, wikiDir);
+
+        expect(result.error).toBe('Ollama unavailable');
+      } finally {
+        process.env.PROJECTS_DIR = originalProjectsDir;
+      }
     });
 
     it('should return error when Ollama is unavailable', async () => {
@@ -469,6 +490,18 @@ More text here.
       expect(pages).toHaveLength(2);
       expect(pages[0].name).toBe('React');
       expect(pages[1].name).toBe('TypeScript');
+    });
+
+    it('should parse index entries written with the normalized separator', async () => {
+      await fs.mkdir(wikiDir, { recursive: true });
+      const indexPath = path.join(wikiDir, 'index.md');
+      await fs.writeFile(indexPath, '# Wiki Index\n\n- [[React]] -- JavaScript library for UI. (sources: 2)\n', 'utf-8');
+
+      const pages = await readIndex(wikiDir);
+
+      expect(pages).toHaveLength(1);
+      expect(pages[0].name).toBe('React');
+      expect(pages[0].summary).toBe('JavaScript library for UI.');
     });
   });
 

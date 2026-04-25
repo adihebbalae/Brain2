@@ -5,7 +5,7 @@
   "private": true,
   "main": "dist-electron/main.cjs",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail false \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ollama\"",
+    "dev": "node scripts/dev-runner.cjs",
     "dev:frontend": "vite",
     "dev:backend": "tsx watch server/index.ts",
     "dev:ollama": "node scripts/start-ollama.cjs",
@@ -17,7 +17,7 @@
     "mcp:dev": "tsx server/mcp-server.ts",
     "mcp:build": "tsc --project tsconfig.node.json --outDir dist-mcp server/mcp-server.ts server/lib/mcp-tools.ts",
     "electron:compile": "esbuild electron/main.ts --bundle --platform=node --outfile=dist-electron/main.cjs --external:electron && esbuild electron/preload.ts --bundle --platform=node --outfile=dist-electron/preload.cjs --external:electron",
-    "electron:dev": "npm run electron:compile && concurrently --kill-others-on-fail false \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ollama\" \"cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "npm run electron:compile && node scripts/dev-runner.cjs --electron",
     "electron:build": "npm run build && node scripts/bundle-server.mjs && npm run electron:compile && electron-builder"
   },
   "dependencies": {
@@ -50,7 +50,6 @@
     "@types/supertest": "^7.2.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
-    "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
     "electron": "^41.2.2",
     "electron-builder": "^26.8.1",
