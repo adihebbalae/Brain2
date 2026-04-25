@@ -5,11 +5,13 @@ import { CommandPalette } from './components/CommandPalette'
 import { NavBar } from './components/NavBar'
 import { HomePage } from './pages/HomePage'
 import { ProjectsPage } from './pages/ProjectsPage'
+import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { DeadlinesPage } from './pages/DeadlinesPage'
 import { KnowledgePage } from './pages/KnowledgePage'
 import { LearningPage } from './pages/LearningPage'
 import { FocusMode } from './pages/FocusMode'
 import { KanbanBoard } from './pages/KanbanBoard'
+import { ProjectNavigationProvider } from './contexts/ProjectNavigationContext'
 import { useProjects } from './hooks/useProjects'
 import { useTodos } from './hooks/useTodos'
 import { useState, useEffect } from 'react'
@@ -85,6 +87,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:slug" element={<ProjectDetailPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
           <Route path="/kanban" element={<KanbanBoard />} />
           <Route path="/learning" element={<LearningPage />} />
@@ -104,7 +107,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ProjectNavigationProvider>
+        <AppContent />
+      </ProjectNavigationProvider>
     </BrowserRouter>
   )
 }

@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjects } from '../hooks/useProjects'
 import { Project } from '../types'
-import { ProjectDetailView } from '../components/ProjectDetailView'
 
 function getStatusBadgeClasses(status: Project['status']): string {
   switch (status) {
@@ -33,8 +33,8 @@ function getRelativeTime(dateString: string): string {
 type Filter = 'all' | 'active' | 'stale' | 'archived'
 
 export function ProjectsPage() {
+  const navigate = useNavigate()
   const { projects, loading, error, refetch } = useProjects()
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
 
@@ -129,7 +129,7 @@ export function ProjectsPage() {
           {filtered.map(project => (
             <button
               key={project.path}
-              onClick={() => setSelectedProject(project)}
+              onClick={() => navigate(`/projects/${encodeURIComponent(project.name)}`)}
               className={`text-left bg-white rounded-xl border-2 ${getBorderClass(project.staleDays)} p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500`}
             >
               <div className="flex items-start justify-between gap-2 mb-2">
@@ -156,14 +156,6 @@ export function ProjectsPage() {
             </button>
           ))}
         </div>
-      )}
-
-      {/* Project detail slide-in */}
-      {selectedProject && (
-        <ProjectDetailView
-          project={selectedProject}
-          onClose={() => setSelectedProject(null)}
-        />
       )}
     </div>
   )

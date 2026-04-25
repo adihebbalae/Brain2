@@ -139,4 +139,68 @@ router.get('/:slug/weekly-summary', async (req, res) => {
   }
 })
 
+router.post('/:slug/context-dump', async (req, res) => {
+  try {
+    const projectsDir = process.env.PROJECTS_DIR
+    if (!projectsDir) {
+      return res.status(500).json({ error: 'PROJECTS_DIR not configured' })
+    }
+
+    const { slug } = req.params
+    const { doing, blocking, next } = req.body
+
+    // Validate required fields
+    if (!doing || !blocking || !next) {
+      return res.status(400).json({ error: 'Missing required fields: doing, blocking, next' })
+    }
+
+    // Path traversal protection: validate slug contains no path separators or parent refs
+    if (slug.includes('/') || slug.includes('\\') || slug.includes('..')) {
+      return res.status(400).json({ error: 'Invalid project slug' })
+    }
+
+    // Resolve project directory
+    const resolvedProjectsDir = path.resolve(projectsDir)
+    const projectPath = path.join(resolvedProjectsDir, slug)
+
+    // Ensure the resolved path is inside PROJECTS_DIR
+    if (!projectPath.startsWith(resolvedProjectsDir + path.sep)) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Check if project directory exists
+    try {
+      const stats = await fs.stat(projectPath)
+      if (!stats.isDirectory()) {
+        return res.status(404).json({ error: 'Project not found' })
+      }
+    } catch {
+      return res.status(404).json({ error: 'Project not found' })
+    }
+
+    // Format context dump entry
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 16)
+    const entry = `## Context Dump — ${timestamp}
+**What I was doing**: ${doing}
+**What's blocking**: ${blocking}
+**What's next**: ${next}
+---
+
+`
+
+    // Append to .cortex-context.md
+    const contextPath = path.join(projectPath, '.cortex-context.md')
+    await fs.appendFile(contextPath, entry, 'utf-8')
+
+    return res.json({
+      success: true,
+      savedTo: contextPath
+    })
+
+  } catch (err) {
+    console.error('Failed to save context dump:', err)
+    return res.status(500).json({ error: 'Failed to save context dump' })
+  }
+})
+
 export { router as projectsRouter }
