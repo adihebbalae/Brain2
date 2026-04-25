@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, Tray, Menu, shell, nativeImage, session } from 'electron';
+﻿import { app, BrowserWindow, Tray, Menu, shell, nativeImage, session, globalShortcut, screen, ipcMain } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import * as net from 'net';
 
 let mainWindow: BrowserWindow | null = null;
+let overlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let backendProcess: ChildProcess | null = null;
 let ollamaProcess: ChildProcess | null = null;
@@ -119,6 +120,50 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+function createOverlayWindow() {
+  overlayWindow = new BrowserWindow({
+    width: 500,
+    height: 80,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    show: false,
+    transparent: false,
+    backgroundColor: '#1f2937',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  overlayWindow.loadFile(path.join(__dirname, 'overlay.html'));
+
+  // Hide overlay when it loses focus
+  overlayWindow.on('blur', () => {
+    overlayWindow?.hide();
+  });
+
+  overlayWindow.on('closed', () => {
+    overlayWindow = null;
+  });
+}
+
+// Handle overlay hide from renderer
+ipcMain.on('hide-overlay', () => {
+  if (overlayWindow) {
+    overlayWindow.hide();
+    // Reset input for next show
+    overlayWindow.webContents.executeJavaScript(`
+      document.getElementById('input').value = '';
+      document.getElementById('input').style.display = 'block';
+      document.getElementById('input').style.borderColor = '#4b5563';
+      document.getElementById('check').style.display = 'none';
+    `);
+  }
+});
 
 if (hasSingleInstanceLock) {
   app.on('second-instance', () => {
@@ -241,6 +286,28 @@ app.on('ready', async () => {
     
     createWindow();
     createTray();
+    createOverlayWindow();
+
+    // Register global shortcut for overlay
+    const shortcut = process.env.GLOBAL_SHORTCUT || 'Ctrl+Shift+Space';
+    const registered = globalShortcut.register(shortcut, () => {
+      if (overlayWindow) {
+        const display = screen.getPrimaryDisplay();
+        const { x, y, width } = display.workAreaSize;
+        overlayWindow.setPosition(
+          Math.round((width - 500) / 2),
+          Math.round(y + 200)  // 200px from top
+        );
+        overlayWindow.show();
+        overlayWindow.focus();
+      }
+    });
+
+    if (!registered) {
+      console.error(`Failed to register global shortcut: ${shortcut}`);
+    } else {
+      console.log(`Global shortcut registered: ${shortcut}`);
+    }
   } catch (error) {
     console.error('Failed to start app:', error);
     app.quit();
@@ -265,6 +332,9 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
+  // Unregister global shortcuts
+  globalShortcut.unregisterAll();
+
   // Kill child processes
   if (backendProcess) {
     backendProcess.kill();
