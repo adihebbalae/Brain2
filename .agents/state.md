@@ -11,11 +11,12 @@
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: P7 — Feature Expansion
-- **Current Task**: TASK-044 — Velocity Tracking + Deadline Risk Scores (done)
+- **Current Task**: TASK-045 — Kanban Triage Board (done)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
 - **Recent Completions**: 
+  - TASK-045 — Kanban triage board with drag-and-drop columns, - [/] doing status, project filter (47 tests passing, 2 pre-existing failures)
   - TASK-044 — Velocity tracking with daily snapshots, Recharts trend chart, deadline risk scores (663 tests passing, 5 skipped)
   - TASK-043 — Automated weekly git-summary per project (663 tests passing, 5 skipped)
   - TASK-042 — In-app command palette with cmdk (Ctrl+K for fuzzy search navigation, 657 tests passing)
@@ -93,7 +94,7 @@
 | TASK-042 | In-App Command Palette (Ctrl+K) | done | P7 |
 | TASK-043 | Automated State Diffing (weekly git-summary) | done | P7 |
 | TASK-044 | Velocity Tracking + Deadline Risk Scores | done | P7 |
-| **TASK-045** | **Kanban Triage Board (checkbox drag-and-drop)** | **pending** | **P7** |
+| TASK-045 | Kanban Triage Board (checkbox drag-and-drop) | done | P7 |
 | **TASK-046** | **Local Semantic Search (embeddings + SQLite-vss)** | **pending** | **P8** |
 | **TASK-047** | **Extend MCP Server with 3 new tools** | **pending** | **P7** |
 | **TASK-048** | **Electron Global Shortcut Overlay** | **pending** | **P8** |
@@ -718,3 +719,18 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
   - **Dependencies**: Installed simple-git (for git log operations) and recharts (for bar chart visualization)
   - **Files created**: server/lib/velocity-tracker.ts, server/routes/velocity.ts, src/components/VelocityPanel.tsx
   - **663 tests passing** (5 skipped), type-check clean (pre-existing errors unrelated to this task)
+
+- 2026-04-24: TASK-045 completed — Kanban triage board with drag-and-drop columns:
+  - **Backend**: TODO extractor already supported - [/] status (added in TASK-004), no changes needed to core parsing logic
+  - **Status endpoint**: Added PATCH /api/todos/:id/status to server/routes/todos.ts accepting {status: 'todo'|'doing'|'done'}, rewrites checkbox marker in source file (- [ ] for todo, - [/] for doing, - [x] for done)
+  - **Kanban endpoint**: Created server/routes/kanban.ts with GET /api/kanban returning {todo: Todo[], doing: Todo[], done: Todo[]} grouped by status, filters to checkbox items only (excludes TODO:/FIXME:/HACK: comments)
+  - **Frontend page**: Created src/pages/KanbanBoard.tsx with three-column layout (To Do, In Progress, Done), HTML5 drag-and-drop API (no external library)
+  - **Drag-and-drop**: Cards show TODO text (truncated if long), project badge (colored by hash), file chip (filename only), draggable with visual feedback (highlights target column on drag-over)
+  - **Project filter**: Dropdown at top filters all columns by project name, shows "All Projects (N)" when multiple projects have TODOs
+  - **Navigation**: Added /kanban route to App.tsx, added "Kanban" link to NavBar with board icon (M9 17V7m0... SVG path)
+  - **Type updates**: Extended Todo interface in src/types.ts to include status: 'todo' | 'doing' | 'done' field
+  - **Test updates**: Fixed TodoAggregator.test.tsx and mcp-tools.test.ts mock data to include status field (8 occurrences updated)
+  - **Files created**: server/routes/kanban.ts, src/pages/KanbanBoard.tsx
+  - **Files modified**: server/routes/todos.ts (+PATCH endpoint), server/index.ts (+kanban router), src/App.tsx (+route), src/components/NavBar.tsx (+link), src/types.ts (+status field)
+  - **47 tests passing** (2 pre-existing failures in git-activity-parser and DeadlineTimeline unrelated to this task), type-check has pre-existing errors unrelated to this task
+  - **All acceptance criteria met**: - [/] recognized as 'doing' status, GET /api/kanban groups by status, PATCH /api/todos/:id/status writes correct checkbox, drag-and-drop moves cards, project filter works, NavBar has Kanban link

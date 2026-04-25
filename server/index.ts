@@ -23,12 +23,14 @@ import { weeklyRouter, autoTriggerWeeklyReview } from './routes/weekly.js'
 import chatQueryRouter from './routes/chat-query.js'
 import { configRouter } from './routes/config.js'
 import { velocityRouter } from './routes/velocity.js'
+import { searchRouter } from './routes/search.js'
 import { startNotificationService } from './lib/notification-service.js'
 import { startRagIndexBackgroundRefresh } from './lib/rag-cache.js'
 import { syncNewNotes } from './lib/review-log.js'
 import { getPrimaryVaultDir } from './lib/vault-config.js'
 import { initWikiImportQueue } from './lib/wiki-import-queue.js'
 import { recordDailySnapshot } from './lib/velocity-tracker.js'
+import { initializeIndex } from './lib/embedding-index.js'
 
 config()
 
@@ -88,6 +90,7 @@ app.use('/api', weeklyRouter)
 app.use('/api/chat', chatQueryRouter)
 app.use('/api/config', configRouter)
 app.use('/api/velocity', velocityRouter)
+app.use('/api/search', searchRouter)
 
 // SPA fallback - serve index.html for non-API routes in production
 if (process.env.SERVE_STATIC === 'true') {
@@ -106,6 +109,11 @@ app.listen(PORT, () => {
 startRagIndexBackgroundRefresh()
 initWikiImportQueue().catch(err => {
   console.error('[startup] Failed to initialize wiki import queue:', err)
+})
+
+// Initialize embedding index (non-blocking, async)
+initializeIndex().catch(err => {
+  console.warn('[startup] Embedding index init failed:', err)
 })
 
 // Start notification service (after routes)

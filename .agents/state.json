@@ -860,7 +860,7 @@
                   "TASK-045":  {
                                    "title":  "Kanban Triage Board (checkbox ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ drag-and-drop columns)",
                                    "assigned_to":  "engineer",
-                                   "status":  "in_progress",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "priority":  "P7",
                                    "depends_on":  [
@@ -884,7 +884,7 @@
                   "TASK-046":  {
                                    "title":  "Local Semantic Search (nomic-embed-text + SQLite-vss)",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "in_progress",
                                    "model":  "sonnet",
                                    "priority":  "P8",
                                    "depends_on":  [
@@ -1158,11 +1158,11 @@
                                         "TASK-049"
                                     ]
                  },
-    "last_updated":  "2026-04-24T20:02:36.2630376-05:00",
+    "last_updated":  "2026-04-24T20:11:26.8234685-05:00",
     "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-045",
-                         "title":  "Kanban Triage Board (checkbox ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ drag-and-drop columns)",
+                         "id":  "TASK-046",
+                         "title":  "Local Semantic Search (nomic-embed-text + SQLite-vss)",
                          "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }

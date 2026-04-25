@@ -15,6 +15,7 @@ export function BrainChat({ onClose }: BrainChatProps) {
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchMode, setSearchMode] = useState<'semantic' | 'keyword'>('semantic')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -55,7 +56,8 @@ export function BrainChat({ onClose }: BrainChatProps) {
         },
         body: JSON.stringify({
           message: trimmedInput,
-          history
+          history,
+          mode: searchMode
         })
       })
 
@@ -180,7 +182,36 @@ export function BrainChat({ onClose }: BrainChatProps) {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Ask Cortex</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-gray-900">Ask Cortex</h2>
+
+            {/* Search mode toggle */}
+            <div className="flex items-center gap-1 text-sm">
+              <button
+                onClick={() => setSearchMode('semantic')}
+                className={`px-3 py-1 rounded-md transition-colors ${
+                  searchMode === 'semantic'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={isStreaming}
+              >
+                Semantic
+              </button>
+              <button
+                onClick={() => setSearchMode('keyword')}
+                className={`px-3 py-1 rounded-md transition-colors ${
+                  searchMode === 'keyword'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={isStreaming}
+              >
+                Keyword
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             {messages.length > 0 && (
               <button

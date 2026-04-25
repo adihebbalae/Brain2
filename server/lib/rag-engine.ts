@@ -334,3 +334,41 @@ export function getUniqueSources(chunks: Chunk[]): string[] {
   const sources = new Set(chunks.map(c => c.source))
   return Array.from(sources)
 }
+
+/**
+ * Smart search: tries semantic search first, falls back to keyword search
+ * Returns chunks sorted by relevance
+ */
+export async function smartSearch(query: string, topN: number = 20): Promise<Chunk[]> {
+  // Try importing semantic search (dynamic import to avoid circular dependency)
+  try {
+    const { searchSemantic, getIndexStatus } = await import('./embedding-index.js')
+
+    // Check if embeddings are available
+    const status = getIndexStatus()
+    if (status.totalChunks > 0) {
+      const results = await searchSemantic(query, topN)
+
+      if (results.length > 0) {
+        // Convert semantic results to chunks
+        return results.map((result, idx) => ({
+          id: `semantic:${idx}`,
+          source: 'notes', // Default source, actual source determined from path
+          title: result.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || 'Unknown',
+          content: result.content,
+          metadata: {
+            path: result.filePath,
+            score: String(result.score)
+          }
+        }))
+      }
+    }
+  } catch (err) {
+    // Semantic search not available or failed, fall back to keyword
+    console.log('[rag] Semantic search unavailable, using keyword search')
+  }
+
+  // Fallback to keyword search
+  const index = await buildIndex()
+  return scoreChunks(query, index, topN)
+}

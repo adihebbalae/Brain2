@@ -56,6 +56,7 @@ out/
 
 # Application data (tokens, state files)
 data/
+data/cortex-embeddings.db
 
 # Vault content — personal notes must never be committed to this public repo
 zzVault/

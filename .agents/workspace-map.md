@@ -7,6 +7,10 @@
 
 ## Recent Additions
 
+- `server/lib/embedding-index.ts` — Local semantic search using nomic-embed-text via Ollama, SQLite with JSON-stored embeddings, pure JS cosine similarity (TASK-046)
+- `server/lib/embedding-index.test.ts` — Tests for chunking logic, cosine similarity, and embeddings (TASK-046)
+- `server/routes/search.ts` — Unified search endpoint with semantic/keyword modes and automatic fallback (TASK-046)
+
 - `server/lib/wiki-imports.test.ts` â€” normalization regression coverage for Claude structured-message exports and Calendar ICS imports
 
 - `server/lib/wiki-import-queue.ts` â€” persisted single-worker background queue for wiki import scan/normalize/ingest jobs
@@ -109,7 +113,8 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     ├── mcp-server.ts                # ✓ Standalone MCP server for Claude Desktop (TASK-030)
     ├── routes/
     │   ├── projects.ts              # ✓ GET /api/projects, POST /api/projects/:slug/auto-summary, GET /api/projects/:slug/weekly-summary (TASK-003, TASK-043)
-    │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id (TASK-004)
+    │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id, PATCH /api/todos/:id/status (TASK-004, TASK-045)
+    │   ├── kanban.ts                # ✓ GET /api/kanban — groups todos by status (todo/doing/done) (TASK-045)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines with riskScore field (TASK-005, TASK-044)
     │   ├── velocity.ts              # ✓ GET /api/velocity with snapshots and trend data (TASK-044)
     │   ├── capture.ts               # ✓ POST /api/capture, GET /api/capture/corpus (TASK-006)

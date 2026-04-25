@@ -3,9 +3,8 @@
  */
 
 import express from 'express'
-import { scoreChunks, assembleContext, getUniqueSources } from '../lib/rag-engine.js'
+import { smartSearch, assembleContext, getUniqueSources } from '../lib/rag-engine.js'
 import { getOllamaStatus } from '../lib/ollama-client.js'
-import { getRagIndex } from '../lib/rag-cache.js'
 
 const router = express.Router()
 
@@ -21,6 +20,7 @@ interface ChatMessage {
 interface ChatQueryBody {
   message: string
   history?: ChatMessage[]
+  mode?: 'semantic' | 'keyword'
 }
 
 /**
@@ -29,7 +29,7 @@ interface ChatQueryBody {
  * Returns: SSE stream with Ollama response
  */
 router.post('/query', async (req, res) => {
-  const { message, history = [] } = req.body as ChatQueryBody
+  const { message, history = [], mode = 'semantic' } = req.body as ChatQueryBody
 
   // Validate input
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -45,9 +45,17 @@ router.post('/query', async (req, res) => {
   }
 
   try {
-    // Build index and assemble context
-    const index = await getRagIndex()
-    const topChunks = scoreChunks(message, index, 20)
+    // Use smart search (semantic + keyword fallback) or force keyword mode
+    let topChunks
+    if (mode === 'keyword') {
+      // Force keyword mode
+      const { buildIndex, scoreChunks } = await import('../lib/rag-engine.js')
+      const index = await buildIndex()
+      topChunks = scoreChunks(message, index, 20)
+    } else {
+      // Semantic mode with automatic fallback
+      topChunks = await smartSearch(message, 20)
+    }
     const context = assembleContext(topChunks, 6000)
     const sources = getUniqueSources(topChunks)
 
