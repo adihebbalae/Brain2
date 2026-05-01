@@ -2,6 +2,8 @@
 
 > Auto-updated by agents. Human-readable view of `.agents/state.json`.
 
+> Latest local update (2026-04-24): TASK-049 — Context Switch Protocol (cognitive disengagement) for project navigation. Created ContextSwitchModal with three-field brain dump (doing/blocking/next), POST /api/projects/:slug/context-dump backend route, ProjectNavigationContext tracking, and /projects/:slug routing. Modal triggers only when navigating between different projects, skip preference persisted in localStorage (722 tests passing, 4 pre-existing failures).
+
 > Latest local update (2026-04-24): TASK-048 — Electron global shortcut overlay (Ctrl+Shift+Space) summons frameless always-on-top capture window from any app. Created electron/overlay.html, updated main.ts with globalShortcut registration, updated preload.ts with contextBridge hideOverlay API. Submits to POST /api/capture, shows checkmark, auto-hides on success/blur/Escape.
 
 > Latest local update (2026-04-24): TASK-047 — Extended MCP server with 3 new tools: run_wiki_lint (wiki health check), generate_weekly_review (Ollama-based review), get_project_detail (project info + todos + AI summary). 11 tools total, comprehensive tests (33/33 passing).
@@ -14,14 +16,19 @@
 
 > Latest local update (2026-04-24): DEVFIX â€” Wiki Builder V2 import catalog with persisted scan/normalize/ingest jobs, mirrored `data/imports/`, Imports tab UI, and YouTube Takeout HTML auto-detect.
 
+> Latest local update (2026-04-24): DEVFIX - wiki imports now skip unchanged sources unless forced, current datasets are muted in the Imports UI with explicit rerun actions, and the Wiki tab can now read pages in-app and synthesize `Self / Overview`, `Self / Timeline`, and `Self / Autobiography`.
+
 ## Status
 - **Project**: Cortex — Local-only personal command center dashboard
 - **Phase**: P7 — Feature Expansion
-- **Current Task**: TASK-046 — Local Semantic Search (done)
+- **Current Task**: TASK-049 — Context Switch Protocol (done)
 - **Blocked On**: None
 - **Security**: Needs rescan before push (last scan 2026-04-06)
 - **Latest Planning**: 2026-04-23 — Evaluated 18 proposed features, accepted 6, merged 4 into accepted, scaffolded 8 new tasks
 - **Recent Completions**: 
+  - TASK-049 — Context Switch Protocol (cognitive disengagement) with brain dump modal (2026-04-24)
+  - TASK-048 — Electron global shortcut overlay (Ctrl+Shift+Space) (2026-04-24)
+  - TASK-047 — Extended MCP server with 3 new tools (2026-04-24)
   - TASK-046 — Local semantic search with nomic-embed-text embeddings via Ollama, SQLite with JSON-stored embeddings, pure JS cosine similarity, semantic/keyword mode toggle in BrainChat (698 tests passing, 2 pre-existing failures)
   - TASK-045 — Kanban triage board with drag-and-drop columns, - [/] doing status, project filter (47 tests passing, 2 pre-existing failures)
   - TASK-044 — Velocity tracking with daily snapshots, Recharts trend chart, deadline risk scores (663 tests passing, 5 skipped)
@@ -214,6 +221,20 @@ TASK-023 (Full RAG) → depends on TASK-016 (done)
 - **Dependency chain**: TASK-015 → TASK-016 → TASK-017 → TASK-018 | TASK-014 → TASK-019 (parallel)
 
 ## Changelog
+- 2026-04-24: TASK-049 completed — Implemented Context Switch Protocol (cognitive disengagement) for project navigation:
+  - **Backend route**: Created POST /api/projects/:slug/context-dump that appends timestamped brain dumps to .cortex-context.md in project directory
+  - **Path traversal protection**: Validates slug contains no path separators or parent refs, resolves and validates path is inside PROJECTS_DIR
+  - **ContextSwitchModal component**: Full-screen modal with three text areas (What were you doing?, What's blocking?, What's next?), gradient header, auto-focus on first field, Submit/Skip buttons
+  - **Skip preference**: "Always skip brain dumps" checkbox persists to localStorage key `cortex-skip-context-switch`
+  - **ProjectNavigationContext**: React Context provider tracks project navigation, detects /projects/:slug route changes, shows modal only when switching between different projects
+  - **Routing changes**: Created ProjectDetailPage at /projects/:slug, updated ProjectsPage to navigate to /projects/:slug instead of modal, wrapped app in ProjectNavigationProvider
+  - **Trigger conditions**: Modal ONLY appears when navigating from /projects/:slugA to /projects/:slugB (different slugs), does NOT trigger for non-project navigation or same-project navigation
+  - **Files created**: src/components/ContextSwitchModal.tsx, src/components/ContextSwitchModal.test.tsx (8 tests), src/contexts/ProjectNavigationContext.tsx, src/pages/ProjectDetailPage.tsx
+  - **Files modified**: server/routes/projects.ts (+context-dump route), src/App.tsx (+route, +context provider), src/pages/ProjectsPage.tsx (-modal, +navigation)
+  - **Tests**: 8 new tests covering modal rendering, text area population, Submit/Skip buttons, localStorage persistence, trimming behavior
+  - **722 total tests passing** (714 existing + 8 new), 4 pre-existing failures unrelated to this task
+  - **Type-check**: Pre-existing errors in git-summary-generator.test.ts and mcp-tools.test.ts, no new errors introduced
+  - **All acceptance criteria met**: Modal triggers correctly, three text areas, POST endpoint with path protection, Skip preference, localStorage toggle, no trigger for non-project navigation
 - 2026-04-24: TASK-046 completed — Implemented local semantic search with nomic-embed-text embeddings:
   - **Core module**: Created server/lib/embedding-index.ts with initializeIndex(), searchSemantic(), getIndexStatus()
   - **Database**: SQLite (better-sqlite3) with JSON-stored embeddings in data/cortex-embeddings.db (gitignored)

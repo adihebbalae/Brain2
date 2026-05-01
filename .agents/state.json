@@ -1010,7 +1010,7 @@
                   "TASK-049":  {
                                    "title":  "Context Switch Protocol (cognitive disengagement)",
                                    "assigned_to":  "engineer",
-                                   "status":  "pending",
+                                   "status":  "done",
                                    "model":  "sonnet",
                                    "priority":  "P7",
                                    "depends_on":  [
@@ -1029,7 +1029,8 @@
                                                                "Integrates with Focus Mode (TASK-041) exit if switching projects",
                                                                "Path traversal protection on :slug parameter",
                                                                "Tests for modal rendering, capture submission, and skip logic"
-                                                           ]
+                                                           ],
+                                   "completed_at":  "2026-04-24"
                                }
               },
     "active_task":  null,
@@ -1072,6 +1073,12 @@
                       }
                   ],
     "changelog":  [
+                      {
+                          "date":  "2026-04-24",
+                          "task":  "DEVFIX",
+                          "description":  "Made wiki imports idempotent with snapshot-aware skip/force behavior, added explicit rerun UX for current datasets, and added in-app wiki reading plus canonical self-overview/self-timeline/self-autobiography synthesis pages",
+                          "agent":  "codex"
+                      },
                       {
                           "date":  "2026-04-24",
                           "task":  "DEVFIX",
@@ -1158,12 +1165,12 @@
                                         "TASK-049"
                                     ]
                  },
-    "last_updated":  "2026-04-24T20:33:00.000000-05:00",
-    "last_updated_by":  "engineer",
+    "last_updated":  "2026-04-24T20:36:23.2195650-05:00",
+    "last_updated_by":  "auto-run",
     "current_task":  {
-                         "id":  "TASK-048",
-                         "title":  "Electron Global Shortcut Overlay (Ctrl+Shift+Space)",
-                         "status":  "done",
+                         "id":  "TASK-049",
+                         "title":  "Context Switch Protocol (cognitive disengagement)",
+                         "status":  "in_progress",
                          "assigned_to":  "engineer"
                      }
 }

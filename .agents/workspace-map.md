@@ -1,11 +1,21 @@
 # Workspace Map
 
-> Recent addition: `electron/overlay.html` — Minimal standalone global shortcut overlay for quick capture (Ctrl+Shift+Space), dark theme with auto-focused input, submits to POST /api/capture (TASK-048).
+> Recent addition: Context Switch Protocol (TASK-049) — ContextSwitchModal with three-field brain dump (doing/blocking/next), ProjectNavigationContext tracks /projects/:slug navigation, POST /api/projects/:slug/context-dump saves to .cortex-context.md.
 
 > Updated by agents whenever files are created, moved, or deleted.
 > Agents read this to orient themselves instead of scanning the entire codebase.
 
 ## Recent Additions
+
+- `src/components/ContextSwitchModal.tsx` — Full-screen modal for cognitive disengagement brain dumps when switching projects (TASK-049)
+- `src/components/ContextSwitchModal.test.tsx` — 8 tests for modal rendering, submission, skip, and localStorage (TASK-049)
+- `src/contexts/ProjectNavigationContext.tsx` — React Context tracking /projects/:slug navigation and triggering modal (TASK-049)
+- `src/pages/ProjectDetailPage.tsx` — Routed project detail page at /projects/:slug (TASK-049)
+- `server/routes/projects.ts` — Updated with POST /api/projects/:slug/context-dump endpoint (TASK-049)
+
+- `server/lib/wiki-synthesizer.ts` - canonical `self-overview`, `self-timeline`, and `self-autobiography` synthesis over imported wiki pages
+- `server/lib/wiki-synthesizer.test.ts` - synthesis coverage for overview/timeline/autobiography page creation
+- `src/components/WikiPanel.tsx` - in-app wiki reader with backlinks/outgoing links and profile synthesis trigger
 
 - `electron/overlay.html` — Minimal standalone HTML for global shortcut overlay (Ctrl+Shift+Space quick capture, TASK-048)
 - `electron/main.ts` — Updated with globalShortcut registration, createOverlayWindow(), and IPC handler (TASK-048)
@@ -71,6 +81,18 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │   ├── main.tsx                     # React entry point
 │   ├── index.css                    # ✓ Tailwind imports + CSS animations (TASK-008)
 │   ├── types.ts                     # ✓ Shared TypeScript interfaces: Project, Todo, Deadline (TASK-007, TASK-008, TASK-009)
+│   ├── contexts/
+│   │   └── ProjectNavigationContext.tsx  # ✓ React Context tracking /projects/:slug navigation, triggers ContextSwitchModal (TASK-049)
+│   ├── pages/
+│   │   ├── HomePage.tsx             # ✓ Dashboard homepage with project grid, activity panels (TASK-032)
+│   │   ├── ProjectsPage.tsx         # ✓ Projects listing page with filter and search (TASK-032)
+│   │   ├── ProjectDetailPage.tsx    # ✓ Project detail page at /projects/:slug (TASK-049)
+│   │   ├── DeadlinesPage.tsx        # ✓ Deadlines page with write-back (TASK-032)
+│   │   ├── KnowledgePage.tsx        # ✓ Knowledge page with wiki, reading, canvases (TASK-032)
+│   │   ├── LearningPage.tsx         # ✓ Learning page (TASK-032)
+│   │   ├── FocusMode.tsx            # ✓ Focus mode with Pomodoro timer (TASK-041)
+│   │   ├── FocusMode.test.tsx       # ✓ FocusMode tests (TASK-041)
+│   │   └── KanbanBoard.tsx          # ✓ Kanban board with drag-and-drop (TASK-045)
 │   ├── hooks/
 │   │   ├── useProjects.ts           # ✓ Data fetching hook for projects (TASK-007)
 │   │   ├── useProjects.test.ts      # ✓ Shared-store dedupe tests for the projects hook
@@ -98,6 +120,9 @@ Brain2/                              ← THIS REPO = Cortex dashboard
 │       ├── QuickCapture.test.tsx    # ✓ QuickCapture tests (TASK-010)
 │       ├── CommandPalette.tsx       # ✓ Command palette with cmdk: Ctrl+K fuzzy search for navigation, projects, actions (TASK-042)
 │       ├── CommandPalette.css       # ✓ Command palette dark theme styles (TASK-042)
+│       ├── ContextSwitchModal.tsx   # ✓ Brain dump modal for context switching between projects (TASK-049)
+│       ├── ContextSwitchModal.test.tsx # ✓ ContextSwitchModal tests (8 tests, TASK-049)
+│       ├── ProjectDetailView.tsx    # ✓ Project detail slide-in panel with notes, capture, weekly summary (TASK-032, TASK-043)
 │       ├── ErrorBoundary.tsx        # ✓ React error boundary for graceful error handling (TASK-011)
 │       ├── ChatExplorer.tsx         # ✓ Chat export viewer with inline message expansion and tagging (TASK-014)
 │       ├── WikiPanel.tsx            # ✓ Wiki panel with query/lint/ingest/gaps UI (TASK-017)
@@ -116,7 +141,7 @@ Brain2/                              ← THIS REPO = Cortex dashboard
     ├── integration.test.ts          # ✓ End-to-end integration tests (26 tests, TASK-011)
     ├── mcp-server.ts                # ✓ Standalone MCP server for Claude Desktop (TASK-030)
     ├── routes/
-    │   ├── projects.ts              # ✓ GET /api/projects, POST /api/projects/:slug/auto-summary, GET /api/projects/:slug/weekly-summary (TASK-003, TASK-043)
+    │   ├── projects.ts              # ✓ GET /api/projects, POST /api/projects/:slug/auto-summary, GET /api/projects/:slug/weekly-summary, POST /api/projects/:slug/context-dump (TASK-003, TASK-043, TASK-049)
     │   ├── todos.ts                 # ✓ GET /api/todos, PATCH /api/todos/:id, PATCH /api/todos/:id/status (TASK-004, TASK-045)
     │   ├── kanban.ts                # ✓ GET /api/kanban — groups todos by status (todo/doing/done) (TASK-045)
     │   ├── deadlines.ts             # ✓ GET /api/deadlines with riskScore field (TASK-005, TASK-044)
